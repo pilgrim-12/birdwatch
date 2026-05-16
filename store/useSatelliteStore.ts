@@ -68,6 +68,11 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
         : [...s.activeGroups, group],
     })),
   setActiveGroups: (groups) => set({ activeGroups: groups }),
-  setMassSatellites: (satellites) => set({ massSatellites: satellites }),
+  setMassSatellites: (satellites) =>
+    set(
+      satellites.length === 0
+        ? { massSatellites: satellites, massPositions: new Map() }
+        : { massSatellites: satellites },
+    ),
   updateMassPositions: (positions) => set({ massPositions: positions }),
 }));
