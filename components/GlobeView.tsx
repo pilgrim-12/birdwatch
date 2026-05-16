@@ -223,20 +223,20 @@ export default function GlobeView() {
           }}
           pathDashLength={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'beam') return 0; // solid line
+            if (path.type === 'beam') return 0.4;
             return path.selected ? 3 : 1;
           }}
           pathDashGap={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'beam') return 0;
+            if (path.type === 'beam') return 0.6;
             return path.selected ? 1.5 : 0.5;
           }}
           pathDashAnimateTime={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'beam') return 0;
+            if (path.type === 'beam') return path.selected ? 1500 : 2500;
             return path.selected ? 20000 : 0;
           }}
-          pathTransitionDuration={800}
+          pathTransitionDuration={0}
           // Observer ring
           ringsData={ringsData}
           ringLat="lat"
