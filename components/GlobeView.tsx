@@ -19,8 +19,9 @@ interface PointData {
   selected: boolean;
 }
 
-interface PathData {
-  id: number;
+interface CombinedPath {
+  pathId: string;
+  type: 'orbit' | 'beam';
   points: { lat: number; lng: number; alt: number }[];
   selected: boolean;
 }
@@ -38,6 +39,8 @@ export default function GlobeView() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  // Counter that increments every 30s to force orbit path refresh
+  const [orbitEpoch, setOrbitEpoch] = useState(0);
 
   // Resize observer
   useEffect(() => {
@@ -51,7 +54,13 @@ export default function GlobeView() {
     return () => ro.disconnect();
   }, []);
 
-  // Position propagation loop
+  // Refresh orbit paths every 30 seconds so they stay aligned with satellite positions
+  useEffect(() => {
+    const interval = setInterval(() => setOrbitEpoch((n) => n + 1), 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Position propagation loop — every 1 second
   useEffect(() => {
     if (satellites.length === 0) return;
 
@@ -69,22 +78,14 @@ export default function GlobeView() {
     return () => clearInterval(interval);
   }, [satellites, updatePositions]);
 
-  // Compute orbit paths (expensive — only recompute when satellites change)
+  // Orbit paths — recompute when satellites change or every 30s
   const orbitPathsRaw = useMemo(() => {
     return satellites.map((sat) => ({
       id: sat.id,
       points: computeOrbitPath(sat.tle, new Date()),
     }));
-  }, [satellites]);
-
-  // Apply visibility toggle and selection state
-  const orbitPaths: PathData[] = useMemo(() => {
-    if (!showTrajectories) return [];
-    return orbitPathsRaw.map((p) => ({
-      ...p,
-      selected: p.id === selectedSatId,
-    }));
-  }, [orbitPathsRaw, showTrajectories, selectedSatId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satellites, orbitEpoch]);
 
   // Points data
   const pointsData: PointData[] = useMemo(() => {
@@ -104,21 +105,44 @@ export default function GlobeView() {
       });
   }, [satellites, positions, selectedSatId]);
 
-  // Labels: only show for selected satellite to avoid overlap.
-  // When showLabels is on but nothing is selected, show nothing (use hover tooltips instead).
+  // Combined paths: orbit trajectories + scan beams from satellite to ground
+  const allPaths: CombinedPath[] = useMemo(() => {
+    const paths: CombinedPath[] = [];
+
+    // Orbit trajectories (only when toggle is on)
+    if (showTrajectories) {
+      for (const raw of orbitPathsRaw) {
+        paths.push({
+          pathId: `orbit-${raw.id}`,
+          type: 'orbit',
+          points: raw.points,
+          selected: raw.id === selectedSatId,
+        });
+      }
+    }
+
+    // Scan beams — always visible, from satellite altitude down to Earth surface
+    for (const p of pointsData) {
+      paths.push({
+        pathId: `beam-${p.id}`,
+        type: 'beam',
+        points: [
+          { lat: p.lat, lng: p.lng, alt: p.alt },
+          { lat: p.lat, lng: p.lng, alt: 0 },
+        ],
+        selected: p.selected,
+      });
+    }
+
+    return paths;
+  }, [showTrajectories, orbitPathsRaw, selectedSatId, pointsData]);
+
+  // Label for selected satellite only
   const labelsData = useMemo(() => {
     if (!showLabels || selectedSatId === null) return [];
     const sat = pointsData.find((p) => p.id === selectedSatId);
     if (!sat) return [];
-    return [
-      {
-        id: sat.id,
-        lat: sat.lat,
-        lng: sat.lng,
-        alt: sat.alt + 0.02,
-        text: sat.name,
-      },
-    ];
+    return [{ id: sat.id, lat: sat.lat, lng: sat.lng, alt: sat.alt + 0.02, text: sat.name }];
   }, [showLabels, selectedSatId, pointsData]);
 
   // Observer ring
@@ -150,7 +174,7 @@ export default function GlobeView() {
           height={dimensions.height}
           globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
           backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-          // Points (satellites) — merged into a single Points geometry to avoid flicker
+          // Satellite dots — small spheres, instant position updates (no flicker)
           pointsData={pointsData}
           pointId="id"
           pointLat="lat"
@@ -159,12 +183,11 @@ export default function GlobeView() {
           pointColor={(d: object) =>
             (d as PointData).selected ? '#ff6b6b' : '#00d4ff'
           }
-          pointRadius={(d: object) => ((d as PointData).selected ? 0.25 : 0.12)}
+          pointRadius={(d: object) => ((d as PointData).selected ? 0.12 : 0.06)}
           pointLabel="name"
           onPointClick={handlePointClick}
-          pointsMerge={false}
-          pointsTransitionDuration={800}
-          // Label for selected satellite only
+          pointsTransitionDuration={0}
+          // Label for selected satellite
           labelsData={labelsData}
           labelLat="lat"
           labelLng="lng"
@@ -175,24 +198,45 @@ export default function GlobeView() {
           labelDotRadius={0}
           labelResolution={3}
           labelsTransitionDuration={0}
-          // Paths (orbit trajectories)
-          pathsData={orbitPaths}
+          // Combined paths: orbit trajectories + scan beams
+          pathsData={allPaths}
+          pathId="pathId"
           pathPoints="points"
           pathPointLat={(p: object) => (p as { lat: number }).lat}
           pathPointLng={(p: object) => (p as { lng: number }).lng}
           pathPointAlt={(p: object) => (p as { alt: number }).alt}
-          pathColor={(d: object) =>
-            (d as PathData).selected
+          pathColor={(d: object) => {
+            const path = d as CombinedPath;
+            if (path.type === 'beam') {
+              return path.selected
+                ? 'rgba(255, 107, 107, 0.25)'
+                : 'rgba(0, 212, 255, 0.1)';
+            }
+            return path.selected
               ? 'rgba(255, 107, 107, 0.7)'
-              : 'rgba(0, 212, 255, 0.15)'
-          }
-          pathStroke={(d: object) => ((d as PathData).selected ? 1.5 : 0.4)}
-          pathDashLength={(d: object) => ((d as PathData).selected ? 3 : 1)}
-          pathDashGap={(d: object) => ((d as PathData).selected ? 1.5 : 0.5)}
-          pathDashAnimateTime={(d: object) =>
-            (d as PathData).selected ? 20000 : 0
-          }
-          pathTransitionDuration={0}
+              : 'rgba(0, 212, 255, 0.15)';
+          }}
+          pathStroke={(d: object) => {
+            const path = d as CombinedPath;
+            if (path.type === 'beam') return path.selected ? 0.6 : 0.2;
+            return path.selected ? 1.5 : 0.4;
+          }}
+          pathDashLength={(d: object) => {
+            const path = d as CombinedPath;
+            if (path.type === 'beam') return 0; // solid line
+            return path.selected ? 3 : 1;
+          }}
+          pathDashGap={(d: object) => {
+            const path = d as CombinedPath;
+            if (path.type === 'beam') return 0;
+            return path.selected ? 1.5 : 0.5;
+          }}
+          pathDashAnimateTime={(d: object) => {
+            const path = d as CombinedPath;
+            if (path.type === 'beam') return 0;
+            return path.selected ? 20000 : 0;
+          }}
+          pathTransitionDuration={800}
           // Observer ring
           ringsData={ringsData}
           ringLat="lat"
