@@ -3,8 +3,6 @@ import { CELESTRAK_BASE_URL, ALLOWED_GROUPS, type SatelliteGroup } from '@/lib/c
 
 export const revalidate = 3600; // 1 hour cache
 
-// NOAA operational satellites by NORAD catalog number
-const NOAA_CATNRS = [25338, 28654, 33591]; // NOAA 15, 18, 19
 
 export async function GET(
   _request: NextRequest,
@@ -23,18 +21,28 @@ export async function GET(
     let text: string;
 
     if (group === 'noaa') {
-      // NOAA satellites aren't in a CelesTrak GROUP — fetch by catalog number
-      const results = await Promise.all(
-        NOAA_CATNRS.map(async (catnr) => {
-          const res = await fetch(
-            `${CELESTRAK_BASE_URL}?CATNR=${catnr}&FORMAT=tle`,
-            { next: { revalidate: 3600 } },
-          );
-          if (!res.ok) return '';
-          return res.text();
-        }),
+      // NOAA satellites aren't in a CelesTrak GROUP — fetch by name search
+      const response = await fetch(
+        `${CELESTRAK_BASE_URL}?NAME=NOAA&FORMAT=tle`,
+        { next: { revalidate: 3600 } },
       );
-      text = results.filter(Boolean).join('\n');
+      if (!response.ok) {
+        return NextResponse.json(
+          { error: `CelesTrak returned ${response.status}` },
+          { status: 502 },
+        );
+      }
+      const raw = await response.text();
+      // Filter out debris lines (keep only actual NOAA satellites)
+      const lines = raw.split('\n');
+      const filtered: string[] = [];
+      for (let i = 0; i < lines.length - 2; i += 3) {
+        const name = lines[i].trim();
+        if (name && !name.includes(' DEB') && !name.includes(' R/B')) {
+          filtered.push(lines[i], lines[i + 1], lines[i + 2]);
+        }
+      }
+      text = filtered.join('\n');
     } else {
       const url = `${CELESTRAK_BASE_URL}?GROUP=${group}&FORMAT=tle`;
       const response = await fetch(url, { next: { revalidate: 3600 } });

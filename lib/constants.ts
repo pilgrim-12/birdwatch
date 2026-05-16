@@ -18,7 +18,7 @@ export type SatelliteGroup = (typeof ALLOWED_GROUPS)[number];
 export const GROUP_LABELS: Record<SatelliteGroup, string> = {
   stations: 'Space Stations',
   weather: 'Weather',
-  noaa: 'NOAA 15/18/19',
+  noaa: 'NOAA',
   amateur: 'Amateur Radio',
   science: 'Science',
   resource: 'Earth Resources',
