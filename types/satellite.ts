@@ -15,6 +15,7 @@ export interface Satellite {
   id: number; // NORAD catalog number
   name: string;
   tle: TLEData;
+  group: string;
   position: SatellitePosition | null;
 }
 

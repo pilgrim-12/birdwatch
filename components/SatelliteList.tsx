@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
-import type { SatellitePass } from '@/lib/passes';
+import { findPasses } from '@/lib/passes';
+import { GROUP_COLORS } from '@/lib/constants';
+import type { SatelliteGroup } from '@/lib/constants';
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -23,58 +25,37 @@ export default function SatelliteList() {
   const setPasses = useSatelliteStore((s) => s.setPasses);
 
   const [detailSatId, setDetailSatId] = useState<number | null>(null);
-  const workerRef = useRef<Worker | null>(null);
+  const [computingPasses, setComputingPasses] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Compute passes in a Web Worker when observer or satellites change
+  // Compute passes when observer or satellites change (deferred to avoid blocking render)
   useEffect(() => {
     if (!observer || satellites.length === 0) {
       setPasses([]);
       return;
     }
 
-    // Terminate previous worker if still running
-    if (workerRef.current) {
-      workerRef.current.terminate();
+    setComputingPasses(true);
+
+    // Clear previous computation if still pending
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
     }
 
-    const worker = new Worker(
-      new URL('../workers/passes.worker.ts', import.meta.url),
-      { type: 'module' },
-    );
-    workerRef.current = worker;
+    const satData = satellites.map((s) => ({ id: s.id, name: s.name, tle: s.tle }));
 
-    worker.onmessage = (e: MessageEvent) => {
-      const rawPasses = e.data as {
-        satId: number;
-        satName: string;
-        startTime: number;
-        peakTime: number;
-        endTime: number;
-        peakElevation: number;
-      }[];
-      // Convert timestamps back to Date objects
-      const parsed: SatellitePass[] = rawPasses.map((p) => ({
-        satId: p.satId,
-        satName: p.satName,
-        startTime: new Date(p.startTime),
-        peakTime: new Date(p.peakTime),
-        endTime: new Date(p.endTime),
-        peakElevation: p.peakElevation,
-      }));
-      setPasses(parsed);
-      worker.terminate();
-      if (workerRef.current === worker) workerRef.current = null;
-    };
-
-    worker.postMessage({
-      satellites: satellites.map((s) => ({ id: s.id, name: s.name, tle: s.tle })),
-      observer,
-      hoursAhead: 24,
-    });
+    // Defer heavy computation to next tick so UI renders first
+    timerRef.current = setTimeout(() => {
+      const result = findPasses(satData, observer, 24);
+      setPasses(result);
+      setComputingPasses(false);
+    }, 100);
 
     return () => {
-      worker.terminate();
-      if (workerRef.current === worker) workerRef.current = null;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, [observer, satellites, setPasses]);
 
@@ -96,6 +77,7 @@ export default function SatelliteList() {
           {satellites.map((sat) => {
             const pos = positions.get(sat.id);
             const isSelected = sat.id === selectedSatId;
+            const groupColor = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
             return (
               <li key={sat.id}>
                 <div
@@ -106,6 +88,10 @@ export default function SatelliteList() {
                   }`}
                   onClick={() => selectSatellite(isSelected ? null : sat.id)}
                 >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: groupColor }}
+                  />
                   <span
                     className={`font-medium truncate flex-1 ${
                       isSelected ? 'text-cyan-300' : 'text-gray-200'
@@ -156,7 +142,9 @@ export default function SatelliteList() {
             </span>
           </div>
 
-          {visiblePasses.length > 0 ? (
+          {computingPasses ? (
+            <p className="text-xs text-yellow-400">Computing passes...</p>
+          ) : visiblePasses.length > 0 ? (
             <div>
               <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">
                 Passes (24h) &middot; {visiblePasses.length}
@@ -187,7 +175,7 @@ export default function SatelliteList() {
               </ul>
             </div>
           ) : (
-            <p className="text-xs text-gray-500">Click globe to set observer location</p>
+            <p className="text-xs text-gray-500">No passes in next 24h</p>
           )}
         </div>
       )}

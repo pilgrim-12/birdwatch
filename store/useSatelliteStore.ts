@@ -11,7 +11,9 @@ interface SatelliteStore {
   passes: SatellitePass[];
   showTrajectories: boolean;
   showLabels: boolean;
+  showBeams: boolean;
   nightMode: boolean;
+  beamOpacity: number; // 0-100
   activeGroups: SatelliteGroup[];
 
   setSatellites: (satellites: Satellite[]) => void;
@@ -21,7 +23,9 @@ interface SatelliteStore {
   setPasses: (passes: SatellitePass[]) => void;
   toggleTrajectories: () => void;
   toggleLabels: () => void;
+  toggleBeams: () => void;
   toggleNightMode: () => void;
+  setBeamOpacity: (value: number) => void;
   toggleGroup: (group: SatelliteGroup) => void;
 }
 
@@ -33,7 +37,9 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   passes: [],
   showTrajectories: false,
   showLabels: true,
+  showBeams: true,
   nightMode: true,
+  beamOpacity: 50,
   activeGroups: ['stations', 'weather', 'noaa'],
 
   setSatellites: (satellites) => set({ satellites }),
@@ -43,7 +49,9 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   setPasses: (passes) => set({ passes }),
   toggleTrajectories: () => set((s) => ({ showTrajectories: !s.showTrajectories })),
   toggleLabels: () => set((s) => ({ showLabels: !s.showLabels })),
+  toggleBeams: () => set((s) => ({ showBeams: !s.showBeams })),
   toggleNightMode: () => set((s) => ({ nightMode: !s.nightMode })),
+  setBeamOpacity: (value) => set({ beamOpacity: value }),
   toggleGroup: (group) =>
     set((s) => ({
       activeGroups: s.activeGroups.includes(group)

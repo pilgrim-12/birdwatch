@@ -24,11 +24,12 @@ export function extractNoradId(line2: string): number {
   return parseInt(line2.substring(2, 7).trim(), 10);
 }
 
-export function tlesToSatellites(tles: TLEData[]): Satellite[] {
+export function tlesToSatellites(tles: TLEData[], group: string = 'active'): Satellite[] {
   return tles.map((tle) => ({
     id: extractNoradId(tle.line2),
     name: tle.name,
     tle,
+    group,
     position: null,
   }));
 }
