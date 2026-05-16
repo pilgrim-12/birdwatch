@@ -3,6 +3,7 @@ export const CELESTRAK_BASE_URL = 'https://celestrak.org/NORAD/elements/gp.php';
 export const ALLOWED_GROUPS = [
   'stations',
   'weather',
+  'noaa',
   'amateur',
   'science',
   'resource',
@@ -16,7 +17,8 @@ export type SatelliteGroup = (typeof ALLOWED_GROUPS)[number];
 
 export const GROUP_LABELS: Record<SatelliteGroup, string> = {
   stations: 'Space Stations',
-  weather: 'Weather/NOAA',
+  weather: 'Weather',
+  noaa: 'NOAA 15/18/19',
   amateur: 'Amateur Radio',
   science: 'Science',
   resource: 'Earth Resources',

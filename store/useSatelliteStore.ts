@@ -34,7 +34,7 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   showTrajectories: false,
   showLabels: true,
   nightMode: true,
-  activeGroups: ['stations', 'weather'],
+  activeGroups: ['stations', 'weather', 'noaa'],
 
   setSatellites: (satellites) => set({ satellites }),
   setObserver: (observer) => set({ observer }),
