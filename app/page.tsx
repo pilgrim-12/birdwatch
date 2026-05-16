@@ -9,23 +9,46 @@ import { parseTLEText, tlesToSatellites } from '@/lib/tle';
 
 export default function Home() {
   const setSatellites = useSatelliteStore((s) => s.setSatellites);
+  const activeGroups = useSatelliteStore((s) => s.activeGroups);
 
   useEffect(() => {
-    async function fetchTLE() {
+    let cancelled = false;
+
+    async function fetchAllGroups() {
       try {
-        const res = await fetch('/api/tle/stations');
-        if (!res.ok) return;
-        const text = await res.text();
-        const tles = parseTLEText(text);
-        const sats = tlesToSatellites(tles);
+        const results = await Promise.all(
+          activeGroups.map(async (group) => {
+            const res = await fetch(`/api/tle/${group}`);
+            if (!res.ok) return [];
+            const text = await res.text();
+            return parseTLEText(text);
+          }),
+        );
+
+        if (cancelled) return;
+
+        // Merge all TLEs, deduplicate by NORAD ID
+        const allTles = results.flat();
+        const seen = new Set<string>();
+        const unique = allTles.filter((tle) => {
+          const id = tle.line2.substring(2, 7).trim();
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+
+        const sats = tlesToSatellites(unique);
         setSatellites(sats);
       } catch {
         // Network error — satellites will remain empty
       }
     }
 
-    fetchTLE();
-  }, [setSatellites]);
+    fetchAllGroups();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeGroups, setSatellites]);
 
   return (
     <>

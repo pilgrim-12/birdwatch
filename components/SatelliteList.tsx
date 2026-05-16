@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
-import { findPasses } from '@/lib/passes';
+import type { SatellitePass } from '@/lib/passes';
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -23,19 +23,59 @@ export default function SatelliteList() {
   const setPasses = useSatelliteStore((s) => s.setPasses);
 
   const [detailSatId, setDetailSatId] = useState<number | null>(null);
+  const workerRef = useRef<Worker | null>(null);
 
-  // Compute passes when observer or satellites change
+  // Compute passes in a Web Worker when observer or satellites change
   useEffect(() => {
     if (!observer || satellites.length === 0) {
       setPasses([]);
       return;
     }
-    const result = findPasses(
-      satellites.map((s) => ({ id: s.id, name: s.name, tle: s.tle })),
-      observer,
-      24,
+
+    // Terminate previous worker if still running
+    if (workerRef.current) {
+      workerRef.current.terminate();
+    }
+
+    const worker = new Worker(
+      new URL('../workers/passes.worker.ts', import.meta.url),
+      { type: 'module' },
     );
-    setPasses(result);
+    workerRef.current = worker;
+
+    worker.onmessage = (e: MessageEvent) => {
+      const rawPasses = e.data as {
+        satId: number;
+        satName: string;
+        startTime: number;
+        peakTime: number;
+        endTime: number;
+        peakElevation: number;
+      }[];
+      // Convert timestamps back to Date objects
+      const parsed: SatellitePass[] = rawPasses.map((p) => ({
+        satId: p.satId,
+        satName: p.satName,
+        startTime: new Date(p.startTime),
+        peakTime: new Date(p.peakTime),
+        endTime: new Date(p.endTime),
+        peakElevation: p.peakElevation,
+      }));
+      setPasses(parsed);
+      worker.terminate();
+      if (workerRef.current === worker) workerRef.current = null;
+    };
+
+    worker.postMessage({
+      satellites: satellites.map((s) => ({ id: s.id, name: s.name, tle: s.tle })),
+      observer,
+      hoursAhead: 24,
+    });
+
+    return () => {
+      worker.terminate();
+      if (workerRef.current === worker) workerRef.current = null;
+    };
   }, [observer, satellites, setPasses]);
 
   // If a satellite is selected and observer is set, filter passes for that satellite
