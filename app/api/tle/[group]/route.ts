@@ -33,12 +33,17 @@ export async function GET(
         );
       }
       const raw = await response.text();
-      // Filter out debris lines (keep only actual NOAA satellites)
+      // Filter: keep only operational NOAA satellites (15, 18, 19, 20, 21)
+      // NOAA 1-14, 16, 17 are decommissioned/dead
+      const operationalNoaa = new Set([
+        'NOAA 15', 'NOAA 18', 'NOAA 19',
+        'NOAA 20 (JPSS-1)', 'NOAA 21 (JPSS-2)',
+      ]);
       const lines = raw.split('\n');
       const filtered: string[] = [];
       for (let i = 0; i < lines.length - 2; i += 3) {
         const name = lines[i].trim();
-        if (name && !name.includes(' DEB') && !name.includes(' R/B')) {
+        if (name && operationalNoaa.has(name)) {
           filtered.push(lines[i], lines[i + 1], lines[i + 2]);
         }
       }

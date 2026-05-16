@@ -17,6 +17,7 @@ export default function Header() {
   const toggleNightMode = useSatelliteStore((s) => s.toggleNightMode);
   const setBeamOpacity = useSatelliteStore((s) => s.setBeamOpacity);
   const toggleGroup = useSatelliteStore((s) => s.toggleGroup);
+  const setActiveGroups = useSatelliteStore((s) => s.setActiveGroups);
   const observer = useSatelliteStore((s) => s.observer);
 
   return (
@@ -96,6 +97,18 @@ export default function Header() {
       {/* Satellite group selector with group colors */}
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="text-xs text-gray-500 mr-1">Groups:</span>
+        <button
+          onClick={() => setActiveGroups([...ALLOWED_GROUPS.filter((g) => g !== 'active')])}
+          className="px-1.5 py-0.5 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
+        >
+          All
+        </button>
+        <button
+          onClick={() => setActiveGroups([])}
+          className="px-1.5 py-0.5 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
+        >
+          None
+        </button>
         {ALLOWED_GROUPS.filter((g) => g !== 'active').map((group) => {
           const isActive = activeGroups.includes(group);
           const color = GROUP_COLORS[group as SatelliteGroup];

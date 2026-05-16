@@ -16,6 +16,10 @@ interface SatelliteStore {
   beamOpacity: number; // 0-100
   activeGroups: SatelliteGroup[];
 
+  // Mass group (Starlink) — separate rendering pipeline
+  massSatellites: Satellite[];
+  massPositions: Map<number, SatellitePosition>;
+
   setSatellites: (satellites: Satellite[]) => void;
   setObserver: (observer: ObserverLocation) => void;
   selectSatellite: (id: number | null) => void;
@@ -27,6 +31,9 @@ interface SatelliteStore {
   toggleNightMode: () => void;
   setBeamOpacity: (value: number) => void;
   toggleGroup: (group: SatelliteGroup) => void;
+  setActiveGroups: (groups: SatelliteGroup[]) => void;
+  setMassSatellites: (satellites: Satellite[]) => void;
+  updateMassPositions: (positions: Map<number, SatellitePosition>) => void;
 }
 
 export const useSatelliteStore = create<SatelliteStore>((set) => ({
@@ -41,6 +48,8 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   nightMode: true,
   beamOpacity: 50,
   activeGroups: ['stations', 'weather', 'noaa'],
+  massSatellites: [],
+  massPositions: new Map(),
 
   setSatellites: (satellites) => set({ satellites }),
   setObserver: (observer) => set({ observer }),
@@ -58,4 +67,7 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
         ? s.activeGroups.filter((g) => g !== group)
         : [...s.activeGroups, group],
     })),
+  setActiveGroups: (groups) => set({ activeGroups: groups }),
+  setMassSatellites: (satellites) => set({ massSatellites: satellites }),
+  updateMassPositions: (positions) => set({ massPositions: positions }),
 }));

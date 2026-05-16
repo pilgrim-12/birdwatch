@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { findPasses } from '@/lib/passes';
 import { GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
+import type { SatellitePosition } from '@/types/satellite';
+
+const ITEM_HEIGHT = 36; // px per row
+const OVERSCAN = 10;
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -17,7 +21,9 @@ function formatDuration(start: Date, end: Date): string {
 
 export default function SatelliteList() {
   const satellites = useSatelliteStore((s) => s.satellites);
+  const massSatellites = useSatelliteStore((s) => s.massSatellites);
   const positions = useSatelliteStore((s) => s.positions);
+  const massPositions = useSatelliteStore((s) => s.massPositions);
   const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
   const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
   const observer = useSatelliteStore((s) => s.observer);
@@ -26,9 +32,36 @@ export default function SatelliteList() {
 
   const [detailSatId, setDetailSatId] = useState<number | null>(null);
   const [computingPasses, setComputingPasses] = useState(false);
+  const [scrollTop, setScrollTop] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const [listHeight, setListHeight] = useState(400);
 
-  // Compute passes when observer or satellites change (deferred to avoid blocking render)
+  // Merge normal + mass satellites for display
+  const allSatellites = useMemo(() => {
+    return [...satellites, ...massSatellites];
+  }, [satellites, massSatellites]);
+
+  // Combined positions lookup
+  const getPosition = useCallback(
+    (id: number): SatellitePosition | undefined => {
+      return positions.get(id) ?? massPositions.get(id);
+    },
+    [positions, massPositions],
+  );
+
+  // Measure list container height
+  useEffect(() => {
+    const container = listContainerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver((entries) => {
+      setListHeight(entries[0].contentRect.height);
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
+
+  // Compute passes when observer or satellites change (only normal satellites, not mass)
   useEffect(() => {
     if (!observer || satellites.length === 0) {
       setPasses([]);
@@ -37,14 +70,13 @@ export default function SatelliteList() {
 
     setComputingPasses(true);
 
-    // Clear previous computation if still pending
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
 
+    // Exclude mass satellites from pass computation (too expensive)
     const satData = satellites.map((s) => ({ id: s.id, name: s.name, tle: s.tle }));
 
-    // Defer heavy computation to next tick so UI renders first
     timerRef.current = setTimeout(() => {
       const result = findPasses(satData, observer, 24);
       setPasses(result);
@@ -63,23 +95,70 @@ export default function SatelliteList() {
   const visiblePasses =
     selectedSatId !== null ? passes.filter((p) => p.satId === selectedSatId) : passes;
 
-  const detailPos = detailSatId !== null ? positions.get(detailSatId) : undefined;
-  const detailSat = detailSatId !== null ? satellites.find((s) => s.id === detailSatId) : null;
+  // Virtual scrolling calculations
+  const totalItems = allSatellites.length;
+  const totalHeight = totalItems * ITEM_HEIGHT;
+  const useVirtualScroll = totalItems > 100;
+
+  const startIndex = useVirtualScroll
+    ? Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN)
+    : 0;
+  const endIndex = useVirtualScroll
+    ? Math.min(totalItems, Math.ceil((scrollTop + listHeight) / ITEM_HEIGHT) + OVERSCAN)
+    : totalItems;
+  const visibleSatellites = allSatellites.slice(startIndex, endIndex);
+
+  const detailPos = detailSatId !== null ? getPosition(detailSatId) : undefined;
+  const detailSat = detailSatId !== null ? allSatellites.find((s) => s.id === detailSatId) : null;
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
 
   return (
-    <aside className="w-80 shrink-0 bg-gray-900 border-l border-gray-800 overflow-y-auto flex flex-col relative">
-      {/* Satellite list — always visible */}
-      <div className="p-4 flex-1">
-        <h2 className="text-lg font-semibold mb-4 text-white">
-          Satellites ({satellites.length})
+    <aside className="w-80 shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col relative">
+      {/* Satellite list header */}
+      <div className="p-4 pb-2 shrink-0">
+        <h2 className="text-lg font-semibold text-white">
+          Satellites ({allSatellites.length})
         </h2>
-        <ul className="space-y-0.5">
-          {satellites.map((sat) => {
-            const pos = positions.get(sat.id);
+        {massSatellites.length > 0 && (
+          <p className="text-xs text-gray-500 mt-1">
+            incl. {massSatellites.length} Starlink (no orbits/beams)
+          </p>
+        )}
+      </div>
+
+      {/* Virtual-scrolled satellite list */}
+      <div
+        ref={listContainerRef}
+        className="flex-1 overflow-y-auto px-4"
+        onScroll={handleScroll}
+      >
+        <div
+          style={useVirtualScroll ? { height: totalHeight, position: 'relative' } : undefined}
+        >
+          {visibleSatellites.map((sat, i) => {
+            const pos = getPosition(sat.id);
             const isSelected = sat.id === selectedSatId;
             const groupColor = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
+            const itemIndex = startIndex + i;
+
             return (
-              <li key={sat.id}>
+              <div
+                key={sat.id}
+                style={
+                  useVirtualScroll
+                    ? {
+                        position: 'absolute',
+                        top: itemIndex * ITEM_HEIGHT,
+                        left: 0,
+                        right: 0,
+                        height: ITEM_HEIGHT,
+                      }
+                    : undefined
+                }
+              >
                 <div
                   className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors flex items-center gap-1 cursor-pointer ${
                     isSelected
@@ -126,15 +205,15 @@ export default function SatelliteList() {
                     </svg>
                   </button>
                 </div>
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       </div>
 
       {/* Observer & passes section */}
       {observer && (
-        <div className="border-t border-gray-800 p-4">
+        <div className="border-t border-gray-800 p-4 shrink-0">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-orange-400">Observer</h3>
             <span className="text-xs text-gray-400 font-mono">
@@ -181,7 +260,7 @@ export default function SatelliteList() {
       )}
 
       {!observer && (
-        <div className="border-t border-gray-800 p-4">
+        <div className="border-t border-gray-800 p-4 shrink-0">
           <p className="text-xs text-gray-500">Click on the globe to set observer location</p>
         </div>
       )}

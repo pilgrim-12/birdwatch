@@ -5,12 +5,15 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { propagateAll } from '@/lib/sgp4';
+import { propagateChunked } from '@/lib/propagateChunked';
 import { computeOrbitPath } from '@/lib/orbit';
 import { EARTH_RADIUS_KM, GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { TLEData } from '@/types/satellite';
 
 const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
+
+const GLOBE_RADIUS = 100; // three-globe default internal radius
 
 interface PointData {
   id: number;
@@ -32,6 +35,23 @@ interface CombinedPath {
   color: string;
 }
 
+interface MassLayerDatum {
+  id: string;
+  positions: Map<number, { lat: number; lng: number; alt: number; velocity: number }>;
+}
+
+/** Convert lat/lng/relativeAlt to 3D cartesian (matches three-globe's internal coordinate system) */
+function polar2Cartesian(lat: number, lng: number, relAlt: number): THREE.Vector3 {
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (90 - lng) * (Math.PI / 180);
+  const r = GLOBE_RADIUS * (1 + relAlt);
+  return new THREE.Vector3(
+    r * Math.sin(phi) * Math.cos(theta),
+    r * Math.cos(phi),
+    r * Math.sin(phi) * Math.sin(theta),
+  );
+}
+
 export default function GlobeView() {
   const satellites = useSatelliteStore((s) => s.satellites);
   const positions = useSatelliteStore((s) => s.positions);
@@ -46,7 +66,14 @@ export default function GlobeView() {
   const nightMode = useSatelliteStore((s) => s.nightMode);
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
 
+  // Mass group (Starlink) state
+  const massSatellites = useSatelliteStore((s) => s.massSatellites);
+  const massPositions = useSatelliteStore((s) => s.massPositions);
+  const updateMassPositions = useSatelliteStore((s) => s.updateMassPositions);
+
   const containerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const globeRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   // Counter that increments every 30s to force orbit path refresh
   const [orbitEpoch, setOrbitEpoch] = useState(0);
@@ -56,6 +83,12 @@ export default function GlobeView() {
   useEffect(() => {
     satTleRef.current = satellites.map((s) => ({ tle: s.tle, id: s.id }));
   }, [satellites]);
+
+  // Cache mass satellite TLE references
+  const massTleRef = useRef<{ tle: TLEData; id: number }[]>([]);
+  useEffect(() => {
+    massTleRef.current = massSatellites.map((s) => ({ tle: s.tle, id: s.id }));
+  }, [massSatellites]);
 
   // Resize observer
   useEffect(() => {
@@ -69,13 +102,37 @@ export default function GlobeView() {
     return () => ro.disconnect();
   }, []);
 
+  // Apply max anisotropic filtering to globe texture for sharp zoom quality
+  useEffect(() => {
+    const globe = globeRef.current;
+    if (!globe) return;
+
+    // Texture loads asynchronously — poll until it's ready
+    const timer = setInterval(() => {
+      try {
+        const renderer = globe.renderer();
+        const material = globe.globeMaterial();
+        if (material?.map) {
+          const maxAniso = renderer.capabilities.getMaxAnisotropy();
+          material.map.anisotropy = maxAniso;
+          material.map.needsUpdate = true;
+          clearInterval(timer);
+        }
+      } catch {
+        // Globe not ready yet
+      }
+    }, 500);
+
+    return () => clearInterval(timer);
+  }, [nightMode]); // re-apply when texture changes (night/day)
+
   // Refresh orbit paths every 30 seconds so they stay aligned with satellite positions
   useEffect(() => {
     const interval = setInterval(() => setOrbitEpoch((n) => n + 1), 30_000);
     return () => clearInterval(interval);
   }, []);
 
-  // Position propagation loop — every 2 seconds (was 1s, reduced for performance)
+  // Position propagation loop — every 2 seconds for normal satellites
   useEffect(() => {
     if (satellites.length === 0) return;
 
@@ -90,7 +147,28 @@ export default function GlobeView() {
     return () => clearInterval(interval);
   }, [satellites, updatePositions]);
 
-  // Orbit paths — recompute when satellites change or every 30s
+  // Chunked propagation loop — every 5 seconds for mass satellites (Starlink)
+  useEffect(() => {
+    if (massSatellites.length === 0) return;
+
+    let cancelChunk: (() => void) | null = null;
+
+    const tick = () => {
+      const now = new Date();
+      cancelChunk = propagateChunked(massTleRef.current, now, (newPositions) => {
+        updateMassPositions(newPositions);
+      });
+    };
+
+    tick();
+    const interval = setInterval(tick, 5000);
+    return () => {
+      clearInterval(interval);
+      cancelChunk?.();
+    };
+  }, [massSatellites, updateMassPositions]);
+
+  // Orbit paths — recompute when satellites change or every 30s (normal satellites only)
   const orbitPathsRaw = useMemo(() => {
     return satellites.map((sat) => ({
       id: sat.id,
@@ -101,7 +179,7 @@ export default function GlobeView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [satellites, orbitEpoch]);
 
-  // Points data
+  // Points data (normal satellites only)
   const pointsData: PointData[] = useMemo(() => {
     return satellites
       .filter((s) => positions.has(s.id))
@@ -122,7 +200,7 @@ export default function GlobeView() {
       });
   }, [satellites, positions, selectedSatId]);
 
-  // Combined paths: orbit trajectories + scan beams from satellite to ground
+  // Combined paths: orbit trajectories + scan beams (normal satellites only, not mass)
   const allPaths: CombinedPath[] = useMemo(() => {
     const paths: CombinedPath[] = [];
 
@@ -172,6 +250,55 @@ export default function GlobeView() {
     return [{ lat: observer.lat, lng: observer.lng }];
   }, [observer]);
 
+  // --- Mass group (Starlink) InstancedMesh via customLayerData ---
+  const customLayerData: MassLayerDatum[] = useMemo(() => {
+    if (massPositions.size === 0) return [];
+    return [{ id: 'mass-constellation', positions: massPositions }];
+  }, [massPositions]);
+
+  const starlinkMeshRef = useRef<THREE.InstancedMesh | null>(null);
+  const dummyObj = useRef(new THREE.Object3D());
+
+  const createMassMesh = useCallback(() => {
+    const geo = new THREE.SphereGeometry(0.6, 6, 4); // low-poly for performance
+    const mat = new THREE.MeshBasicMaterial({
+      color: GROUP_COLORS.starlink,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const mesh = new THREE.InstancedMesh(geo, mat, 11000);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.count = 0;
+    starlinkMeshRef.current = mesh;
+    return mesh;
+  }, []);
+
+  const updateMassMesh = useCallback(
+    (obj: object) => {
+      const mesh = obj as THREE.InstancedMesh;
+      if (massPositions.size === 0) {
+        mesh.count = 0;
+        return;
+      }
+
+      let idx = 0;
+      const dummy = dummyObj.current;
+
+      massPositions.forEach((pos) => {
+        const relAlt = pos.alt / EARTH_RADIUS_KM;
+        const vec = polar2Cartesian(pos.lat, pos.lng, relAlt);
+        dummy.position.copy(vec);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx, dummy.matrix);
+        idx++;
+      });
+
+      mesh.count = idx;
+      mesh.instanceMatrix.needsUpdate = true;
+    },
+    [massPositions],
+  );
+
   const handlePointClick = useCallback(
     (point: object) => {
       const p = point as PointData;
@@ -191,19 +318,20 @@ export default function GlobeView() {
     <div ref={containerRef} className="w-full h-full">
       {dimensions.width > 0 && (
         <Globe
+          ref={globeRef}
           width={dimensions.width}
           height={dimensions.height}
           globeImageUrl={
             nightMode
-              ? '//unpkg.com/three-globe/example/img/earth-night.jpg'
-              : '//unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
+              ? '/earth-night-4k.jpg'
+              : '/earth-day-4k.jpg'
           }
           backgroundImageUrl={
             nightMode
-              ? '//unpkg.com/three-globe/example/img/night-sky.png'
+              ? '/night-sky.png'
               : undefined
           }
-          // Satellite 3D spheres (colored by group)
+          // Satellite 3D spheres (colored by group) — normal satellites only
           objectsData={pointsData}
           objectLat="lat"
           objectLng="lng"
@@ -276,6 +404,10 @@ export default function GlobeView() {
             return 0;
           }}
           pathTransitionDuration={0}
+          // Mass group (Starlink) — rendered as InstancedMesh (single draw call)
+          customLayerData={customLayerData}
+          customThreeObject={createMassMesh}
+          customThreeObjectUpdate={updateMassMesh}
           // Observer ring
           ringsData={ringsData}
           ringLat="lat"

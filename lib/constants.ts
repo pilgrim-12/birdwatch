@@ -54,3 +54,7 @@ export const GROUP_COLORS: Record<SatelliteGroup, string> = {
 };
 
 export const EARTH_RADIUS_KM = 6371;
+
+// Groups with more satellites than this threshold use InstancedMesh rendering
+export const MASS_GROUP_THRESHOLD = 500;
+export const MASS_GROUPS: SatelliteGroup[] = ['starlink', 'active'];
