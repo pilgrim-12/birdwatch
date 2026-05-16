@@ -127,20 +127,17 @@ export default function GlobeView() {
       }
     }
 
-    // Scan beam — only for selected satellite
-    if (selectedSatId !== null) {
-      const p = pointsData.find((pt) => pt.id === selectedSatId);
-      if (p) {
-        paths.push({
-          pathId: `beam-${p.id}`,
-          type: 'beam',
-          points: [
-            { lat: p.lat, lng: p.lng, alt: p.alt },
-            { lat: p.lat, lng: p.lng, alt: 0 },
-          ],
-          selected: true,
-        });
-      }
+    // Scan beams — from each satellite to ground
+    for (const p of pointsData) {
+      paths.push({
+        pathId: `beam-${p.id}`,
+        type: 'beam',
+        points: [
+          { lat: p.lat, lng: p.lng, alt: p.alt },
+          { lat: p.lat, lng: p.lng, alt: 0 },
+        ],
+        selected: p.selected,
+      });
     }
 
     return paths;
@@ -228,7 +225,9 @@ export default function GlobeView() {
           pathColor={(d: object) => {
             const path = d as CombinedPath;
             if (path.type === 'beam') {
-              return 'rgba(0, 212, 255, 0.6)';
+              return path.selected
+                ? 'rgba(0, 212, 255, 0.7)'
+                : 'rgba(0, 212, 255, 0.2)';
             }
             return path.selected
               ? 'rgba(255, 107, 107, 0.8)'
@@ -236,7 +235,7 @@ export default function GlobeView() {
           }}
           pathStroke={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'beam') return 0.8;
+            if (path.type === 'beam') return path.selected ? 0.8 : 0.3;
             return path.selected ? 1.5 : 0.4;
           }}
           pathDashLength={(d: object) => {
