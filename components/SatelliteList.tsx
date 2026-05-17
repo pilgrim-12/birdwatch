@@ -3,9 +3,17 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { findPasses } from '@/lib/passes';
+import type { SatellitePass } from '@/lib/passes';
 import { GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { SatellitePosition } from '@/types/satellite';
+import { RadioBadge } from '@/components/radio/RadioBadge';
+import { RadioDetail } from '@/components/radio/RadioDetail';
+import {
+  getRadioProfile,
+  isReceivable,
+} from '@/lib/radio/radioProfiles';
+import { computeMaxDoppler } from '@/lib/radio/doppler';
 
 const ITEM_HEIGHT = 36; // px per row
 const OVERSCAN = 10;
@@ -49,6 +57,15 @@ export default function SatelliteList() {
     },
     [positions, massPositions],
   );
+
+  // Map from NORAD ID to TLE for Doppler computation
+  const tleMap = useMemo(() => {
+    const map = new Map<number, { line1: string; line2: string }>();
+    for (const sat of satellites) {
+      map.set(sat.id, { line1: sat.tle.line1, line2: sat.tle.line2 });
+    }
+    return map;
+  }, [satellites]);
 
   // Measure list container height
   useEffect(() => {
@@ -99,6 +116,43 @@ export default function SatelliteList() {
   const visiblePasses =
     selectedSatId !== null ? passes.filter((p) => p.satId === selectedSatId) : passes;
 
+  // Best pass: highest elevation among receivable (active/intermittent) satellites
+  const bestPassKey = useMemo(() => {
+    let bestEl = -1;
+    let bestKey = '';
+    for (const p of passes) {
+      if (isReceivable(p.satId) && p.peakElevation > bestEl) {
+        bestEl = p.peakElevation;
+        bestKey = `${p.satId}-${p.startTime.getTime()}`;
+      }
+    }
+    return bestKey;
+  }, [passes]);
+
+  // Doppler computation for visible passes (memoized)
+  const dopplerMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!observer) return map;
+    for (const pass of visiblePasses.slice(0, 20)) {
+      const profile = getRadioProfile(pass.satId);
+      if (!profile || profile.downlinks.length === 0) continue;
+      if (profile.status !== 'active' && profile.status !== 'intermittent') continue;
+      const tle = tleMap.get(pass.satId);
+      if (!tle) continue;
+      const freq = profile.downlinks[0].frequencyHz;
+      const key = `${pass.satId}-${pass.startTime.getTime()}`;
+      const doppler = computeMaxDoppler(
+        { name: pass.satName, ...tle },
+        observer,
+        pass.startTime.getTime(),
+        pass.endTime.getTime(),
+        freq,
+      );
+      map.set(key, doppler);
+    }
+    return map;
+  }, [visiblePasses, observer, tleMap]);
+
   // Virtual scrolling calculations
   const totalItems = allSatellites.length;
   const totalHeight = totalItems * ITEM_HEIGHT;
@@ -115,8 +169,20 @@ export default function SatelliteList() {
   const detailPos = detailSatId !== null ? getPosition(detailSatId) : undefined;
   const detailSat = detailSatId !== null ? allSatellites.find((s) => s.id === detailSatId) : null;
 
+  // Find the next pass for the detail satellite (for SatDump export)
+  const detailPass: SatellitePass | undefined = useMemo(() => {
+    if (detailSatId === null) return undefined;
+    return passes.find((p) => p.satId === detailSatId);
+  }, [detailSatId, passes]);
+
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  // Check if satellite name should be dimmed (inactive radio status)
+  const isInactive = useCallback((noradId: number): boolean => {
+    const p = getRadioProfile(noradId);
+    return p?.status === 'inactive';
   }, []);
 
   return (
@@ -147,6 +213,7 @@ export default function SatelliteList() {
             const isSelected = sat.id === selectedSatId;
             const groupColor = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
             const itemIndex = startIndex + i;
+            const inactive = isInactive(sat.id);
 
             return (
               <div
@@ -177,11 +244,16 @@ export default function SatelliteList() {
                   />
                   <span
                     className={`font-medium truncate flex-1 ${
-                      isSelected ? 'text-cyan-300' : 'text-gray-200'
+                      inactive
+                        ? 'text-gray-500 opacity-60'
+                        : isSelected
+                          ? 'text-cyan-300'
+                          : 'text-gray-200'
                     }`}
                   >
                     {sat.name}
                   </span>
+                  <RadioBadge noradId={sat.id} group={sat.group} />
                   {pos && (
                     <span className="text-gray-500 text-xs shrink-0">
                       {pos.alt.toFixed(0)} km
@@ -233,28 +305,60 @@ export default function SatelliteList() {
                 Passes (24h) &middot; {visiblePasses.length}
               </h4>
               <ul className="space-y-2 max-h-60 overflow-y-auto">
-                {visiblePasses.slice(0, 20).map((pass, i) => (
-                  <li
-                    key={`${pass.satId}-${i}`}
-                    className="text-xs bg-gray-800/50 rounded px-2 py-1.5 cursor-pointer hover:bg-gray-800 transition-colors"
-                    onClick={() => selectSatellite(pass.satId)}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-200 font-medium truncate">
-                        {pass.satName}
-                      </span>
-                      <span className="text-green-400 font-mono shrink-0">
-                        {pass.peakElevation.toFixed(0)}&deg;
-                      </span>
-                    </div>
-                    <div className="text-gray-500 mt-0.5">
-                      {formatTime(pass.startTime)} &ndash; {formatTime(pass.endTime)}
-                      <span className="ml-2">
-                        ({formatDuration(pass.startTime, pass.endTime)})
-                      </span>
-                    </div>
-                  </li>
-                ))}
+                {visiblePasses.slice(0, 20).map((pass, i) => {
+                  const passKey = `${pass.satId}-${pass.startTime.getTime()}`;
+                  const isBest = passKey === bestPassKey;
+                  const doppler = dopplerMap.get(passKey);
+                  const profile = getRadioProfile(pass.satId);
+                  const inactive = profile?.status === 'inactive';
+
+                  return (
+                    <li
+                      key={`${pass.satId}-${i}`}
+                      className={`text-xs rounded px-2 py-1.5 cursor-pointer transition-colors ${
+                        isBest
+                          ? 'bg-amber-500/10 ring-1 ring-amber-400/40 hover:bg-amber-500/15'
+                          : 'bg-gray-800/50 hover:bg-gray-800'
+                      }`}
+                      onClick={() => selectSatellite(pass.satId)}
+                    >
+                      <div className="flex justify-between items-center gap-1">
+                        <div className="flex items-center gap-1 min-w-0">
+                          {isBest && (
+                            <span className="shrink-0" title="Best pass">
+                              &#11088;
+                            </span>
+                          )}
+                          <span
+                            className={`font-medium truncate ${inactive ? 'text-gray-500 opacity-60' : 'text-gray-200'}`}
+                          >
+                            {pass.satName}
+                          </span>
+                          <RadioBadge noradId={pass.satId} />
+                        </div>
+                        <span className="text-green-400 font-mono shrink-0">
+                          {pass.peakElevation.toFixed(0)}&deg;
+                        </span>
+                      </div>
+                      <div className="text-gray-500 mt-0.5 flex items-center justify-between">
+                        <span>
+                          {formatTime(pass.startTime)} &ndash; {formatTime(pass.endTime)}
+                          <span className="ml-2">
+                            ({formatDuration(pass.startTime, pass.endTime)})
+                          </span>
+                        </span>
+                        {doppler !== undefined && doppler > 0 && (
+                          <span className="text-gray-600 font-mono" title="Max Doppler shift">
+                            &plusmn;{(doppler / 1000).toFixed(1)} kHz
+                          </span>
+                        )}
+                      </div>
+                      {isBest && (
+                        <div className="text-[10px] text-amber-400/70 mt-0.5">Best pass</div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ) : (
@@ -271,12 +375,15 @@ export default function SatelliteList() {
 
       {/* Detail popup */}
       {detailSat && detailPos && (
-        <div className="absolute inset-x-4 top-16 bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-4 z-50">
+        <div className="absolute inset-x-4 top-16 bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-4 z-50 max-h-[75vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white">{detailSat.name}</h3>
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="text-sm font-semibold text-white truncate">{detailSat.name}</h3>
+              <RadioBadge noradId={detailSat.id} group={detailSat.group} />
+            </div>
             <button
               onClick={() => setDetailSatId(null)}
-              className="text-gray-400 hover:text-white text-lg leading-none"
+              className="text-gray-400 hover:text-white text-lg leading-none shrink-0 ml-2"
             >
               &times;
             </button>
@@ -299,6 +406,15 @@ export default function SatelliteList() {
               <dd className="text-white font-mono">{detailPos.velocity.toFixed(2)} km/s</dd>
             </div>
           </dl>
+
+          {/* Radio section */}
+          <RadioDetail
+            noradId={detailSat.id}
+            satName={detailSat.name}
+            group={detailSat.group}
+            observer={observer}
+            pass={detailPass}
+          />
         </div>
       )}
     </aside>
