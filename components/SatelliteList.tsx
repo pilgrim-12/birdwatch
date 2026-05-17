@@ -78,8 +78,12 @@ export default function SatelliteList() {
     const satData = satellites.map((s) => ({ id: s.id, name: s.name, tle: s.tle }));
 
     timerRef.current = setTimeout(() => {
-      const result = findPasses(satData, observer, 24);
-      setPasses(result);
+      try {
+        const result = findPasses(satData, observer, 24);
+        setPasses(result);
+      } catch {
+        setPasses([]);
+      }
       setComputingPasses(false);
     }, 100);
 

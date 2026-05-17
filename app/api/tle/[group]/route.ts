@@ -33,17 +33,19 @@ export async function GET(
         );
       }
       const raw = await response.text();
-      // Filter: keep only operational NOAA satellites (15, 18, 19, 20, 21)
-      // NOAA 1-14, 16, 17 are decommissioned/dead
-      const operationalNoaa = new Set([
-        'NOAA 15', 'NOAA 18', 'NOAA 19',
-        'NOAA 20 (JPSS-1)', 'NOAA 21 (JPSS-2)',
-      ]);
+      // Dynamic filter: exclude debris, keep only modern NOAA sats (launched 1998+)
+      // Launch year is extracted from TLE line 1 international designator (chars 9-10)
       const lines = raw.split('\n');
       const filtered: string[] = [];
       for (let i = 0; i < lines.length - 2; i += 3) {
         const name = lines[i].trim();
-        if (name && operationalNoaa.has(name)) {
+        if (!name || name.includes('DEB') || name.includes('R/B')) continue;
+        const line1 = lines[i + 1];
+        if (!line1 || !line1.startsWith('1 ')) continue;
+        // Extract 2-digit launch year from international designator (col 9-10)
+        const yy = parseInt(line1.substring(9, 11), 10);
+        const launchYear = yy >= 57 ? 1900 + yy : 2000 + yy;
+        if (launchYear >= 1998) {
           filtered.push(lines[i], lines[i + 1], lines[i + 2]);
         }
       }
