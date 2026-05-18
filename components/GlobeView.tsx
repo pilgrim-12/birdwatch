@@ -10,6 +10,7 @@ import { computeOrbitPath } from '@/lib/orbit';
 import { EARTH_RADIUS_KM, GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { TLEData } from '@/types/satellite';
+import { CameraControls } from './CameraControls';
 
 const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
 
@@ -125,6 +126,61 @@ export default function GlobeView() {
 
     return () => clearInterval(timer);
   }, [nightMode]); // re-apply when texture changes (night/day)
+
+  // Set zoom constraints and damping on OrbitControls
+  useEffect(() => {
+    const globe = globeRef.current;
+    if (!globe) return;
+
+    const timer = setInterval(() => {
+      try {
+        const controls = globe.controls();
+        if (controls) {
+          controls.minDistance = GLOBE_RADIUS * 1.2;
+          controls.maxDistance = GLOBE_RADIUS * 8;
+          controls.enableDamping = true;
+          controls.dampingFactor = 0.1;
+          controls.rotateSpeed = 0.5;
+          clearInterval(timer);
+        }
+      } catch {
+        // Globe not ready yet
+      }
+    }, 500);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Auto-fly camera to selected satellite
+  // Fly to satellite when selected from the sidebar
+  const prevSelectedRef = useRef<number | null>(null);
+  const hasFlewRef = useRef(false);
+  useEffect(() => {
+    if (selectedSatId === null) {
+      prevSelectedRef.current = null;
+      hasFlewRef.current = false;
+      return;
+    }
+    if (selectedSatId !== prevSelectedRef.current) {
+      prevSelectedRef.current = selectedSatId;
+      hasFlewRef.current = false;
+    }
+    if (hasFlewRef.current) return;
+
+    const pos = positions.get(selectedSatId) ?? massPositions.get(selectedSatId);
+    if (!pos || !globeRef.current) return;
+
+    hasFlewRef.current = true;
+    const current = globeRef.current.pointOfView();
+    globeRef.current.pointOfView(
+      {
+        lat: pos.lat,
+        lng: pos.lng,
+        altitude: Math.min(current?.altitude ?? 1.5, 1.5),
+      },
+      800,
+    );
+  }, [selectedSatId, positions, massPositions]);
 
   // Refresh orbit paths every 30 seconds so they stay aligned with satellite positions
   useEffect(() => {
@@ -315,7 +371,8 @@ export default function GlobeView() {
   );
 
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div ref={containerRef} className="w-full h-full relative">
+      <CameraControls globeRef={globeRef} />
       {dimensions.width > 0 && (
         <Globe
           ref={globeRef}
