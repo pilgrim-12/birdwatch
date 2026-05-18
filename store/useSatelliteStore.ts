@@ -34,6 +34,21 @@ interface SatelliteStore {
   setActiveGroups: (groups: SatelliteGroup[]) => void;
   setMassSatellites: (satellites: Satellite[]) => void;
   updateMassPositions: (positions: Map<number, SatellitePosition>) => void;
+
+  // Mobile UI state
+  isMobilePanelOpen: boolean;
+  isMobileGroupsExpanded: boolean;
+  isMobileControlsOpen: boolean;
+  toggleMobilePanel: () => void;
+  setMobilePanelOpen: (open: boolean) => void;
+  toggleMobileGroups: () => void;
+  toggleMobileControls: () => void;
+
+  // Orbit View
+  isOrbitViewOpen: boolean;
+  orbitViewSelectedSatId: number | null;
+  toggleOrbitView: () => void;
+  selectOrbitViewSat: (id: number | null) => void;
 }
 
 export const useSatelliteStore = create<SatelliteStore>((set) => ({
@@ -75,4 +90,23 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
         : { massSatellites: satellites },
     ),
   updateMassPositions: (positions) => set({ massPositions: positions }),
+
+  // Mobile UI state
+  isMobilePanelOpen: false,
+  isMobileGroupsExpanded: false,
+  isMobileControlsOpen: false,
+  toggleMobilePanel: () => set((s) => ({ isMobilePanelOpen: !s.isMobilePanelOpen })),
+  setMobilePanelOpen: (open) => set({ isMobilePanelOpen: open }),
+  toggleMobileGroups: () => set((s) => ({ isMobileGroupsExpanded: !s.isMobileGroupsExpanded })),
+  toggleMobileControls: () => set((s) => ({ isMobileControlsOpen: !s.isMobileControlsOpen })),
+
+  // Orbit View
+  isOrbitViewOpen: false,
+  orbitViewSelectedSatId: null,
+  toggleOrbitView: () =>
+    set((s) => ({
+      isOrbitViewOpen: !s.isOrbitViewOpen,
+      orbitViewSelectedSatId: s.isOrbitViewOpen ? null : s.orbitViewSelectedSatId,
+    })),
+  selectOrbitViewSat: (id) => set({ orbitViewSelectedSatId: id }),
 }));

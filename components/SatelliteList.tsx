@@ -38,6 +38,9 @@ export default function SatelliteList() {
   const passes = useSatelliteStore((s) => s.passes);
   const setPasses = useSatelliteStore((s) => s.setPasses);
 
+  const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
+  const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);
+
   const [detailSatId, setDetailSatId] = useState<number | null>(null);
   const [computingPasses, setComputingPasses] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
@@ -186,12 +189,33 @@ export default function SatelliteList() {
   }, []);
 
   return (
-    <aside className="w-80 shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col relative">
+    <aside
+      className={`
+        fixed inset-x-0 bottom-0 z-30 h-[70vh] rounded-t-2xl
+        transform transition-transform duration-300 ease-in-out
+        ${isMobilePanelOpen ? 'translate-y-0' : 'translate-y-full'}
+        md:static md:transform-none md:translate-y-0 md:w-80 md:h-auto md:rounded-none md:z-auto
+        shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col relative
+      `}
+    >
+      {/* Mobile drag handle */}
+      <div className="md:hidden flex justify-center pt-3 pb-1">
+        <div className="w-10 h-1 rounded-full bg-gray-600" />
+      </div>
+
       {/* Satellite list header */}
       <div className="p-4 pb-2 shrink-0">
-        <h2 className="text-lg font-semibold text-white">
-          Satellites ({allSatellites.length})
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">
+            Satellites ({allSatellites.length})
+          </h2>
+          <button
+            onClick={() => setMobilePanelOpen(false)}
+            className="md:hidden w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 text-gray-400 hover:text-white"
+          >
+            &times;
+          </button>
+        </div>
         {massSatellites.length > 0 && (
           <p className="text-xs text-gray-500 mt-1">
             incl. {massSatellites.length} Starlink (no orbits/beams)
@@ -236,7 +260,10 @@ export default function SatelliteList() {
                       ? 'bg-cyan-500/15 border border-cyan-500/30'
                       : 'hover:bg-gray-800 border border-transparent'
                   }`}
-                  onClick={() => selectSatellite(isSelected ? null : sat.id)}
+                  onClick={() => {
+                    selectSatellite(isSelected ? null : sat.id);
+                    setMobilePanelOpen(false);
+                  }}
                 >
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
@@ -320,7 +347,10 @@ export default function SatelliteList() {
                           ? 'bg-amber-500/10 ring-1 ring-amber-400/40 hover:bg-amber-500/15'
                           : 'bg-gray-800/50 hover:bg-gray-800'
                       }`}
-                      onClick={() => selectSatellite(pass.satId)}
+                      onClick={() => {
+                        selectSatellite(pass.satId);
+                        setMobilePanelOpen(false);
+                      }}
                     >
                       <div className="flex justify-between items-center gap-1">
                         <div className="flex items-center gap-1 min-w-0">
