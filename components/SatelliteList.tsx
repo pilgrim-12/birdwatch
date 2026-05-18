@@ -27,6 +27,28 @@ function formatDuration(start: Date, end: Date): string {
   return `${mins} min`;
 }
 
+function formatCountdown(now: Date, pass: { startTime: Date; endTime: Date }): { text: string; isLive: boolean } {
+  const msToStart = pass.startTime.getTime() - now.getTime();
+  const msToEnd = pass.endTime.getTime() - now.getTime();
+
+  if (msToEnd <= 0) return { text: 'passed', isLive: false };
+  if (msToStart <= 0) {
+    const secLeft = Math.ceil(msToEnd / 1000);
+    const m = Math.floor(secLeft / 60);
+    const s = secLeft % 60;
+    return { text: m > 0 ? `${m}m ${s}s left` : `${s}s left`, isLive: true };
+  }
+
+  const totalSec = Math.ceil(msToStart / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+
+  if (h > 0) return { text: `in ${h}h ${m}m`, isLive: false };
+  if (m > 0) return { text: `in ${m}m ${s}s`, isLive: false };
+  return { text: `in ${s}s`, isLive: false };
+}
+
 export default function SatelliteList() {
   const satellites = useSatelliteStore((s) => s.satellites);
   const massSatellites = useSatelliteStore((s) => s.massSatellites);
@@ -40,6 +62,13 @@ export default function SatelliteList() {
 
   const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
   const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);
+
+  // Ticking clock for countdown timers (updates every second)
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const [detailSatId, setDetailSatId] = useState<number | null>(null);
   const [computingPasses, setComputingPasses] = useState(false);
@@ -383,6 +412,20 @@ export default function SatelliteList() {
                           </span>
                         )}
                       </div>
+                      {(() => {
+                        const cd = formatCountdown(now, pass);
+                        return (
+                          <div
+                            className={`text-[10px] font-mono mt-0.5 ${
+                              cd.isLive
+                                ? 'text-green-400 font-semibold'
+                                : 'text-cyan-400/70'
+                            }`}
+                          >
+                            {cd.isLive ? `LIVE — ${cd.text}` : cd.text}
+                          </div>
+                        );
+                      })()}
                       {isBest && (
                         <div className="text-[10px] text-amber-400/70 mt-0.5">Best pass</div>
                       )}
