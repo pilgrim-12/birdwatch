@@ -276,52 +276,39 @@ export default function GlobeView() {
       }
     }
 
-    // Beams — line / cone / footprint modes
+    // Beams: simple lines for all, detailed cone/footprint only for selected
     if (showBeams) {
       for (const p of pointsData) {
-        const altKm = p.alt * EARTH_RADIUS_KM;
-        const radiusKm = altKm * Math.tan((beamWidth * Math.PI) / 180);
-        const radiusDeg = radiusKm / 111;
-        const cosLat = Math.cos((p.lat * Math.PI) / 180) || 0.01;
+        const isDetailed = p.selected && beamMode !== 'line';
 
-        if (beamMode === 'line') {
-          // Simple line straight down
-          paths.push({
-            pathId: `beam-${p.id}`,
-            type: 'beam',
-            points: [
-              { lat: p.lat, lng: p.lng, alt: p.alt },
-              { lat: p.lat, lng: p.lng, alt: 0 },
-            ],
-            selected: p.selected,
-            color: p.color,
-          });
-        } else if (beamMode === 'cone') {
-          // Cone edges — 6 lines from satellite to footprint circle
-          const CONE_EDGES = 6;
-          for (let i = 0; i < CONE_EDGES; i++) {
-            const angle = (i / CONE_EDGES) * Math.PI * 2;
-            const eLat = p.lat + radiusDeg * Math.cos(angle);
-            const eLng = p.lng + (radiusDeg * Math.sin(angle)) / cosLat;
-            paths.push({
-              pathId: `beam-${p.id}-${i}`,
-              type: 'beam',
-              points: [
-                { lat: p.lat, lng: p.lng, alt: p.alt },
-                { lat: eLat, lng: eLng, alt: 0 },
-              ],
-              selected: p.selected,
-              color: p.color,
-            });
+        if (isDetailed) {
+          // Detailed beam for selected satellite only
+          const altKm = p.alt * EARTH_RADIUS_KM;
+          const radiusKm = altKm * Math.tan((beamWidth * Math.PI) / 180);
+          const radiusDeg = radiusKm / 111;
+          const cosLat = Math.cos((p.lat * Math.PI) / 180) || 0.01;
+
+          if (beamMode === 'cone') {
+            // Cone edges from satellite to footprint circle
+            for (let i = 0; i < 4; i++) {
+              const angle = (i / 4) * Math.PI * 2;
+              paths.push({
+                pathId: `beam-${p.id}-${i}`,
+                type: 'beam',
+                points: [
+                  { lat: p.lat, lng: p.lng, alt: p.alt },
+                  { lat: p.lat + radiusDeg * Math.cos(angle), lng: p.lng + (radiusDeg * Math.sin(angle)) / cosLat, alt: 0 },
+                ],
+                selected: true,
+                color: p.color,
+              });
+            }
           }
-        }
 
-        // Footprint circle on ground (cone + footprint modes)
-        if (beamMode === 'cone' || beamMode === 'footprint') {
-          const SEGMENTS = 24;
+          // Footprint circle on ground
           const circlePoints: { lat: number; lng: number; alt: number }[] = [];
-          for (let i = 0; i <= SEGMENTS; i++) {
-            const angle = (i / SEGMENTS) * Math.PI * 2;
+          for (let i = 0; i <= 16; i++) {
+            const angle = (i / 16) * Math.PI * 2;
             circlePoints.push({
               lat: p.lat + radiusDeg * Math.cos(angle),
               lng: p.lng + (radiusDeg * Math.sin(angle)) / cosLat,
@@ -332,6 +319,20 @@ export default function GlobeView() {
             pathId: `footprint-${p.id}`,
             type: 'footprint',
             points: circlePoints,
+            selected: true,
+            color: p.color,
+          });
+        }
+
+        // Simple beam line (always for non-selected, also for selected in line mode)
+        if (!isDetailed || beamMode === 'cone') {
+          paths.push({
+            pathId: `beam-${p.id}`,
+            type: 'beam',
+            points: [
+              { lat: p.lat, lng: p.lng, alt: p.alt },
+              { lat: p.lat, lng: p.lng, alt: 0 },
+            ],
             selected: p.selected,
             color: p.color,
           });
@@ -342,12 +343,12 @@ export default function GlobeView() {
     return paths;
   }, [showTrajectories, showBeams, beamMode, beamWidth, orbitPathsRaw, selectedSatId, pointsData]);
 
-  // Label for selected satellite only
-  const labelsData = useMemo(() => {
+  // HTML tooltip label for selected satellite (matches hover style)
+  const htmlLabelsData = useMemo(() => {
     if (!showLabels || selectedSatId === null) return [];
     const sat = pointsData.find((p) => p.id === selectedSatId);
     if (!sat) return [];
-    return [{ id: sat.id, lat: sat.lat, lng: sat.lng, alt: sat.alt + 0.02, text: sat.name }];
+    return [{ id: sat.id, lat: sat.lat, lng: sat.lng, alt: sat.alt + 0.015, name: sat.name, color: sat.color }];
   }, [showLabels, selectedSatId, pointsData]);
 
   // Observer ring
@@ -454,17 +455,19 @@ export default function GlobeView() {
             return new THREE.Mesh(geo, mat);
           }}
           onObjectClick={handlePointClick}
-          // Label for selected satellite
-          labelsData={labelsData}
-          labelLat="lat"
-          labelLng="lng"
-          labelAltitude="alt"
-          labelText="text"
-          labelSize={1}
-          labelColor={() => 'rgba(255, 107, 107, 1)'}
-          labelDotRadius={0}
-          labelResolution={2}
-          labelsTransitionDuration={0}
+          // HTML tooltip label for selected satellite
+          htmlElementsData={htmlLabelsData}
+          htmlLat="lat"
+          htmlLng="lng"
+          htmlAltitude="alt"
+          htmlElement={(d: object) => {
+            const data = d as { name: string; color: string };
+            const el = document.createElement('div');
+            el.textContent = data.name;
+            el.style.cssText = `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.75);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};`;
+            return el;
+          }}
+          htmlTransitionDuration={0}
           // Combined paths: orbit trajectories + scan beams
           pathsData={allPaths}
           pathId="pathId"
