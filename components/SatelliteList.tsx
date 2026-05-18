@@ -142,9 +142,18 @@ export default function SatelliteList() {
     };
   }, [observer, satellites, setPasses]);
 
-  // If a satellite is selected and observer is set, filter passes for that satellite
-  const visiblePasses =
-    selectedSatId !== null ? passes.filter((p) => p.satId === selectedSatId) : passes;
+  // Sort passes: receivable satellites first, then by peak elevation (highest first)
+  const sortedPasses = useMemo(() => {
+    return [...passes].sort((a, b) => {
+      const aReceivable = isReceivable(a.satId) ? 1 : 0;
+      const bReceivable = isReceivable(b.satId) ? 1 : 0;
+      if (aReceivable !== bReceivable) return bReceivable - aReceivable;
+      return b.peakElevation - a.peakElevation;
+    });
+  }, [passes]);
+
+  // Always show all passes — highlight the selected satellite instead of filtering
+  const visiblePasses = sortedPasses;
 
   // Best pass: highest elevation among receivable (active/intermittent) satellites
   const bestPassKey = useMemo(() => {
@@ -365,17 +374,23 @@ export default function SatelliteList() {
                   const doppler = dopplerMap.get(passKey);
                   const profile = getRadioProfile(pass.satId);
                   const inactive = profile?.status === 'inactive';
+                  const isSelected = selectedSatId === pass.satId;
+                  const isWeak = pass.peakElevation < 10;
 
                   return (
                     <li
                       key={`${pass.satId}-${i}`}
                       className={`text-xs rounded px-2 py-1.5 cursor-pointer transition-colors ${
-                        isBest
-                          ? 'bg-amber-500/10 ring-1 ring-amber-400/40 hover:bg-amber-500/15'
-                          : 'bg-gray-800/50 hover:bg-gray-800'
+                        isSelected
+                          ? 'bg-cyan-500/15 ring-1 ring-cyan-400/40'
+                          : isBest
+                            ? 'bg-amber-500/10 ring-1 ring-amber-400/40 hover:bg-amber-500/15'
+                            : isWeak
+                              ? 'bg-gray-800/30 opacity-50 hover:opacity-80 hover:bg-gray-800/50'
+                              : 'bg-gray-800/50 hover:bg-gray-800'
                       }`}
                       onClick={() => {
-                        selectSatellite(pass.satId);
+                        selectSatellite(isSelected ? null : pass.satId);
                         setMobilePanelOpen(false);
                       }}
                     >
@@ -393,7 +408,12 @@ export default function SatelliteList() {
                           </span>
                           <RadioBadge noradId={pass.satId} />
                         </div>
-                        <span className="text-green-400 font-mono shrink-0">
+                        <span className={`font-mono shrink-0 ${
+                          pass.peakElevation >= 45 ? 'text-green-400' :
+                          pass.peakElevation >= 20 ? 'text-green-400/70' :
+                          pass.peakElevation >= 10 ? 'text-yellow-400/70' :
+                          'text-gray-500'
+                        }`}>
                           {pass.peakElevation.toFixed(0)}&deg;
                         </span>
                       </div>
