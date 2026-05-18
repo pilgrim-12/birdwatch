@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { parseOrbitalParams } from '@/lib/orbital';
-import type { OrbitalParams, OrbitType } from '@/lib/orbital';
+import type { OrbitalParams } from '@/lib/orbital';
 import { GROUP_COLORS, GROUP_LABELS, MASS_GROUPS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { Satellite, SatellitePosition } from '@/types/satellite';
@@ -12,28 +12,28 @@ import { getRadioProfile } from '@/lib/radio/radioProfiles';
 
 // ── Layout constants ────────────────────────────────────────────────
 const PAD_TOP = 40;
-const PAD_BOTTOM = 60;
+const PAD_BOTTOM = 50;
 const PAD_LEFT = 72;
 const PAD_RIGHT = 80;
 const PAD_LEFT_MOBILE = 52;
 const PAD_RIGHT_MOBILE = 16;
 
-// Altitude zone boundaries (km)
+// Altitude zone boundaries (km) — use logarithmic-ish scale
 const LEO_MAX = 2000;
 const MEO_MAX = 20200;
 const GEO_MAX = 36000;
 
-// Zone fraction of drawable height
-const LEO_FRAC = 0.40;
-const MEO_FRAC = 0.35;
-const GEO_FRAC = 0.25;
+// Give LEO more space since most satellites are there
+const LEO_FRAC = 0.55;
+const MEO_FRAC = 0.25;
+const GEO_FRAC = 0.20;
 
 // Altitude tick marks (km)
-const ALTITUDE_TICKS = [200, 400, 800, 2000, 10000, 20200, 35786];
+const ALTITUDE_TICKS = [200, 400, 600, 800, 1200, 2000, 10000, 20200, 35786];
 
 // Dot sizing
-const DOT_R = 5;
-const COLLISION_PX = 10; // group dots within this Y distance
+const DOT_R = 6;
+const COLLISION_PX = 14;
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ export default function OrbitView() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-950/95 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex flex-col bg-gray-950">
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-800">
         <div>
@@ -92,7 +92,7 @@ export default function OrbitView() {
         </div>
         <button
           onClick={toggleOrbitView}
-          className="w-8 h-8 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors border border-gray-700"
         >
           &times;
         </button>
@@ -247,11 +247,13 @@ function AltitudeDiagram() {
     const result: { dot: SatDot; x: number; y: number }[] = [];
     for (const group of groups) {
       const n = group.length;
-      const spacing = drawWidth / (n + 1);
+      const spacing = Math.min(drawWidth / (n + 1), 40);
+      const totalW = spacing * (n - 1);
+      const startX = drawLeft + (drawWidth - totalW) / 2;
       for (let i = 0; i < n; i++) {
         result.push({
           dot: group[i],
-          x: drawLeft + spacing * (i + 1),
+          x: startX + spacing * i,
           y: altitudeToY(group[i].altitude),
         });
       }
@@ -277,49 +279,60 @@ function AltitudeDiagram() {
         className="absolute inset-0"
         onMouseMove={handleMouseMove}
       >
-        {/* Zone backgrounds */}
-        <rect
-          x={drawLeft}
-          y={leoTop}
-          width={drawWidth}
-          height={leoBottom - leoTop}
-          fill="#1e3a5f"
-          opacity={0.07}
-        />
-        <rect
-          x={drawLeft}
-          y={meoTop}
-          width={drawWidth}
-          height={meoBottom - meoTop}
-          fill="#3b1f5e"
-          opacity={0.05}
-        />
-        <rect
-          x={drawLeft}
-          y={geoTop}
-          width={drawWidth}
-          height={geoBottom - geoTop}
-          fill="#5e3b1f"
-          opacity={0.05}
-        />
+        <defs>
+          <linearGradient id="leoGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#1e3a5f" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#1e3a5f" stopOpacity="0.03" />
+          </linearGradient>
+          <linearGradient id="meoGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b1f5e" stopOpacity="0.10" />
+            <stop offset="100%" stopColor="#3b1f5e" stopOpacity="0.03" />
+          </linearGradient>
+          <linearGradient id="geoGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#5e3b1f" stopOpacity="0.10" />
+            <stop offset="100%" stopColor="#5e3b1f" stopOpacity="0.03" />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Zone backgrounds with gradients */}
+        <rect x={drawLeft} y={leoTop} width={drawWidth} height={leoBottom - leoTop} fill="url(#leoGrad)" />
+        <rect x={drawLeft} y={meoTop} width={drawWidth} height={meoBottom - meoTop} fill="url(#meoGrad)" />
+        <rect x={drawLeft} y={geoTop} width={drawWidth} height={geoBottom - geoTop} fill="url(#geoGrad)" />
 
         {/* Zone divider lines */}
-        <line
-          x1={drawLeft}
-          y1={meoBottom}
-          x2={drawRight}
-          y2={meoBottom}
-          stroke="#374151"
-          strokeWidth={0.5}
-        />
-        <line
-          x1={drawLeft}
-          y1={geoBottom}
-          x2={drawRight}
-          y2={geoBottom}
-          stroke="#374151"
-          strokeWidth={0.5}
-        />
+        <line x1={drawLeft} y1={meoBottom} x2={drawRight} y2={meoBottom} stroke="#374151" strokeWidth={0.5} />
+        <line x1={drawLeft} y1={geoBottom} x2={drawRight} y2={geoBottom} stroke="#374151" strokeWidth={0.5} />
+
+        {/* Zone labels (right side) — desktop only */}
+        {!isMobile && (
+          <>
+            <text x={drawRight + 14} y={(leoTop + leoBottom) / 2} fill="#3b82f6" fontSize={13} fontWeight={700} dominantBaseline="middle" opacity={0.6}>
+              LEO
+            </text>
+            <text x={drawRight + 14} y={(leoTop + leoBottom) / 2 + 16} fill="#6b7280" fontSize={9} dominantBaseline="middle">
+              200–2,000 km
+            </text>
+            <text x={drawRight + 14} y={(meoTop + meoBottom) / 2} fill="#8b5cf6" fontSize={13} fontWeight={700} dominantBaseline="middle" opacity={0.6}>
+              MEO
+            </text>
+            <text x={drawRight + 14} y={(meoTop + meoBottom) / 2 + 16} fill="#6b7280" fontSize={9} dominantBaseline="middle">
+              2,000–20,200 km
+            </text>
+            <text x={drawRight + 14} y={(geoTop + geoBottom) / 2} fill="#f59e0b" fontSize={13} fontWeight={700} dominantBaseline="middle" opacity={0.6}>
+              GEO
+            </text>
+            <text x={drawRight + 14} y={(geoTop + geoBottom) / 2 + 16} fill="#6b7280" fontSize={9} dominantBaseline="middle">
+              ~35,786 km
+            </text>
+          </>
+        )}
 
         {/* Altitude tick marks & grid lines */}
         {ALTITUDE_TICKS.map((alt) => {
@@ -327,88 +340,18 @@ function AltitudeDiagram() {
           if (y < drawTop || y > drawBottom) return null;
           return (
             <g key={alt}>
-              <line
-                x1={drawLeft}
-                y1={y}
-                x2={drawRight}
-                y2={y}
-                stroke="#374151"
-                strokeWidth={0.3}
-                strokeDasharray="4,6"
-              />
-              <text
-                x={drawLeft - 8}
-                y={y}
-                textAnchor="end"
-                fill="#6b7280"
-                fontSize={isMobile ? 8 : 10}
-                dominantBaseline="middle"
-              >
+              <line x1={drawLeft} y1={y} x2={drawRight} y2={y} stroke="#374151" strokeWidth={0.3} strokeDasharray="4,6" />
+              <text x={drawLeft - 8} y={y} textAnchor="end" fill="#6b7280" fontSize={isMobile ? 8 : 10} dominantBaseline="middle">
                 {formatAlt(alt)} km
               </text>
             </g>
           );
         })}
 
-        {/* Zone labels (right side) — desktop only */}
-        {!isMobile && (
-          <>
-            <text
-              x={drawRight + 12}
-              y={(leoTop + leoBottom) / 2}
-              fill="#3b82f6"
-              fontSize={12}
-              fontWeight={600}
-              dominantBaseline="middle"
-              opacity={0.5}
-            >
-              LEO
-            </text>
-            <text
-              x={drawRight + 12}
-              y={(meoTop + meoBottom) / 2}
-              fill="#8b5cf6"
-              fontSize={12}
-              fontWeight={600}
-              dominantBaseline="middle"
-              opacity={0.5}
-            >
-              MEO
-            </text>
-            <text
-              x={drawRight + 12}
-              y={(geoTop + geoBottom) / 2}
-              fill="#f59e0b"
-              fontSize={12}
-              fontWeight={600}
-              dominantBaseline="middle"
-              opacity={0.5}
-            >
-              GEO
-            </text>
-          </>
-        )}
-
-        {/* Earth arc at bottom */}
-        <ellipse
-          cx={dims.w / 2}
-          cy={drawBottom + 36}
-          rx={drawWidth * 0.5}
-          ry={18}
-          fill="#1a3a5c"
-          stroke="#2563eb"
-          strokeWidth={1}
-          opacity={0.3}
-        />
-        <text
-          x={dims.w / 2}
-          y={drawBottom + 40}
-          textAnchor="middle"
-          fill="#3b82f6"
-          fontSize={10}
-          opacity={0.5}
-        >
-          Earth
+        {/* Earth surface representation */}
+        <rect x={drawLeft} y={drawBottom} width={drawWidth} height={PAD_BOTTOM - 10} rx={4} fill="#0f2942" stroke="#1e4976" strokeWidth={0.5} />
+        <text x={dims.w / 2} y={drawBottom + (PAD_BOTTOM - 10) / 2} textAnchor="middle" dominantBaseline="middle" fill="#3b82f6" fontSize={11} fontWeight={600} opacity={0.5}>
+          Earth Surface
         </text>
 
         {/* Mass group cluster bars */}
@@ -416,51 +359,55 @@ function AltitudeDiagram() {
           const y = altitudeToY(cl.meanAltitude);
           return (
             <g key={cl.group}>
-              <rect
-                x={drawLeft + 16}
-                y={y - 5}
-                width={drawWidth - 32}
-                height={10}
-                rx={5}
-                fill={cl.color}
-                fillOpacity={0.12}
-                stroke={cl.color}
-                strokeWidth={1}
-                strokeOpacity={0.25}
-              />
-              <text
-                x={drawLeft + drawWidth / 2}
-                y={y + 4}
-                textAnchor="middle"
-                fill={cl.color}
-                fontSize={10}
-                fontWeight={600}
-              >
+              <rect x={drawLeft + 20} y={y - 8} width={drawWidth - 40} height={16} rx={8} fill={cl.color} fillOpacity={0.1} stroke={cl.color} strokeWidth={1} strokeOpacity={0.3} />
+              <text x={drawLeft + drawWidth / 2} y={y + 4} textAnchor="middle" fill={cl.color} fontSize={11} fontWeight={600}>
                 {cl.label} ({cl.count.toLocaleString()})
               </text>
             </g>
           );
         })}
 
-        {/* Individual satellite dots */}
+        {/* Individual satellite dots with names */}
         {dotPositions.map(({ dot, x, y }) => {
           const isHovered = hoveredId === dot.sat.id;
           const isSelected = selectedId === dot.sat.id;
+          const showLabel = isHovered || isSelected || dotPositions.length <= 60;
           return (
-            <circle
+            <g
               key={dot.sat.id}
-              cx={x}
-              cy={y}
-              r={isHovered || isSelected ? DOT_R + 2 : DOT_R}
-              fill={dot.color}
-              fillOpacity={0.85}
-              stroke={isSelected ? '#fff' : isHovered ? '#cbd5e1' : 'none'}
-              strokeWidth={isSelected ? 2 : isHovered ? 1.5 : 0}
-              className="cursor-pointer transition-all duration-100"
+              className="cursor-pointer"
               onMouseEnter={() => setHoveredId(dot.sat.id)}
               onMouseLeave={() => setHoveredId(null)}
               onClick={() => selectOrbitViewSat(dot.sat.id)}
-            />
+            >
+              {/* Glow ring for selected */}
+              {isSelected && (
+                <circle cx={x} cy={y} r={DOT_R + 5} fill="none" stroke={dot.color} strokeWidth={1.5} opacity={0.4} filter="url(#glow)" />
+              )}
+              <circle
+                cx={x}
+                cy={y}
+                r={isHovered || isSelected ? DOT_R + 2 : DOT_R}
+                fill={dot.color}
+                fillOpacity={0.9}
+                stroke={isSelected ? '#fff' : isHovered ? '#cbd5e1' : dot.color}
+                strokeWidth={isSelected ? 2 : isHovered ? 1.5 : 0.5}
+                strokeOpacity={isSelected || isHovered ? 1 : 0.3}
+              />
+              {/* Satellite name label */}
+              {showLabel && (
+                <text
+                  x={x}
+                  y={y - DOT_R - 4}
+                  textAnchor="middle"
+                  fill={isSelected ? '#fff' : isHovered ? '#e2e8f0' : '#9ca3af'}
+                  fontSize={isSelected || isHovered ? 10 : 8}
+                  fontWeight={isSelected ? 600 : 400}
+                >
+                  {dot.sat.name.length > 16 ? dot.sat.name.slice(0, 14) + '..' : dot.sat.name}
+                </text>
+              )}
+            </g>
           );
         })}
       </svg>
@@ -468,32 +415,34 @@ function AltitudeDiagram() {
       {/* Tooltip */}
       {hoveredDot && (
         <div
-          className="absolute pointer-events-none bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white shadow-lg z-10"
+          className="absolute pointer-events-none bg-gray-800/95 border border-gray-600 rounded-lg px-3 py-2 text-xs text-white shadow-xl z-10 backdrop-blur-sm"
           style={{
-            left: Math.min(mouse.x + 14, dims.w - 180),
-            top: mouse.y - 10,
+            left: Math.min(mouse.x + 16, dims.w - 220),
+            top: Math.max(mouse.y - 60, 8),
           }}
         >
-          <div className="font-medium">{hoveredDot.dot.sat.name}</div>
-          <div className="text-gray-400">
-            {hoveredDot.dot.altitude.toFixed(0)} km &middot;{' '}
-            {hoveredDot.dot.params.orbitType} &middot;{' '}
-            {GROUP_LABELS[hoveredDot.dot.sat.group as SatelliteGroup] ?? hoveredDot.dot.sat.group}
+          <div className="font-semibold text-sm">{hoveredDot.dot.sat.name}</div>
+          <div className="text-gray-400 mt-1 space-y-0.5">
+            <div>{hoveredDot.dot.altitude.toFixed(0)} km &middot; {hoveredDot.dot.params.orbitType}</div>
+            <div>{GROUP_LABELS[hoveredDot.dot.sat.group as SatelliteGroup] ?? hoveredDot.dot.sat.group}</div>
+            <div>Incl: {hoveredDot.dot.params.inclination.toFixed(1)}&deg; &middot; Ecc: {hoveredDot.dot.params.eccentricity.toFixed(4)}</div>
+            <div>Period: {hoveredDot.dot.params.period.toFixed(1)} min</div>
           </div>
         </div>
       )}
 
       {/* Legend */}
-      <div className="absolute bottom-2 left-2 md:bottom-4 md:left-4 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500 bg-gray-900/70 backdrop-blur-sm rounded px-2 py-1">
+      <div className="absolute bottom-2 left-2 md:bottom-4 md:left-4 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-400 bg-gray-900/80 backdrop-blur-sm rounded-lg px-3 py-2 border border-gray-700/50">
         {[...new Set(dots.map((d) => d.sat.group))].map((group) => (
           <span key={group} className="flex items-center gap-1">
             <span
-              className="w-2 h-2 rounded-full inline-block"
+              className="w-2.5 h-2.5 rounded-full inline-block"
               style={{ backgroundColor: GROUP_COLORS[group as SatelliteGroup] || '#00d4ff' }}
             />
             {GROUP_LABELS[group as SatelliteGroup] ?? group}
           </span>
         ))}
+        <span className="text-gray-600 ml-1">&middot; {dots.length} satellites</span>
       </div>
     </div>
   );

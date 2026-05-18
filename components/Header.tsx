@@ -165,7 +165,7 @@ export default function Header() {
 
       {/* Mobile full-screen menu overlay */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-gray-950/98 flex flex-col overflow-y-auto">
+        <div className="md:hidden fixed inset-0 z-50 bg-gray-950 flex flex-col overflow-y-auto">
           {/* Menu header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <h2 className="text-lg font-semibold text-white">Settings</h2>

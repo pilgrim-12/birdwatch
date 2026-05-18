@@ -12,6 +12,7 @@ export const ALLOWED_GROUPS = [
   'glo-ops',
   'galileo',
   'beidou',
+  'iridium',
   'military',
   'starlink',
   'active',
@@ -31,6 +32,7 @@ export const GROUP_LABELS: Record<SatelliteGroup, string> = {
   'glo-ops': 'GLONASS',
   galileo: 'Galileo',
   beidou: 'Beidou',
+  iridium: 'Iridium',
   military: 'Military',
   starlink: 'Starlink',
   active: 'Active Satellites',
@@ -48,6 +50,7 @@ export const GROUP_COLORS: Record<SatelliteGroup, string> = {
   'glo-ops': '#ef5350', // red-ish (Russia)
   galileo: '#5c6bc0', // indigo (EU)
   beidou: '#ff7043', // deep orange (China)
+  iridium: '#26a69a', // teal
   military: '#8d6e63', // brown
   starlink: '#78909c', // blue-grey
   active: '#00d4ff', // default cyan

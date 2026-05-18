@@ -480,8 +480,8 @@ export default function SatelliteList() {
         fixed inset-x-0 bottom-0 z-30 h-[55vh] rounded-t-2xl
         transform transition-transform duration-300 ease-in-out
         ${isMobilePanelOpen ? 'translate-y-0' : 'translate-y-full'}
-        md:static md:transform-none md:translate-y-0 md:w-80 md:h-auto md:rounded-none md:z-auto
-        shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col relative
+        md:relative md:transform-none md:translate-y-0 md:w-80 md:h-auto md:rounded-none md:z-auto
+        shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col
       `}
     >
       {/* Mobile: drag handle + tabs */}
