@@ -262,14 +262,15 @@ export default function GlobeView() {
   const allPaths: CombinedPath[] = useMemo(() => {
     const paths: CombinedPath[] = [];
 
-    // Orbit trajectories (only when toggle is on)
-    if (showTrajectories) {
-      for (const raw of orbitPathsRaw) {
+    // Orbit trajectories: all when toggle is on, or just selected satellite
+    for (const raw of orbitPathsRaw) {
+      const isSelected = raw.id === selectedSatId;
+      if (showTrajectories || isSelected) {
         paths.push({
           pathId: `orbit-${raw.id}`,
           type: 'orbit',
           points: raw.points,
-          selected: raw.id === selectedSatId,
+          selected: isSelected,
           color: raw.color,
         });
       }
