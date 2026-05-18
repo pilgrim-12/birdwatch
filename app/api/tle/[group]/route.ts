@@ -51,7 +51,9 @@ export async function GET(
       }
       text = filtered.join('\n');
     } else {
-      const url = `${CELESTRAK_BASE_URL}?GROUP=${group}&FORMAT=tle`;
+      // Map internal group names to CelesTrak group names where they differ
+      const celestrakGroup = group === 'iridium' ? 'iridium-NEXT' : group;
+      const url = `${CELESTRAK_BASE_URL}?GROUP=${celestrakGroup}&FORMAT=tle`;
       const response = await fetch(url, { next: { revalidate: 3600 } });
 
       if (!response.ok) {

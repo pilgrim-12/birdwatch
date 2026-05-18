@@ -23,17 +23,17 @@ const LEO_MAX = 2000;
 const MEO_MAX = 20200;
 const GEO_MAX = 36000;
 
-// Give LEO more space since most satellites are there
-const LEO_FRAC = 0.55;
-const MEO_FRAC = 0.25;
-const GEO_FRAC = 0.20;
+// Zone height fractions — LEO gets most space
+const LEO_FRAC = 0.65;
+const MEO_FRAC = 0.20;
+const GEO_FRAC = 0.15;
 
 // Altitude tick marks (km)
 const ALTITUDE_TICKS = [200, 400, 600, 800, 1200, 2000, 10000, 20200, 35786];
 
 // Dot sizing
-const DOT_R = 6;
-const COLLISION_PX = 14;
+const DOT_R = 5;
+const DOT_R_HOVER = 7;
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -225,41 +225,68 @@ function AltitudeDiagram() {
     [geoTop, geoBottom, meoTop, meoBottom, leoTop, leoBottom],
   );
 
-  // Spread dots horizontally to avoid overlap
+  // Cluster dots: group by altitude proximity, then arrange in hex grid
   const dotPositions = useMemo(() => {
     const sorted = [...dots].sort((a, b) => a.altitude - b.altitude);
-    const groups: SatDot[][] = [];
-    let currentGroup: SatDot[] = [];
+    const CLUSTER_PX = 12; // group dots within this Y-distance
+    const cellSize = DOT_R * 2 + 4;
 
+    // Group dots by altitude proximity
+    const clusters: SatDot[][] = [];
+    let current: SatDot[] = [];
     for (const dot of sorted) {
       const y = altitudeToY(dot.altitude);
       if (
-        currentGroup.length > 0 &&
-        Math.abs(y - altitudeToY(currentGroup[0].altitude)) > COLLISION_PX
+        current.length > 0 &&
+        Math.abs(y - altitudeToY(current[0].altitude)) > CLUSTER_PX
       ) {
-        groups.push(currentGroup);
-        currentGroup = [];
+        clusters.push(current);
+        current = [];
       }
-      currentGroup.push(dot);
+      current.push(dot);
     }
-    if (currentGroup.length > 0) groups.push(currentGroup);
+    if (current.length > 0) clusters.push(current);
 
     const result: { dot: SatDot; x: number; y: number }[] = [];
-    for (const group of groups) {
-      const n = group.length;
-      const spacing = Math.min(drawWidth / (n + 1), 40);
-      const totalW = spacing * (n - 1);
-      const startX = drawLeft + (drawWidth - totalW) / 2;
-      for (let i = 0; i < n; i++) {
-        result.push({
-          dot: group[i],
-          x: startX + spacing * i,
-          y: altitudeToY(group[i].altitude),
-        });
+    const centerX = drawLeft + drawWidth / 2;
+
+    for (const cluster of clusters) {
+      const baseY = altitudeToY(
+        cluster.reduce((sum, d) => sum + d.altitude, 0) / cluster.length,
+      );
+      const n = cluster.length;
+
+      if (n === 1) {
+        result.push({ dot: cluster[0], x: centerX, y: baseY });
+        continue;
+      }
+
+      // Arrange in hex grid rows, centered horizontally
+      const cols = Math.min(n, Math.floor(drawWidth / cellSize));
+      const rows = Math.ceil(n / cols);
+      let idx = 0;
+      for (let row = 0; row < rows && idx < n; row++) {
+        const itemsInRow = Math.min(cols, n - idx);
+        const rowW = (itemsInRow - 1) * cellSize;
+        const rowStartX = centerX - rowW / 2;
+        // Hex offset: odd rows shift by half cell
+        const hexOffset = row % 2 === 1 ? cellSize * 0.5 : 0;
+        const rowY = baseY + (row - (rows - 1) / 2) * (cellSize * 0.85);
+
+        for (let col = 0; col < itemsInRow; col++) {
+          const x = Math.max(
+            drawLeft + DOT_R,
+            Math.min(drawRight - DOT_R, rowStartX + col * cellSize + hexOffset),
+          );
+          const y = Math.max(drawTop + DOT_R, Math.min(drawBottom - DOT_R, rowY));
+          result.push({ dot: cluster[idx], x, y });
+          idx++;
+        }
       }
     }
+
     return result;
-  }, [dots, drawLeft, drawWidth, altitudeToY]);
+  }, [dots, drawLeft, drawRight, drawTop, drawBottom, drawWidth, altitudeToY]);
 
   // Hovered satellite data for tooltip
   const hoveredDot = hoveredId
@@ -367,11 +394,11 @@ function AltitudeDiagram() {
           );
         })}
 
-        {/* Individual satellite dots with names */}
+        {/* Individual satellite dots */}
         {dotPositions.map(({ dot, x, y }) => {
           const isHovered = hoveredId === dot.sat.id;
           const isSelected = selectedId === dot.sat.id;
-          const showLabel = isHovered || isSelected || dotPositions.length <= 60;
+          const r = isHovered || isSelected ? DOT_R_HOVER : DOT_R;
           return (
             <g
               key={dot.sat.id}
@@ -380,31 +407,33 @@ function AltitudeDiagram() {
               onMouseLeave={() => setHoveredId(null)}
               onClick={() => selectOrbitViewSat(dot.sat.id)}
             >
+              {/* Hover/click target (larger invisible circle) */}
+              <circle cx={x} cy={y} r={DOT_R_HOVER + 4} fill="transparent" />
               {/* Glow ring for selected */}
               {isSelected && (
-                <circle cx={x} cy={y} r={DOT_R + 5} fill="none" stroke={dot.color} strokeWidth={1.5} opacity={0.4} filter="url(#glow)" />
+                <circle cx={x} cy={y} r={r + 5} fill="none" stroke={dot.color} strokeWidth={1.5} opacity={0.4} filter="url(#glow)" />
               )}
               <circle
                 cx={x}
                 cy={y}
-                r={isHovered || isSelected ? DOT_R + 2 : DOT_R}
+                r={r}
                 fill={dot.color}
-                fillOpacity={0.9}
-                stroke={isSelected ? '#fff' : isHovered ? '#cbd5e1' : dot.color}
-                strokeWidth={isSelected ? 2 : isHovered ? 1.5 : 0.5}
-                strokeOpacity={isSelected || isHovered ? 1 : 0.3}
+                fillOpacity={isHovered || isSelected ? 1 : 0.8}
+                stroke={isSelected ? '#fff' : isHovered ? '#e2e8f0' : 'none'}
+                strokeWidth={isSelected ? 2 : 1.5}
               />
-              {/* Satellite name label */}
-              {showLabel && (
+              {/* Label on hover/select only */}
+              {(isHovered || isSelected) && (
                 <text
                   x={x}
-                  y={y - DOT_R - 4}
+                  y={y - r - 5}
                   textAnchor="middle"
-                  fill={isSelected ? '#fff' : isHovered ? '#e2e8f0' : '#9ca3af'}
-                  fontSize={isSelected || isHovered ? 10 : 8}
-                  fontWeight={isSelected ? 600 : 400}
+                  fill={isSelected ? '#fff' : '#e2e8f0'}
+                  fontSize={11}
+                  fontWeight={600}
+                  style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
                 >
-                  {dot.sat.name.length > 16 ? dot.sat.name.slice(0, 14) + '..' : dot.sat.name}
+                  {dot.sat.name}
                 </text>
               )}
             </g>
