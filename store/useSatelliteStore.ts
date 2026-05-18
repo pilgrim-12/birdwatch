@@ -66,7 +66,7 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   showBeams: true,
   nightMode: true,
   beamOpacity: 50,
-  activeGroups: ['stations', 'weather', 'noaa'],
+  activeGroups: ['stations', 'weather', 'noaa', 'iridium', 'amateur'],
   massSatellites: [],
   massPositions: new Map(),
 
