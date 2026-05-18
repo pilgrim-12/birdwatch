@@ -30,7 +30,7 @@ interface PointData {
 
 interface CombinedPath {
   pathId: string;
-  type: 'orbit' | 'beam';
+  type: 'orbit' | 'beam' | 'footprint';
   points: { lat: number; lng: number; alt: number }[];
   selected: boolean;
   color: string;
@@ -66,6 +66,9 @@ export default function GlobeView() {
   const showBeams = useSatelliteStore((s) => s.showBeams);
   const nightMode = useSatelliteStore((s) => s.nightMode);
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
+  const beamMode = useSatelliteStore((s) => s.beamMode);
+  const beamWidth = useSatelliteStore((s) => s.beamWidth);
+  const beamSpeed = useSatelliteStore((s) => s.beamSpeed);
 
   // Mass group (Starlink) state
   const massSatellites = useSatelliteStore((s) => s.massSatellites);
@@ -273,24 +276,71 @@ export default function GlobeView() {
       }
     }
 
-    // Scan beams — from each satellite to ground
+    // Beams — line / cone / footprint modes
     if (showBeams) {
       for (const p of pointsData) {
-        paths.push({
-          pathId: `beam-${p.id}`,
-          type: 'beam',
-          points: [
-            { lat: p.lat, lng: p.lng, alt: p.alt },
-            { lat: p.lat, lng: p.lng, alt: 0 },
-          ],
-          selected: p.selected,
-          color: p.color,
-        });
+        const altKm = p.alt * EARTH_RADIUS_KM;
+        const radiusKm = altKm * Math.tan((beamWidth * Math.PI) / 180);
+        const radiusDeg = radiusKm / 111;
+        const cosLat = Math.cos((p.lat * Math.PI) / 180) || 0.01;
+
+        if (beamMode === 'line') {
+          // Simple line straight down
+          paths.push({
+            pathId: `beam-${p.id}`,
+            type: 'beam',
+            points: [
+              { lat: p.lat, lng: p.lng, alt: p.alt },
+              { lat: p.lat, lng: p.lng, alt: 0 },
+            ],
+            selected: p.selected,
+            color: p.color,
+          });
+        } else if (beamMode === 'cone') {
+          // Cone edges — 6 lines from satellite to footprint circle
+          const CONE_EDGES = 6;
+          for (let i = 0; i < CONE_EDGES; i++) {
+            const angle = (i / CONE_EDGES) * Math.PI * 2;
+            const eLat = p.lat + radiusDeg * Math.cos(angle);
+            const eLng = p.lng + (radiusDeg * Math.sin(angle)) / cosLat;
+            paths.push({
+              pathId: `beam-${p.id}-${i}`,
+              type: 'beam',
+              points: [
+                { lat: p.lat, lng: p.lng, alt: p.alt },
+                { lat: eLat, lng: eLng, alt: 0 },
+              ],
+              selected: p.selected,
+              color: p.color,
+            });
+          }
+        }
+
+        // Footprint circle on ground (cone + footprint modes)
+        if (beamMode === 'cone' || beamMode === 'footprint') {
+          const SEGMENTS = 24;
+          const circlePoints: { lat: number; lng: number; alt: number }[] = [];
+          for (let i = 0; i <= SEGMENTS; i++) {
+            const angle = (i / SEGMENTS) * Math.PI * 2;
+            circlePoints.push({
+              lat: p.lat + radiusDeg * Math.cos(angle),
+              lng: p.lng + (radiusDeg * Math.sin(angle)) / cosLat,
+              alt: 0.001,
+            });
+          }
+          paths.push({
+            pathId: `footprint-${p.id}`,
+            type: 'footprint',
+            points: circlePoints,
+            selected: p.selected,
+            color: p.color,
+          });
+        }
       }
     }
 
     return paths;
-  }, [showTrajectories, showBeams, orbitPathsRaw, selectedSatId, pointsData]);
+  }, [showTrajectories, showBeams, beamMode, beamWidth, orbitPathsRaw, selectedSatId, pointsData]);
 
   // Label for selected satellite only
   const labelsData = useMemo(() => {
@@ -425,39 +475,43 @@ export default function GlobeView() {
           pathColor={(d: object) => {
             const path = d as CombinedPath;
             const hex = path.color;
-            if (path.type === 'beam') {
-              // beamOpacity: 0-100 → hex alpha 00-FF
+            if (path.type === 'beam' || path.type === 'footprint') {
               const selectedAlpha = Math.round((beamOpacity / 100) * 255).toString(16).padStart(2, '0');
               const normalAlpha = Math.round((beamOpacity / 100) * 180).toString(16).padStart(2, '0');
-              return path.selected
-                ? `${hex}${selectedAlpha}`
-                : `${hex}${normalAlpha}`;
+              // Footprint is dimmer than beam lines
+              const fpAlpha = Math.round((beamOpacity / 100) * 120).toString(16).padStart(2, '0');
+              if (path.type === 'footprint') {
+                return path.selected ? `${hex}${normalAlpha}` : `${hex}${fpAlpha}`;
+              }
+              return path.selected ? `${hex}${selectedAlpha}` : `${hex}${normalAlpha}`;
             }
-            // Orbits: selected full bright, non-selected clearly visible
-            return path.selected
-              ? `${hex}FF`
-              : `${hex}90`;
+            return path.selected ? `${hex}FF` : `${hex}90`;
           }}
           pathStroke={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'beam') return path.selected ? 1.2 : 0.5;
+            if (path.type === 'footprint') return path.selected ? 1.2 : 0.6;
+            if (path.type === 'beam') return path.selected ? 0.8 : 0.3;
             return path.selected ? 2 : 0.8;
           }}
           pathDashLength={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'footprint') return 0; // solid
             if (path.type === 'beam') return 0.3;
-            // selected orbit: solid line (no dash)
             return path.selected ? 0 : 1;
           }}
           pathDashGap={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'footprint') return 0; // solid
             if (path.type === 'beam') return 0.7;
             return path.selected ? 0 : 0.5;
           }}
           pathDashAnimateTime={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'beam') return 2000;
-            // selected orbit: no animation (solid stable line)
+            if (path.type === 'footprint') return 0;
+            if (path.type === 'beam') {
+              const speedMap = [0, 4000, 2000, 800];
+              return speedMap[beamSpeed] ?? 2000;
+            }
             return 0;
           }}
           pathTransitionDuration={0}

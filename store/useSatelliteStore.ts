@@ -14,6 +14,9 @@ interface SatelliteStore {
   showBeams: boolean;
   nightMode: boolean;
   beamOpacity: number; // 0-100
+  beamMode: 'line' | 'cone' | 'footprint';
+  beamWidth: number; // cone half-angle degrees (1-30)
+  beamSpeed: number; // 0=off, 1=slow, 2=normal, 3=fast
   activeGroups: SatelliteGroup[];
 
   // Mass group (Starlink) — separate rendering pipeline
@@ -21,7 +24,7 @@ interface SatelliteStore {
   massPositions: Map<number, SatellitePosition>;
 
   setSatellites: (satellites: Satellite[]) => void;
-  setObserver: (observer: ObserverLocation) => void;
+  setObserver: (observer: ObserverLocation | null) => void;
   selectSatellite: (id: number | null) => void;
   updatePositions: (positions: Map<number, SatellitePosition>) => void;
   setPasses: (passes: SatellitePass[]) => void;
@@ -30,6 +33,9 @@ interface SatelliteStore {
   toggleBeams: () => void;
   toggleNightMode: () => void;
   setBeamOpacity: (value: number) => void;
+  setBeamMode: (mode: 'line' | 'cone' | 'footprint') => void;
+  setBeamWidth: (deg: number) => void;
+  setBeamSpeed: (speed: number) => void;
   toggleGroup: (group: SatelliteGroup) => void;
   setActiveGroups: (groups: SatelliteGroup[]) => void;
   setMassSatellites: (satellites: Satellite[]) => void;
@@ -66,6 +72,9 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   showBeams: true,
   nightMode: true,
   beamOpacity: 50,
+  beamMode: 'cone',
+  beamWidth: 8,
+  beamSpeed: 2,
   activeGroups: ['stations', 'weather', 'noaa', 'iridium', 'amateur'],
   massSatellites: [],
   massPositions: new Map(),
@@ -80,6 +89,9 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   toggleBeams: () => set((s) => ({ showBeams: !s.showBeams })),
   toggleNightMode: () => set((s) => ({ nightMode: !s.nightMode })),
   setBeamOpacity: (value) => set({ beamOpacity: value }),
+  setBeamMode: (mode) => set({ beamMode: mode }),
+  setBeamWidth: (deg) => set({ beamWidth: deg }),
+  setBeamSpeed: (speed) => set({ beamSpeed: speed }),
   toggleGroup: (group) =>
     set((s) => ({
       activeGroups: s.activeGroups.includes(group)
