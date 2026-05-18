@@ -14,8 +14,7 @@ interface SatelliteStore {
   showBeams: boolean;
   nightMode: boolean;
   beamOpacity: number; // 0-100
-  beamMode: 'line' | 'cone' | 'footprint';
-  beamWidth: number; // cone half-angle degrees (1-30)
+  beamWidth: number; // stroke thickness 1-10
   beamSpeed: number; // 0=off, 1=slow, 2=normal, 3=fast
   activeGroups: SatelliteGroup[];
 
@@ -33,8 +32,7 @@ interface SatelliteStore {
   toggleBeams: () => void;
   toggleNightMode: () => void;
   setBeamOpacity: (value: number) => void;
-  setBeamMode: (mode: 'line' | 'cone' | 'footprint') => void;
-  setBeamWidth: (deg: number) => void;
+  setBeamWidth: (width: number) => void;
   setBeamSpeed: (speed: number) => void;
   toggleGroup: (group: SatelliteGroup) => void;
   setActiveGroups: (groups: SatelliteGroup[]) => void;
@@ -72,8 +70,7 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   showBeams: true,
   nightMode: true,
   beamOpacity: 50,
-  beamMode: 'cone',
-  beamWidth: 8,
+  beamWidth: 2,
   beamSpeed: 2,
   activeGroups: ['stations', 'weather', 'noaa', 'iridium', 'amateur'],
   massSatellites: [],
@@ -89,8 +86,7 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   toggleBeams: () => set((s) => ({ showBeams: !s.showBeams })),
   toggleNightMode: () => set((s) => ({ nightMode: !s.nightMode })),
   setBeamOpacity: (value) => set({ beamOpacity: value }),
-  setBeamMode: (mode) => set({ beamMode: mode }),
-  setBeamWidth: (deg) => set({ beamWidth: deg }),
+  setBeamWidth: (width) => set({ beamWidth: width }),
   setBeamSpeed: (speed) => set({ beamSpeed: speed }),
   toggleGroup: (group) =>
     set((s) => ({

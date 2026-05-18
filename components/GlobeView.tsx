@@ -30,7 +30,7 @@ interface PointData {
 
 interface CombinedPath {
   pathId: string;
-  type: 'orbit' | 'beam' | 'footprint';
+  type: 'orbit' | 'beam';
   points: { lat: number; lng: number; alt: number }[];
   selected: boolean;
   color: string;
@@ -66,7 +66,6 @@ export default function GlobeView() {
   const showBeams = useSatelliteStore((s) => s.showBeams);
   const nightMode = useSatelliteStore((s) => s.nightMode);
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
-  const beamMode = useSatelliteStore((s) => s.beamMode);
   const beamWidth = useSatelliteStore((s) => s.beamWidth);
   const beamSpeed = useSatelliteStore((s) => s.beamSpeed);
 
@@ -276,72 +275,24 @@ export default function GlobeView() {
       }
     }
 
-    // Beams: simple lines for all, detailed cone/footprint only for selected
+    // Beams: simple lines from satellite to ground
     if (showBeams) {
       for (const p of pointsData) {
-        const isDetailed = p.selected && beamMode !== 'line';
-
-        if (isDetailed) {
-          // Detailed beam for selected satellite only
-          const altKm = p.alt * EARTH_RADIUS_KM;
-          const radiusKm = altKm * Math.tan((beamWidth * Math.PI) / 180);
-          const radiusDeg = radiusKm / 111;
-          const cosLat = Math.cos((p.lat * Math.PI) / 180) || 0.01;
-
-          if (beamMode === 'cone') {
-            // Cone edges from satellite to footprint circle
-            for (let i = 0; i < 4; i++) {
-              const angle = (i / 4) * Math.PI * 2;
-              paths.push({
-                pathId: `beam-${p.id}-${i}`,
-                type: 'beam',
-                points: [
-                  { lat: p.lat, lng: p.lng, alt: p.alt },
-                  { lat: p.lat + radiusDeg * Math.cos(angle), lng: p.lng + (radiusDeg * Math.sin(angle)) / cosLat, alt: 0 },
-                ],
-                selected: true,
-                color: p.color,
-              });
-            }
-          }
-
-          // Footprint circle on ground
-          const circlePoints: { lat: number; lng: number; alt: number }[] = [];
-          for (let i = 0; i <= 16; i++) {
-            const angle = (i / 16) * Math.PI * 2;
-            circlePoints.push({
-              lat: p.lat + radiusDeg * Math.cos(angle),
-              lng: p.lng + (radiusDeg * Math.sin(angle)) / cosLat,
-              alt: 0.001,
-            });
-          }
-          paths.push({
-            pathId: `footprint-${p.id}`,
-            type: 'footprint',
-            points: circlePoints,
-            selected: true,
-            color: p.color,
-          });
-        }
-
-        // Simple beam line (always for non-selected, also for selected in line mode)
-        if (!isDetailed || beamMode === 'cone') {
-          paths.push({
-            pathId: `beam-${p.id}`,
-            type: 'beam',
-            points: [
-              { lat: p.lat, lng: p.lng, alt: p.alt },
-              { lat: p.lat, lng: p.lng, alt: 0 },
-            ],
-            selected: p.selected,
-            color: p.color,
-          });
-        }
+        paths.push({
+          pathId: `beam-${p.id}`,
+          type: 'beam',
+          points: [
+            { lat: p.lat, lng: p.lng, alt: p.alt },
+            { lat: p.lat, lng: p.lng, alt: 0 },
+          ],
+          selected: p.selected,
+          color: p.color,
+        });
       }
     }
 
     return paths;
-  }, [showTrajectories, showBeams, beamMode, beamWidth, orbitPathsRaw, selectedSatId, pointsData]);
+  }, [showTrajectories, showBeams, orbitPathsRaw, selectedSatId, pointsData]);
 
   // HTML tooltip label for selected satellite (matches hover style)
   const htmlLabelsData = useMemo(() => {
@@ -478,39 +429,30 @@ export default function GlobeView() {
           pathColor={(d: object) => {
             const path = d as CombinedPath;
             const hex = path.color;
-            if (path.type === 'beam' || path.type === 'footprint') {
+            if (path.type === 'beam') {
               const selectedAlpha = Math.round((beamOpacity / 100) * 255).toString(16).padStart(2, '0');
               const normalAlpha = Math.round((beamOpacity / 100) * 180).toString(16).padStart(2, '0');
-              // Footprint is dimmer than beam lines
-              const fpAlpha = Math.round((beamOpacity / 100) * 120).toString(16).padStart(2, '0');
-              if (path.type === 'footprint') {
-                return path.selected ? `${hex}${normalAlpha}` : `${hex}${fpAlpha}`;
-              }
               return path.selected ? `${hex}${selectedAlpha}` : `${hex}${normalAlpha}`;
             }
             return path.selected ? `${hex}FF` : `${hex}90`;
           }}
           pathStroke={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'footprint') return path.selected ? 1.2 : 0.6;
-            if (path.type === 'beam') return path.selected ? 0.8 : 0.3;
+            if (path.type === 'beam') return path.selected ? beamWidth * 1.5 : beamWidth * 0.5;
             return path.selected ? 2 : 0.8;
           }}
           pathDashLength={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'footprint') return 0; // solid
             if (path.type === 'beam') return 0.3;
             return path.selected ? 0 : 1;
           }}
           pathDashGap={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'footprint') return 0; // solid
             if (path.type === 'beam') return 0.7;
             return path.selected ? 0 : 0.5;
           }}
           pathDashAnimateTime={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'footprint') return 0;
             if (path.type === 'beam') {
               const speedMap = [0, 4000, 2000, 800];
               return speedMap[beamSpeed] ?? 2000;

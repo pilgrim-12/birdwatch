@@ -10,7 +10,6 @@ export default function Header() {
   const showBeams = useSatelliteStore((s) => s.showBeams);
   const nightMode = useSatelliteStore((s) => s.nightMode);
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
-  const beamMode = useSatelliteStore((s) => s.beamMode);
   const beamWidth = useSatelliteStore((s) => s.beamWidth);
   const beamSpeed = useSatelliteStore((s) => s.beamSpeed);
   const activeGroups = useSatelliteStore((s) => s.activeGroups);
@@ -19,7 +18,6 @@ export default function Header() {
   const toggleBeams = useSatelliteStore((s) => s.toggleBeams);
   const toggleNightMode = useSatelliteStore((s) => s.toggleNightMode);
   const setBeamOpacity = useSatelliteStore((s) => s.setBeamOpacity);
-  const setBeamMode = useSatelliteStore((s) => s.setBeamMode);
   const setBeamWidth = useSatelliteStore((s) => s.setBeamWidth);
   const setBeamSpeed = useSatelliteStore((s) => s.setBeamSpeed);
   const toggleGroup = useSatelliteStore((s) => s.toggleGroup);
@@ -106,38 +104,18 @@ export default function Header() {
 
             {showBeams && (
               <div className="flex items-center gap-2 ml-1 border-l border-gray-700 pl-2">
-                {/* Mode pills */}
-                {(['line', 'cone', 'footprint'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setBeamMode(mode)}
-                    className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
-                      beamMode === mode
-                        ? 'bg-cyan-500/20 text-cyan-400'
-                        : 'text-gray-500 hover:text-gray-300'
-                    }`}
-                  >
-                    {mode === 'line' ? 'Line' : mode === 'cone' ? 'Cone' : 'Footprint'}
-                  </button>
-                ))}
-                {/* Width slider (cone/footprint only) */}
-                {beamMode !== 'line' && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] text-gray-500">Width</span>
-                    <input type="range" min={1} max={30} value={beamWidth}
-                      onChange={(e) => setBeamWidth(Number(e.target.value))}
-                      className="w-14 h-1 accent-cyan-500" />
-                    <span className="text-[10px] text-gray-500 w-5">{beamWidth}&deg;</span>
-                  </div>
-                )}
-                {/* Speed slider */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-gray-500">Thickness</span>
+                  <input type="range" min={1} max={10} value={beamWidth}
+                    onChange={(e) => setBeamWidth(Number(e.target.value))}
+                    className="w-14 h-1 accent-cyan-500" />
+                </div>
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-gray-500">Speed</span>
                   <input type="range" min={0} max={3} value={beamSpeed}
                     onChange={(e) => setBeamSpeed(Number(e.target.value))}
                     className="w-10 h-1 accent-cyan-500" />
                 </div>
-                {/* Opacity slider */}
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-gray-500">Opacity</span>
                   <input type="range" min={0} max={100} value={beamOpacity}
@@ -266,36 +244,13 @@ export default function Header() {
             </div>
             {showBeams && (
               <div className="mt-3 space-y-3">
-                {/* Beam mode */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-400 shrink-0">Mode</span>
-                  <div className="flex gap-1 flex-1">
-                    {(['line', 'cone', 'footprint'] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        onClick={() => setBeamMode(mode)}
-                        className={`flex-1 min-h-[36px] rounded-lg text-xs font-medium transition-colors ${
-                          beamMode === mode
-                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                            : 'bg-gray-800 text-gray-500 border border-gray-700'
-                        }`}
-                      >
-                        {mode === 'line' ? 'Line' : mode === 'cone' ? 'Cone' : 'Footprint'}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-400">Thickness</span>
+                  <input type="range" min={1} max={10} value={beamWidth}
+                    onChange={(e) => setBeamWidth(Number(e.target.value))}
+                    className="flex-1 h-2 accent-cyan-500" />
+                  <span className="text-xs text-gray-500 w-8 text-right">{beamWidth}</span>
                 </div>
-                {/* Beam width (cone/footprint only) */}
-                {beamMode !== 'line' && (
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-400">Beam Width</span>
-                    <input type="range" min={1} max={30} value={beamWidth}
-                      onChange={(e) => setBeamWidth(Number(e.target.value))}
-                      className="flex-1 h-2 accent-cyan-500" />
-                    <span className="text-xs text-gray-500 w-8 text-right">{beamWidth}&deg;</span>
-                  </div>
-                )}
-                {/* Speed */}
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-400">Speed</span>
                   <input type="range" min={0} max={3} value={beamSpeed}
@@ -305,7 +260,6 @@ export default function Header() {
                     {['Off', 'Slow', 'Med', 'Fast'][beamSpeed]}
                   </span>
                 </div>
-                {/* Opacity */}
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-400">Opacity</span>
                   <input type="range" min={0} max={100} value={beamOpacity}
