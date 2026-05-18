@@ -27,26 +27,24 @@ function formatDuration(start: Date, end: Date): string {
   return `${mins} min`;
 }
 
-function formatCountdown(now: Date, pass: { startTime: Date; endTime: Date }): { text: string; isLive: boolean } {
+function formatCountdown(now: Date, pass: { startTime: Date; endTime: Date }): { text: string; isLive: boolean; urgency: 'past' | 'live' | 'soon' | 'normal' } {
   const msToStart = pass.startTime.getTime() - now.getTime();
   const msToEnd = pass.endTime.getTime() - now.getTime();
 
-  if (msToEnd <= 0) return { text: 'passed', isLive: false };
+  if (msToEnd <= 0) return { text: 'passed', isLive: false, urgency: 'past' };
   if (msToStart <= 0) {
-    const secLeft = Math.ceil(msToEnd / 1000);
-    const m = Math.floor(secLeft / 60);
-    const s = secLeft % 60;
-    return { text: m > 0 ? `${m}m ${s}s left` : `${s}s left`, isLive: true };
+    const minLeft = Math.ceil(msToEnd / 60000);
+    return { text: `${minLeft}m left`, isLive: true, urgency: 'live' };
   }
 
-  const totalSec = Math.ceil(msToStart / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
+  const totalMin = Math.ceil(msToStart / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
 
-  if (h > 0) return { text: `in ${h}h ${m}m`, isLive: false };
-  if (m > 0) return { text: `in ${m}m ${s}s`, isLive: false };
-  return { text: `in ${s}s`, isLive: false };
+  const isSoon = totalMin <= 30;
+
+  if (h > 0) return { text: `in ${h}h ${m}m`, isLive: false, urgency: isSoon ? 'soon' : 'normal' };
+  return { text: `in ${m}m`, isLive: false, urgency: isSoon ? 'soon' : 'normal' };
 }
 
 export default function SatelliteList() {
@@ -63,10 +61,10 @@ export default function SatelliteList() {
   const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
   const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);
 
-  // Ticking clock for countdown timers (updates every second)
+  // Ticking clock for countdown timers (updates every minute)
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
+    const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
@@ -414,16 +412,19 @@ export default function SatelliteList() {
                       </div>
                       {(() => {
                         const cd = formatCountdown(now, pass);
+                        if (cd.urgency === 'past') return null;
+                        const styles = {
+                          live: 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_6px_rgba(34,197,94,0.25)]',
+                          soon: 'bg-amber-500/15 text-amber-400 border border-amber-500/25',
+                          normal: 'bg-cyan-500/10 text-cyan-400/80 border border-cyan-500/20',
+                          past: 'text-gray-600',
+                        };
                         return (
-                          <div
-                            className={`text-[10px] font-mono mt-0.5 ${
-                              cd.isLive
-                                ? 'text-green-400 font-semibold'
-                                : 'text-cyan-400/70'
-                            }`}
+                          <span
+                            className={`inline-block text-[10px] font-mono mt-0.5 px-1.5 py-0.5 rounded-full ${styles[cd.urgency]}`}
                           >
                             {cd.isLive ? `LIVE — ${cd.text}` : cd.text}
-                          </div>
+                          </span>
                         );
                       })()}
                       {isBest && (
