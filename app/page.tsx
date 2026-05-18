@@ -94,8 +94,8 @@ export default function Home() {
   }, [activeGroups, setSatellites, setMassSatellites]);
 
   const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
-  const toggleMobilePanel = useSatelliteStore((s) => s.toggleMobilePanel);
   const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);
+  const setMobileTab = useSatelliteStore((s) => s.setMobileTab);
 
   return (
     <>
@@ -103,16 +103,27 @@ export default function Home() {
       <main className="flex flex-1 overflow-hidden">
         <div className="flex-1 relative">
           <GlobeView />
-          {/* Mobile FAB to open satellite panel */}
-          <button
-            onClick={toggleMobilePanel}
-            className="md:hidden absolute bottom-4 right-4 z-20 bg-cyan-600 active:bg-cyan-700 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-2 text-sm font-medium transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-              <path fillRule="evenodd" d="M2 3.75A.75.75 0 0 1 2.75 3h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 3.75Zm0 4.167a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Zm0 4.166a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Zm0 4.167a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-            </svg>
-            Satellites
-          </button>
+          {/* Mobile bottom FAB bar */}
+          <div className="md:hidden absolute bottom-3 left-3 right-3 z-20 flex gap-2">
+            <button
+              onClick={() => { setMobileTab('passes'); setMobilePanelOpen(true); }}
+              className="flex-1 bg-gray-900/90 backdrop-blur-sm active:bg-gray-800 text-white py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm font-medium border border-gray-700/50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-orange-400">
+                <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
+              </svg>
+              Passes
+            </button>
+            <button
+              onClick={() => { setMobileTab('satellites'); setMobilePanelOpen(true); }}
+              className="flex-1 bg-gray-900/90 backdrop-blur-sm active:bg-gray-800 text-white py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm font-medium border border-gray-700/50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-cyan-400">
+                <path fillRule="evenodd" d="M2 3.75A.75.75 0 0 1 2.75 3h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 3.75Zm0 4.167a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Zm0 4.166a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+              </svg>
+              Satellites
+            </button>
+          </div>
         </div>
         {/* Mobile backdrop */}
         {isMobilePanelOpen && (

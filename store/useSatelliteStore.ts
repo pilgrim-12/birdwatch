@@ -39,10 +39,14 @@ interface SatelliteStore {
   isMobilePanelOpen: boolean;
   isMobileGroupsExpanded: boolean;
   isMobileControlsOpen: boolean;
+  mobileTab: 'satellites' | 'passes';
+  isMobileMenuOpen: boolean;
   toggleMobilePanel: () => void;
   setMobilePanelOpen: (open: boolean) => void;
   toggleMobileGroups: () => void;
   toggleMobileControls: () => void;
+  setMobileTab: (tab: 'satellites' | 'passes') => void;
+  setMobileMenuOpen: (open: boolean) => void;
 
   // Orbit View
   isOrbitViewOpen: boolean;
@@ -95,10 +99,14 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   isMobilePanelOpen: false,
   isMobileGroupsExpanded: false,
   isMobileControlsOpen: false,
+  mobileTab: 'passes',
+  isMobileMenuOpen: false,
   toggleMobilePanel: () => set((s) => ({ isMobilePanelOpen: !s.isMobilePanelOpen })),
   setMobilePanelOpen: (open) => set({ isMobilePanelOpen: open }),
   toggleMobileGroups: () => set((s) => ({ isMobileGroupsExpanded: !s.isMobileGroupsExpanded })),
   toggleMobileControls: () => set((s) => ({ isMobileControlsOpen: !s.isMobileControlsOpen })),
+  setMobileTab: (tab) => set({ mobileTab: tab }),
+  setMobileMenuOpen: (open) => set({ isMobileMenuOpen: open }),
 
   // Orbit View
   isOrbitViewOpen: false,

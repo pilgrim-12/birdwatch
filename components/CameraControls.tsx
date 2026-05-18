@@ -77,7 +77,7 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
     'w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded transition-colors text-gray-400 hover:text-white hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400';
 
   return (
-    <div className="absolute top-4 left-4 md:top-auto md:bottom-4 flex flex-col gap-1 bg-gray-900/70 backdrop-blur-sm rounded-lg p-1.5 border border-gray-700/50 z-10">
+    <div className="absolute top-4 right-4 md:top-auto md:bottom-4 md:left-4 md:right-auto flex flex-col gap-1 bg-gray-900/70 backdrop-blur-sm rounded-lg p-1.5 border border-gray-700/50 z-10">
       {/* Reset View */}
       <button className={btnBase} onClick={handleReset} title="Reset view (R)">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

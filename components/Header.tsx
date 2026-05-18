@@ -20,10 +20,8 @@ export default function Header() {
   const setActiveGroups = useSatelliteStore((s) => s.setActiveGroups);
   const observer = useSatelliteStore((s) => s.observer);
 
-  const isMobileGroupsExpanded = useSatelliteStore((s) => s.isMobileGroupsExpanded);
-  const isMobileControlsOpen = useSatelliteStore((s) => s.isMobileControlsOpen);
-  const toggleMobileGroups = useSatelliteStore((s) => s.toggleMobileGroups);
-  const toggleMobileControls = useSatelliteStore((s) => s.toggleMobileControls);
+  const isMobileMenuOpen = useSatelliteStore((s) => s.isMobileMenuOpen);
+  const setMobileMenuOpen = useSatelliteStore((s) => s.setMobileMenuOpen);
   const isOrbitViewOpen = useSatelliteStore((s) => s.isOrbitViewOpen);
   const toggleOrbitView = useSatelliteStore((s) => s.toggleOrbitView);
 
@@ -42,199 +40,243 @@ export default function Header() {
   };
 
   return (
-    <header className="shrink-0 bg-gray-900 border-b border-gray-800 px-4 md:px-6 py-2 flex flex-col gap-2">
-      {/* Row 1: Title + controls */}
-      <div className="flex items-center gap-3 md:gap-4">
-        <h1 className="text-lg font-semibold tracking-tight text-white">BirdWatch</h1>
-        <span className="text-xs text-gray-500 hidden sm:inline">Real-time satellite tracker</span>
+    <>
+      <header className="shrink-0 bg-gray-900 border-b border-gray-800 px-4 md:px-6 py-2 flex flex-col gap-2">
+        {/* Row 1: Title + controls */}
+        <div className="flex items-center gap-3 md:gap-4">
+          <h1 className="text-lg font-semibold tracking-tight text-white">BirdWatch</h1>
+          <span className="text-xs text-gray-500 hidden sm:inline">Real-time satellite tracker</span>
 
-        {/* Desktop controls — hidden on mobile */}
-        <div className="ml-auto hidden md:flex items-center gap-2">
-          {observer && (
-            <span className="text-xs text-orange-400 mr-2">
-              Observer: {observer.lat.toFixed(2)}&deg;, {observer.lng.toFixed(2)}&deg;
-            </span>
-          )}
+          {/* Desktop controls — hidden on mobile */}
+          <div className="ml-auto hidden md:flex items-center gap-2">
+            {observer && (
+              <span className="text-xs text-orange-400 mr-2">
+                Observer: {observer.lat.toFixed(2)}&deg;, {observer.lng.toFixed(2)}&deg;
+              </span>
+            )}
 
-          <button
-            onClick={toggleTrajectories}
-            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(showTrajectories)}`}
-          >
-            Orbits
-          </button>
+            <button
+              onClick={toggleTrajectories}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(showTrajectories)}`}
+            >
+              Orbits
+            </button>
 
-          <button
-            onClick={toggleBeams}
-            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(showBeams)}`}
-          >
-            Beams
-          </button>
+            <button
+              onClick={toggleBeams}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(showBeams)}`}
+            >
+              Beams
+            </button>
 
-          <button
-            onClick={toggleLabels}
-            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(showLabels)}`}
-          >
-            Labels
-          </button>
+            <button
+              onClick={toggleLabels}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(showLabels)}`}
+            >
+              Labels
+            </button>
 
-          <button
-            onClick={toggleNightMode}
-            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(nightMode, 'night')}`}
-          >
-            {nightMode ? 'Night' : 'Day'}
-          </button>
+            <button
+              onClick={toggleNightMode}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(nightMode, 'night')}`}
+            >
+              {nightMode ? 'Night' : 'Day'}
+            </button>
 
-          <button
-            onClick={toggleOrbitView}
-            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(isOrbitViewOpen)}`}
-          >
-            Orbit View
-          </button>
+            <button
+              onClick={toggleOrbitView}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(isOrbitViewOpen)}`}
+            >
+              Orbit View
+            </button>
 
-          {showBeams && (
-            <div className="flex items-center gap-1.5 ml-1">
-              <span className="text-xs text-gray-500">Opacity</span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={beamOpacity}
-                onChange={(e) => setBeamOpacity(Number(e.target.value))}
-                className="w-16 h-1 accent-cyan-500"
-              />
-            </div>
-          )}
+            {showBeams && (
+              <div className="flex items-center gap-1.5 ml-1">
+                <span className="text-xs text-gray-500">Opacity</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={beamOpacity}
+                  onChange={(e) => setBeamOpacity(Number(e.target.value))}
+                  className="w-16 h-1 accent-cyan-500"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Mobile: compact right side */}
+          <div className="ml-auto flex items-center gap-2 md:hidden">
+            {observer && (
+              <span className="text-[10px] text-orange-400">
+                {observer.lat.toFixed(1)}&deg;, {observer.lng.toFixed(1)}&deg;
+              </span>
+            )}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-800 text-gray-300 border border-gray-700 active:bg-gray-700"
+              title="Menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path fillRule="evenodd" d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75ZM2 10a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10Zm0 5.25a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        {/* Mobile controls — visible only on mobile */}
-        <div className="ml-auto flex items-center gap-2 md:hidden">
+        {/* Desktop: Satellite group selector (always visible) */}
+        <div className="hidden md:flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-gray-500 mr-1 shrink-0">Groups:</span>
           <button
-            onClick={toggleMobileGroups}
-            className={`px-2.5 py-2 rounded text-xs font-medium transition-colors border ${
-              isMobileGroupsExpanded
-                ? 'bg-gray-700 text-white border-gray-600'
-                : 'bg-gray-800 text-gray-400 border-gray-700 active:bg-gray-700'
-            }`}
+            onClick={() => setActiveGroups([...ALLOWED_GROUPS.filter((g) => g !== 'active')])}
+            className="px-1.5 py-0.5 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
           >
-            Groups{activeGroups.length > 0 ? ` (${activeGroups.length})` : ''}
+            All
           </button>
           <button
-            onClick={toggleMobileControls}
-            className={`w-9 h-9 flex items-center justify-center rounded transition-colors border ${
-              isMobileControlsOpen
-                ? 'bg-gray-700 text-white border-gray-600'
-                : 'bg-gray-800 text-gray-400 border-gray-700 active:bg-gray-700'
-            }`}
-            title="Controls"
+            onClick={() => setActiveGroups([])}
+            className="px-1.5 py-0.5 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-              <path d="M10 3.75a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM17.25 4.5a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM5 3.75a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75ZM4.25 17a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM17.25 17a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM9 10a2 2 0 1 1 4 0 2 2 0 0 1-4 0ZM7.75 10.75a.75.75 0 0 1-.75-.75.75.75 0 0 1 .75-.75h-5a.75.75 0 0 0 0 1.5h5ZM17.25 10.75a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM14 16.25a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z" />
-            </svg>
+            None
           </button>
+          {ALLOWED_GROUPS.filter((g) => g !== 'active').map((group) => {
+            const isActive = activeGroups.includes(group);
+            const color = GROUP_COLORS[group as SatelliteGroup];
+            return (
+              <button
+                key={group}
+                onClick={() => toggleGroup(group as SatelliteGroup)}
+                className={`px-2 py-0.5 rounded text-xs transition-colors border flex items-center gap-1 ${
+                  isActive
+                    ? 'bg-gray-800 border-gray-600 text-gray-200'
+                    : 'bg-gray-800/50 text-gray-500 border-gray-700 hover:text-gray-300'
+                }`}
+              >
+                <span
+                  className="w-2 h-2 rounded-full inline-block"
+                  style={{ backgroundColor: isActive ? color : '#6b7280' }}
+                />
+                {GROUP_LABELS[group as SatelliteGroup]}
+              </button>
+            );
+          })}
         </div>
-      </div>
+      </header>
 
-      {/* Mobile controls dropdown */}
-      {isMobileControlsOpen && (
-        <div className="md:hidden flex flex-wrap items-center gap-2 py-1 border-t border-gray-800">
-          <button
-            onClick={toggleTrajectories}
-            className={`min-h-[44px] px-4 rounded text-xs font-medium transition-colors ${toggleBtnClass(showTrajectories)}`}
-          >
-            Orbits
-          </button>
+      {/* Mobile full-screen menu overlay */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50 bg-gray-950/98 flex flex-col overflow-y-auto">
+          {/* Menu header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+            <h2 className="text-lg font-semibold text-white">Settings</h2>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-gray-800 text-gray-400 active:bg-gray-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+              </svg>
+            </button>
+          </div>
 
-          <button
-            onClick={toggleBeams}
-            className={`min-h-[44px] px-4 rounded text-xs font-medium transition-colors ${toggleBtnClass(showBeams)}`}
-          >
-            Beams
-          </button>
-
-          <button
-            onClick={toggleLabels}
-            className={`min-h-[44px] px-4 rounded text-xs font-medium transition-colors ${toggleBtnClass(showLabels)}`}
-          >
-            Labels
-          </button>
-
-          <button
-            onClick={toggleNightMode}
-            className={`min-h-[44px] px-4 rounded text-xs font-medium transition-colors ${toggleBtnClass(nightMode, 'night')}`}
-          >
-            {nightMode ? 'Night' : 'Day'}
-          </button>
-
-          <button
-            onClick={toggleOrbitView}
-            className={`min-h-[44px] px-4 rounded text-xs font-medium transition-colors ${toggleBtnClass(isOrbitViewOpen)}`}
-          >
-            Orbit View
-          </button>
-
-          {showBeams && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">Opacity</span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={beamOpacity}
-                onChange={(e) => setBeamOpacity(Number(e.target.value))}
-                className="w-20 h-1 accent-cyan-500"
-              />
+          {/* Controls section */}
+          <div className="px-4 py-4 border-b border-gray-800">
+            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-3">Display</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={toggleTrajectories}
+                className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(showTrajectories)}`}
+              >
+                Orbits
+              </button>
+              <button
+                onClick={toggleBeams}
+                className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(showBeams)}`}
+              >
+                Beams
+              </button>
+              <button
+                onClick={toggleLabels}
+                className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(showLabels)}`}
+              >
+                Labels
+              </button>
+              <button
+                onClick={toggleNightMode}
+                className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(nightMode, 'night')}`}
+              >
+                {nightMode ? 'Night' : 'Day'}
+              </button>
+              <button
+                onClick={() => { toggleOrbitView(); setMobileMenuOpen(false); }}
+                className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(isOrbitViewOpen)}`}
+              >
+                Orbit View
+              </button>
             </div>
-          )}
+            {showBeams && (
+              <div className="flex items-center gap-3 mt-3">
+                <span className="text-sm text-gray-400">Beam Opacity</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={beamOpacity}
+                  onChange={(e) => setBeamOpacity(Number(e.target.value))}
+                  className="flex-1 h-2 accent-cyan-500"
+                />
+                <span className="text-xs text-gray-500 w-8 text-right">{beamOpacity}%</span>
+              </div>
+            )}
+          </div>
 
-          {observer && (
-            <span className="text-xs text-orange-400">
-              Observer: {observer.lat.toFixed(2)}&deg;, {observer.lng.toFixed(2)}&deg;
-            </span>
-          )}
+          {/* Groups section */}
+          <div className="px-4 py-4 flex-1">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs text-gray-500 uppercase tracking-wider">
+                Satellite Groups ({activeGroups.length})
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveGroups([...ALLOWED_GROUPS.filter((g) => g !== 'active')])}
+                  className="px-3 py-1.5 rounded text-xs text-gray-400 border border-gray-700 active:bg-gray-800"
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setActiveGroups([])}
+                  className="px-3 py-1.5 rounded text-xs text-gray-400 border border-gray-700 active:bg-gray-800"
+                >
+                  None
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {ALLOWED_GROUPS.filter((g) => g !== 'active').map((group) => {
+                const isActive = activeGroups.includes(group);
+                const color = GROUP_COLORS[group as SatelliteGroup];
+                return (
+                  <button
+                    key={group}
+                    onClick={() => toggleGroup(group as SatelliteGroup)}
+                    className={`min-h-[48px] px-3 rounded-lg text-sm transition-colors border flex items-center gap-2 ${
+                      isActive
+                        ? 'bg-gray-800 border-gray-600 text-gray-200'
+                        : 'bg-gray-800/50 text-gray-500 border-gray-700 active:bg-gray-800'
+                    }`}
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ backgroundColor: isActive ? color : '#6b7280' }}
+                    />
+                    {GROUP_LABELS[group as SatelliteGroup]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
-
-      {/* Satellite group selector */}
-      <div
-        className={`${
-          isMobileGroupsExpanded ? 'flex' : 'hidden'
-        } md:flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 md:flex-wrap md:overflow-visible md:pb-0 md:mx-0 md:px-0`}
-      >
-        <span className="text-xs text-gray-500 mr-1 shrink-0">Groups:</span>
-        <button
-          onClick={() => setActiveGroups([...ALLOWED_GROUPS.filter((g) => g !== 'active')])}
-          className="shrink-0 px-3 py-2 md:px-1.5 md:py-0.5 min-h-[44px] md:min-h-0 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
-        >
-          All
-        </button>
-        <button
-          onClick={() => setActiveGroups([])}
-          className="shrink-0 px-3 py-2 md:px-1.5 md:py-0.5 min-h-[44px] md:min-h-0 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
-        >
-          None
-        </button>
-        {ALLOWED_GROUPS.filter((g) => g !== 'active').map((group) => {
-          const isActive = activeGroups.includes(group);
-          const color = GROUP_COLORS[group as SatelliteGroup];
-          return (
-            <button
-              key={group}
-              onClick={() => toggleGroup(group as SatelliteGroup)}
-              className={`shrink-0 md:shrink px-3 py-2 md:px-2 md:py-0.5 min-h-[44px] md:min-h-0 rounded text-xs transition-colors border flex items-center gap-1 ${
-                isActive
-                  ? 'bg-gray-800 border-gray-600 text-gray-200'
-                  : 'bg-gray-800/50 text-gray-500 border-gray-700 hover:text-gray-300'
-              }`}
-            >
-              <span
-                className="w-2 h-2 rounded-full inline-block"
-                style={{ backgroundColor: isActive ? color : '#6b7280' }}
-              />
-              {GROUP_LABELS[group as SatelliteGroup]}
-            </button>
-          );
-        })}
-      </div>
-    </header>
+    </>
   );
 }
