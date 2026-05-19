@@ -76,9 +76,9 @@ export function RadioDetail({
   const hasExport = canReceive && profile.satdumpPipeline;
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-700">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-2">
+    <div className="mt-3 pt-3 border-t border-gray-700 space-y-2">
+      {/* Header row: Radio + mode + difficulty + status */}
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs font-semibold text-gray-300">Radio</span>
         {primaryMode && (
           <span
@@ -87,78 +87,78 @@ export function RadioDetail({
             {primaryMode.replace('_', ' ')}
           </span>
         )}
-        <span className={`text-[10px] ${getDifficultyColor(profile.difficulty)}`}>
+        <span className={`text-[10px] font-medium ${getDifficultyColor(profile.difficulty)}`}>
           {getDifficultyLabel(profile.difficulty)}
         </span>
-      </div>
-
-      {/* Status */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[10px] text-gray-500">Status:</span>
-        <span className={`text-[10px] font-medium ${getStatusColor(profile.status)}`}>
+        <span className={`text-[10px] font-medium ml-auto ${getStatusColor(profile.status)}`}>
           {profile.status === 'active' && 'Active'}
-          {profile.status === 'inactive' && 'Inactive (decommissioned)'}
+          {profile.status === 'inactive' && 'Inactive'}
           {profile.status === 'intermittent' && 'Intermittent'}
           {profile.status === 'unavailable_for_rtlsdr' &&
-            `${getUnavailableBandLabel(profile)} — not for RTL-SDR`}
+            `${getUnavailableBandLabel(profile)} only`}
         </span>
       </div>
 
+      {/* Downlinks — compact frequency cards */}
+      {profile.downlinks.map((dl, i) => (
+        <div key={i} className="flex items-center gap-2 bg-gray-800/50 rounded px-2 py-1.5">
+          <span className="text-[11px] font-mono text-cyan-400">{formatFrequency(dl.frequencyHz)}</span>
+          <span className="text-[10px] text-gray-500">{dl.mode.replace('_', ' ')}</span>
+          <span className="text-[10px] text-gray-600 ml-auto">BW {formatBandwidth(dl.bandwidthHz)}</span>
+        </div>
+      ))}
+
       {/* Antenna */}
-      <div className="text-[10px] text-gray-500 mb-2">
-        Antenna: <span className="text-gray-400">{profile.antenna}</span>
+      <div className="flex items-start gap-1.5">
+        <span className="text-[10px] text-gray-500 shrink-0">Antenna:</span>
+        <span className="text-[11px] text-gray-300">{profile.antenna}</span>
       </div>
 
       {/* What you receive */}
-      <div className={`text-[11px] mb-2 ${canReceive ? 'text-gray-300' : 'text-gray-500'}`}>
-        <div className="text-[10px] text-gray-500 mb-0.5">
-          {canReceive ? 'What you receive:' : 'Info:'}
-        </div>
+      <div className={`text-[11px] leading-relaxed ${canReceive ? 'text-gray-300' : 'text-gray-500'}`}>
         {profile.whatYouReceive}
       </div>
 
-      {/* How to receive */}
+      {/* How to receive — highlighted card for active satellites */}
       {canReceive && (
-        <div className="text-[11px] text-gray-400 mb-2">
-          <div className="text-[10px] text-gray-500 mb-0.5">How to receive:</div>
-          {profile.howToReceive}
+        <div className="bg-cyan-500/5 border border-cyan-500/10 rounded px-2.5 py-2">
+          <div className="text-[10px] text-cyan-400/70 font-medium mb-1">How to receive</div>
+          <div className="text-[11px] text-gray-300 leading-relaxed">{profile.howToReceive}</div>
         </div>
       )}
 
-      {/* Downlinks list */}
-      {profile.downlinks.length > 0 && (
-        <div className="mb-2">
-          <div className="text-[10px] text-gray-500 mb-1">Downlinks:</div>
-          {profile.downlinks.map((dl, i) => (
-            <div key={i} className="text-[10px] text-gray-400 pl-2">
-              &bull; {formatFrequency(dl.frequencyHz)} &mdash;{' '}
-              {dl.mode.replace('_', ' ')}
-              {dl.description && ` (${dl.description})`}
-              <span className="text-gray-600 ml-1">BW {formatBandwidth(dl.bandwidthHz)}</span>
-            </div>
-          ))}
+      {/* SatDump pipeline info */}
+      {profile.satdumpPipeline && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-500">SatDump:</span>
+          <code className="text-[10px] text-cyan-400 bg-gray-800 px-1.5 py-0.5 rounded font-mono">
+            {profile.satdumpPipeline}
+          </code>
+          {profile.samplerateHz && (
+            <span className="text-[10px] text-gray-500">@ {(profile.samplerateHz / 1_000_000).toFixed(1)} MSPS</span>
+          )}
         </div>
       )}
 
       {/* Notes */}
       {profile.notes && (
-        <div className="text-[10px] text-gray-600 italic mb-2">{profile.notes}</div>
+        <div className="text-[10px] text-gray-500 italic leading-relaxed">{profile.notes}</div>
       )}
 
       {/* Export buttons */}
       {hasExport && (
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2 pt-1">
           <button
             onClick={handleCopyCommand}
-            className="px-2 py-1 rounded text-[10px] font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors"
+            className="px-2.5 py-1.5 rounded text-[10px] font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors"
           >
             Copy SatDump CLI
           </button>
           <button
             onClick={handleDownloadConfig}
-            className="px-2 py-1 rounded text-[10px] font-medium bg-gray-700/50 text-gray-300 border border-gray-600/30 hover:bg-gray-700 transition-colors"
+            className="px-2.5 py-1.5 rounded text-[10px] font-medium bg-gray-700/50 text-gray-300 border border-gray-600/30 hover:bg-gray-700 active:bg-gray-600 transition-colors"
           >
-            Download config.json
+            Download config
           </button>
         </div>
       )}

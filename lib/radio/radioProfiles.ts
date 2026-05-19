@@ -58,13 +58,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'easy',
-    antenna: 'V-dipole 137 MHz (горизонтально) или QFH',
+    antenna: 'V-dipole 137 MHz (horizontal) or QFH',
     satdumpPipeline: 'noaa_apt',
     samplerateHz: 2_400_000,
     whatYouReceive:
-      'Аналоговые APT-снимки облачности в реальном времени — два канала рядом: видимый и инфракрасный. Полоса захвата ~2900 км.',
+      'Real-time analog APT cloud imagery — two side-by-side channels: visible and infrared. Swath width ~2900 km.',
     howToReceive:
-      'V-dipole 137 МГц горизонтально или QFH. RTL-SDR на 137.620 МГц, ширина 40 кГц, режим WFM. SatDump pipeline noaa_apt декодирует автоматически.',
+      'V-dipole 137 MHz horizontal or QFH antenna. RTL-SDR tuned to 137.620 MHz, 40 kHz bandwidth, WFM mode. SatDump pipeline noaa_apt decodes automatically.',
   },
   {
     noradId: 28654, // NOAA 18
@@ -78,13 +78,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'easy',
-    antenna: 'V-dipole 137 MHz (горизонтально) или QFH',
+    antenna: 'V-dipole 137 MHz (horizontal) or QFH',
     satdumpPipeline: 'noaa_apt',
     samplerateHz: 2_400_000,
     whatYouReceive:
-      'Аналоговые APT-снимки облачности в реальном времени — два канала: видимый и инфракрасный. Полоса захвата ~2900 км.',
+      'Real-time analog APT cloud imagery — two channels: visible and infrared. Swath width ~2900 km.',
     howToReceive:
-      'V-dipole 137 МГц горизонтально или QFH. RTL-SDR на 137.9125 МГц, ширина 40 кГц, режим WFM. SatDump pipeline noaa_apt.',
+      'V-dipole 137 MHz horizontal or QFH antenna. RTL-SDR tuned to 137.9125 MHz, 40 kHz bandwidth, WFM mode. SatDump pipeline noaa_apt.',
   },
   {
     noradId: 33591, // NOAA 19
@@ -98,13 +98,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'easy',
-    antenna: 'V-dipole 137 MHz (горизонтально) или QFH',
+    antenna: 'V-dipole 137 MHz (horizontal) or QFH',
     satdumpPipeline: 'noaa_apt',
     samplerateHz: 2_400_000,
     whatYouReceive:
-      'Аналоговые APT-снимки облачности в реальном времени — два канала: видимый и инфракрасный. Полоса захвата ~2900 км.',
+      'Real-time analog APT cloud imagery — two channels: visible and infrared. Swath width ~2900 km.',
     howToReceive:
-      'V-dipole 137 МГц горизонтально или QFH. RTL-SDR на 137.100 МГц, ширина 40 кГц, режим WFM. SatDump pipeline noaa_apt.',
+      'V-dipole 137 MHz horizontal or QFH antenna. RTL-SDR tuned to 137.100 MHz, 40 kHz bandwidth, WFM mode. SatDump pipeline noaa_apt.',
   },
 
   // ── NOAA APT (inactive / decommissioned) ───────────────────────────────
@@ -122,9 +122,9 @@ const PROFILES: RadioProfile[] = [
     difficulty: 'easy',
     antenna: 'V-dipole 137 MHz',
     satdumpPipeline: 'noaa_apt',
-    whatYouReceive: 'Ничего — спутник списан в 2014 году, передатчик выключен.',
-    howToReceive: 'Приём невозможен — спутник неактивен.',
-    notes: 'Списан 9 июня 2014. Разрушился на орбите 25 ноября 2015.',
+    whatYouReceive: 'Nothing — satellite decommissioned in 2014, transmitter off.',
+    howToReceive: 'Reception not possible — satellite is inactive.',
+    notes: 'Decommissioned June 9, 2014. Broke apart in orbit November 25, 2015.',
   },
   {
     noradId: 27453, // NOAA 17
@@ -140,9 +140,9 @@ const PROFILES: RadioProfile[] = [
     difficulty: 'easy',
     antenna: 'V-dipole 137 MHz',
     satdumpPipeline: 'noaa_apt',
-    whatYouReceive: 'Ничего — спутник списан в 2013 году, передатчик выключен.',
-    howToReceive: 'Приём невозможен — спутник неактивен.',
-    notes: 'Списан 10 апреля 2013 из-за деградации сканера AVHRR.',
+    whatYouReceive: 'Nothing — satellite decommissioned in 2013, transmitter off.',
+    howToReceive: 'Reception not possible — satellite is inactive.',
+    notes: 'Decommissioned April 10, 2013 due to AVHRR scanner degradation.',
   },
 
   // ── NOAA JPSS (X-band, unavailable for RTL-SDR) ────────────────────────
@@ -158,12 +158,12 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'expert',
-    antenna: 'Параболическая антенна 1.8 м + X-band LNB',
+    antenna: '1.8 m parabolic dish + X-band LNB',
     whatYouReceive:
-      'Высокодетальные снимки с приборов VIIRS, CrIS, ATMS — формат HRD (High Rate Data). Разрешение до 375 м.',
+      'High-resolution imagery from VIIRS, CrIS, ATMS instruments — HRD (High Rate Data) format. Resolution down to 375 m.',
     howToReceive:
-      'Для приёма нужна параболическая антенна ~1.8 м, X-band конвертер (7–8 ГГц), специализированный приёмник. RTL-SDR не подходит — частота и ширина полосы за пределами возможностей.',
-    notes: 'X-band 7812 МГц. Нужна профессиональная наземная станция.',
+      'Requires ~1.8 m parabolic dish, X-band converter (7–8 GHz), specialized receiver. RTL-SDR cannot handle the frequency or bandwidth.',
+    notes: 'X-band 7812 MHz. Requires professional ground station.',
   },
   {
     noradId: 54234, // NOAA 21 (JPSS-2)
@@ -177,12 +177,12 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'expert',
-    antenna: 'Параболическая антенна 1.8 м + X-band LNB',
+    antenna: '1.8 m parabolic dish + X-band LNB',
     whatYouReceive:
-      'Высокодетальные снимки VIIRS, CrIS, ATMS — формат HRD. Аналогичен NOAA 20.',
+      'High-resolution VIIRS, CrIS, ATMS imagery — HRD format. Similar to NOAA 20.',
     howToReceive:
-      'Профессиональная наземная станция с X-band антенной. RTL-SDR не подходит.',
-    notes: 'X-band 7812 МГц. Запущен 10 ноября 2022.',
+      'Professional ground station with X-band antenna. RTL-SDR not suitable.',
+    notes: 'X-band 7812 MHz. Launched November 10, 2022.',
   },
 
   // ── Meteor-M (LRPT) ───────────────────────────────────────────────────
@@ -198,15 +198,15 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'easy',
-    antenna: 'V-dipole 137 MHz (горизонтально) или QFH',
+    antenna: 'V-dipole 137 MHz (horizontal) or QFH',
     satdumpPipeline: 'meteor_m2-x_lrpt',
     samplerateHz: 2_400_000,
     whatYouReceive:
-      'Цифровые LRPT-снимки облачности (MSU-MR) — цветные, разрешение 1 км. Качество выше, чем APT у NOAA. Три канала одновременно.',
+      'Digital LRPT cloud imagery (MSU-MR) — color, 1 km resolution. Higher quality than NOAA APT. Three channels simultaneously.',
     howToReceive:
-      'V-dipole 137 МГц или QFH. RTL-SDR на 137.9 МГц, ширина 150 кГц. SatDump pipeline meteor_m2-x_lrpt. Сигнал QPSK — требуется хороший SNR (>5 дБ).',
+      'V-dipole 137 MHz or QFH antenna. RTL-SDR tuned to 137.9 MHz, 150 kHz bandwidth. SatDump pipeline meteor_m2-x_lrpt. QPSK signal — requires good SNR (>5 dB).',
     notes:
-      'LRPT иногда отключают для обслуживания. Проверяйте статус на r/amateursatellites.',
+      'LRPT is sometimes disabled for maintenance. Check status on r/amateursatellites.',
   },
   {
     noradId: 59051, // Meteor-M N2-4
@@ -220,15 +220,15 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'easy',
-    antenna: 'V-dipole 137 MHz (горизонтально) или QFH',
+    antenna: 'V-dipole 137 MHz (horizontal) or QFH',
     satdumpPipeline: 'meteor_m2-x_lrpt',
     samplerateHz: 2_400_000,
     whatYouReceive:
-      'Цифровые LRPT-снимки облачности (MSU-MR) — цветные, разрешение 1 км, три канала одновременно.',
+      'Digital LRPT cloud imagery (MSU-MR) — color, 1 km resolution, three channels simultaneously.',
     howToReceive:
-      'V-dipole 137 МГц или QFH. RTL-SDR на 137.1 МГц, ширина 150 кГц. SatDump pipeline meteor_m2-x_lrpt.',
+      'V-dipole 137 MHz or QFH antenna. RTL-SDR tuned to 137.1 MHz, 150 kHz bandwidth. SatDump pipeline meteor_m2-x_lrpt.',
     notes:
-      'Запущен 29 февраля 2024. Частота 137.1 МГц совпадает с NOAA 19 APT — возможны наложения при одновременном пролёте.',
+      'Launched February 29, 2024. Frequency 137.1 MHz overlaps with NOAA 19 APT — possible interference during simultaneous passes.',
   },
 
   // ── ISS ────────────────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ const PROFILES: RadioProfile[] = [
         frequencyHz: 145_800_000,
         bandwidthHz: 15_000,
         mode: 'SSTV',
-        description: 'SSTV (Slow Scan TV) — во время ARISS-событий',
+        description: 'SSTV (Slow Scan TV) — during ARISS events',
       },
       {
         frequencyHz: 145_825_000,
@@ -250,13 +250,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'easy',
-    antenna: 'Любая антенна на 2 метра (даже штыревая)',
+    antenna: 'Any 2-meter antenna (even a whip)',
     whatYouReceive:
-      'SSTV-снимки в режиме PD120/PD180 во время специальных сессий (ARISS-события, несколько раз в год). Packet radio AX.25 на 145.825 МГц работает чаще.',
+      'SSTV images in PD120/PD180 mode during special sessions (ARISS events, a few times per year). Packet radio AX.25 on 145.825 MHz is active more often.',
     howToReceive:
-      'Любая антенна 144 МГц. RTL-SDR на 145.800 МГц, NFM, ширина 15 кГц. Доплер ±3.5 кГц — может потребоваться ручная подстройка. Декодер SSTV: MMSSTV, QSSTV или Robot36 (Android).',
+      'Any 144 MHz antenna. RTL-SDR tuned to 145.800 MHz, NFM, 15 kHz bandwidth. Doppler ±3.5 kHz — may need manual tuning. SSTV decoder: MMSSTV, QSSTV, or Robot36 (Android).',
     notes:
-      'SSTV включают во время специальных событий — следите за расписанием ARISS. Packet/APRS на 145.825 работает постоянно.',
+      'SSTV is enabled during special events — check ARISS schedule. Packet/APRS on 145.825 runs continuously.',
   },
 
   // ── Amateur satellites ─────────────────────────────────────────────────
@@ -272,13 +272,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'medium',
-    antenna: 'Yagi 2 метра или Arrow II',
+    antenna: '2-meter Yagi or Arrow II',
     whatYouReceive:
-      'FM-голосовой ретранслятор — можно слушать QSO радиолюбителей через спутник в реальном времени. Uplink 435.250 МГц (67 Гц CTCSS).',
+      'FM voice repeater — listen to ham radio QSOs through the satellite in real time. Uplink 435.250 MHz (67 Hz CTCSS).',
     howToReceive:
-      'Направленная антенна 144 МГц (Yagi, Arrow II). RTL-SDR на 145.960 МГц, NFM, ширина 12 кГц. Доплер ±3 кГц. Для передачи нужна радиолюбительская лицензия.',
+      'Directional 144 MHz antenna (Yagi, Arrow II). RTL-SDR tuned to 145.960 MHz, NFM, 12 kHz bandwidth. Doppler ±3 kHz. Transmitting requires a ham radio license.',
     notes:
-      'Fox-1B. Активируется по свету (солнечные панели). В тени Земли может быть отключён.',
+      'Fox-1B. Light-activated (solar panels). May be off when in Earth shadow.',
   },
   {
     noradId: 27607, // SO-50 (SaudiSat-1C)
@@ -292,13 +292,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'medium',
-    antenna: 'Yagi 70 см или Arrow II dual-band',
+    antenna: '70 cm Yagi or Arrow II dual-band',
     whatYouReceive:
-      'FM-голосовой ретранслятор на UHF — можно слушать QSO через спутник. Uplink 145.850 МГц (67 Гц CTCSS, 74.4 Гц для активации).',
+      'UHF FM voice repeater — listen to ham QSOs through the satellite. Uplink 145.850 MHz (67 Hz CTCSS, 74.4 Hz to activate).',
     howToReceive:
-      'Направленная антенна 430 МГц (Yagi 70 см). RTL-SDR на 436.795 МГц, NFM. Доплер ±10 кГц на UHF — существенный, нужна подстройка.',
+      'Directional 430 MHz antenna (70 cm Yagi). RTL-SDR tuned to 436.795 MHz, NFM. Doppler ±10 kHz on UHF — significant, needs tracking.',
     notes:
-      'Один из старейших любительских спутников (2002). Для активации нужен тон 74.4 Гц на 2 секунды перед использованием.',
+      'One of the oldest amateur satellites (2002). Activation requires a 74.4 Hz tone for 2 seconds before use.',
   },
   {
     noradId: 39444, // AO-73 (FUNcube-1)
@@ -312,16 +312,16 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'medium',
-    antenna: 'Yagi 2 метра или QFH 145 МГц',
+    antenna: '2-meter Yagi or QFH 145 MHz',
     whatYouReceive:
-      'BPSK телеметрия 1200 бод — данные о состоянии спутника, температуры, напряжения, научные данные. Также линейный транспондер SSB/CW (29.4–29.5 / 145.95–145.97 МГц).',
+      'BPSK 1200 baud telemetry — satellite health data, temperatures, voltages, science data. Also has a linear SSB/CW transponder (29.4–29.5 / 145.95–145.97 MHz).',
     howToReceive:
-      'Антенна 144 МГц. RTL-SDR на 145.935 МГц, USB, ширина 20 кГц. Декодер: FUNcube Dashboard (бесплатный). Телеметрия автоматически отправляется в Data Warehouse.',
+      '144 MHz antenna. RTL-SDR tuned to 145.935 MHz, USB, 20 kHz bandwidth. Decoder: FUNcube Dashboard (free). Telemetry is auto-uploaded to Data Warehouse.',
     notes:
-      'В автономном режиме передаёт телеметрию. Когда оператор активирует транспондер — переключается в режим SSB/CW.',
+      'In autonomous mode it transmits telemetry. When the operator activates the transponder it switches to SSB/CW mode.',
   },
   {
-    noradId: 43700, // QO-100 (Es\'hail-2)
+    noradId: 43700, // QO-100 (Es'hail-2)
     status: 'active',
     downlinks: [
       {
@@ -332,13 +332,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'hard',
-    antenna: 'Параболическая антенна 60–80 см + PLL LNB',
+    antenna: '60–80 cm parabolic dish + PLL LNB',
     whatYouReceive:
-      'Любительский SSB/CW транспондер на геостационаре (25.9°E) — можно слушать QSO радиолюбителей из Европы, Африки и Ближнего Востока 24/7. Не зависит от пролётов.',
+      'Amateur SSB/CW transponder on a geostationary satellite (25.9°E) — listen to ham QSOs from Europe, Africa, and the Middle East 24/7. No pass windows needed.',
     howToReceive:
-      'Параболическая антенна 60–80 см с PLL LNB на 10489.5–10490 МГц. Bias-tee для питания LNB + RTL-SDR. IF ~739 МГц. SDR# или GQRX, режим USB.',
+      '60–80 cm parabolic dish with PLL LNB tuned to 10489.5–10490 MHz. Bias-tee to power LNB + RTL-SDR. IF ~739 MHz. SDR# or GQRX, USB mode.',
     notes:
-      'Геостационарный — виден постоянно, не нужно ждать пролёт. Из Батуми elevation ~37° — приём возможен. Нужна точная юстировка LNB (линейная поляризация).',
+      'Geostationary — always visible, no need to wait for a pass. Requires precise LNB alignment (linear polarization).',
   },
   {
     noradId: 43803, // JY1SAT (JO-97)
@@ -352,13 +352,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'medium',
-    antenna: 'Yagi 2 метра',
+    antenna: '2-meter Yagi',
     whatYouReceive:
-      'FM-голосовой ретранслятор и SSDV-изображения с камеры спутника. Первый иорданский спутник.',
+      'FM voice repeater and SSDV images from the onboard camera. First Jordanian satellite.',
     howToReceive:
-      'Направленная антенна 144 МГц. RTL-SDR на 145.840 МГц, NFM. SSDV декодируется специальным ПО.',
+      'Directional 144 MHz antenna. RTL-SDR tuned to 145.840 MHz, NFM. SSDV decoded with specialized software.',
     notes:
-      'Работает нестабильно — может быть неактивен длительное время.',
+      'Operates intermittently — may be inactive for extended periods.',
   },
   {
     noradId: 40908, // LilacSat-2 (CAS-3H)
@@ -372,11 +372,11 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'medium',
-    antenna: 'Yagi 70 см',
+    antenna: '70 cm Yagi',
     whatYouReceive:
-      'Ничего — спутник предположительно неактивен (запущен 2015).',
-    howToReceive: 'Приём маловероятен — спутник давно не отвечает.',
-    notes: 'CAS-3H. Запущен в 2015, ожидаемый срок жизни 1–2 года.',
+      'Nothing — satellite is presumed inactive (launched 2015).',
+    howToReceive: 'Reception unlikely — satellite has been unresponsive for years.',
+    notes: 'CAS-3H. Launched in 2015, expected lifespan was 1–2 years.',
   },
 
   // ── MetOp (L-band AHRPT) ──────────────────────────────────────────────
@@ -392,15 +392,15 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'hard',
-    antenna: 'Параболическая антенна 80–120 см + L-band LNA + feed',
+    antenna: '80–120 cm parabolic dish + L-band LNA + feed',
     satdumpPipeline: 'metop_ahrpt',
     samplerateHz: 6_000_000,
     whatYouReceive:
-      'Высокодетальные цифровые снимки AVHRR/3 — 6 каналов, разрешение 1 км. Плюс данные IASI, MHS, AMSU.',
+      'High-resolution digital AVHRR/3 imagery — 6 channels, 1 km resolution. Plus IASI, MHS, AMSU data.',
     howToReceive:
-      'Параболическая антенна 80+ см с L-band patch feed. SAWbird+ GOES LNA. RTL-SDR с bias-tee на 1701.3 МГц, samplerate 6 MSPS. SatDump pipeline metop_ahrpt.',
+      '80+ cm parabolic dish with L-band patch feed. SAWbird+ GOES LNA. RTL-SDR with bias-tee at 1701.3 MHz, samplerate 6 MSPS. SatDump pipeline metop_ahrpt.',
     notes:
-      'L-band 1701.3 МГц. Нужна моторизованная или ручная трассировка антенны.',
+      'L-band 1701.3 MHz. Requires motorized or manual antenna tracking.',
   },
   {
     noradId: 43689, // MetOp-C
@@ -414,14 +414,14 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'hard',
-    antenna: 'Параболическая антенна 80–120 см + L-band LNA + feed',
+    antenna: '80–120 cm parabolic dish + L-band LNA + feed',
     satdumpPipeline: 'metop_ahrpt',
     samplerateHz: 6_000_000,
     whatYouReceive:
-      'Высокодетальные цифровые снимки AVHRR/3 — 6 каналов, разрешение 1 км.',
+      'High-resolution digital AVHRR/3 imagery — 6 channels, 1 km resolution.',
     howToReceive:
-      'Аналогично MetOp-B: параболическая антенна 80+ см, L-band LNA, RTL-SDR с bias-tee, SatDump metop_ahrpt.',
-    notes: 'L-band 1701.3 МГц. Запущен 7 ноября 2018.',
+      'Same as MetOp-B: 80+ cm parabolic dish, L-band LNA, RTL-SDR with bias-tee, SatDump metop_ahrpt.',
+    notes: 'L-band 1701.3 MHz. Launched November 7, 2018.',
   },
 
   // ── GOES (L-band HRIT/EMWIN) ──────────────────────────────────────────
@@ -437,15 +437,15 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'hard',
-    antenna: 'Параболическая антенна 100+ см + SAWbird+ GOES LNA',
+    antenna: '100+ cm parabolic dish + SAWbird+ GOES LNA',
     satdumpPipeline: 'goes_hrit',
     samplerateHz: 6_000_000,
     whatYouReceive:
-      'Полнодисковые снимки Земли с геостационара каждые 10 минут — видимый, ИК, водяной пар. Также данные EMWIN (погодные предупреждения).',
+      'Full-disk Earth images from geostationary orbit every 10 minutes — visible, IR, water vapor. Also EMWIN weather alert data.',
     howToReceive:
-      'Параболическая антенна 1 м+, SAWbird+ GOES LNA, RTL-SDR с bias-tee. Антенна направлена на фиксированную точку (геостационар). SatDump pipeline goes_hrit.',
+      '1 m+ parabolic dish, SAWbird+ GOES LNA, RTL-SDR with bias-tee. Antenna pointed at fixed position (geostationary). SatDump pipeline goes_hrit.',
     notes:
-      'Геостационарный (75.2°W) — из Батуми не виден (ниже горизонта). Актуально для Америки.',
+      'Geostationary (75.2°W) — visible from the Americas. Not visible from Europe/Asia.',
   },
   {
     noradId: 43226, // GOES-17
@@ -459,13 +459,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'hard',
-    antenna: 'Параболическая антенна 100+ см + SAWbird+ GOES LNA',
+    antenna: '100+ cm parabolic dish + SAWbird+ GOES LNA',
     satdumpPipeline: 'goes_hrit',
     samplerateHz: 6_000_000,
-    whatYouReceive: 'Аналогичен GOES-16 — полнодисковые геостационарные снимки.',
-    howToReceive: 'Аналогично GOES-16. Фиксированная антенна на геостационар.',
+    whatYouReceive: 'Same as GOES-16 — full-disk geostationary imagery.',
+    howToReceive: 'Same as GOES-16. Fixed antenna aimed at geostationary position.',
     notes:
-      'Геостационарный (137.2°W) — из Батуми не виден. На орбитальном хранении с 2023.',
+      'Geostationary (137.2°W). In on-orbit storage since 2023.',
   },
   {
     noradId: 51850, // GOES-18
@@ -479,13 +479,13 @@ const PROFILES: RadioProfile[] = [
       },
     ],
     difficulty: 'hard',
-    antenna: 'Параболическая антенна 100+ см + SAWbird+ GOES LNA',
+    antenna: '100+ cm parabolic dish + SAWbird+ GOES LNA',
     satdumpPipeline: 'goes_hrit',
     samplerateHz: 6_000_000,
     whatYouReceive:
-      'Полнодисковые снимки Земли каждые 10 минут (замена GOES-17).',
-    howToReceive: 'Аналогично GOES-16. Фиксированная антенна на геостационар.',
-    notes: 'Геостационарный (136.9°W) — из Батуми не виден.',
+      'Full-disk Earth images every 10 minutes (replacement for GOES-17).',
+    howToReceive: 'Same as GOES-16. Fixed antenna aimed at geostationary position.',
+    notes: 'Geostationary (136.9°W). Not visible from Europe/Asia.',
   },
 ];
 
@@ -505,13 +505,13 @@ const GROUP_PROFILES: Record<string, Omit<RadioProfile, 'noradId'>> = {
       },
     ],
     difficulty: 'expert',
-    antenna: 'Патч-антенна GPS L1 + LNA + фильтр',
+    antenna: 'GPS L1 patch antenna + LNA + SAW filter',
     whatYouReceive:
-      'Навигационный сигнал GPS L1 — псевдослучайный код и навигационное сообщение. Можно декодировать эфемериды, альманах, время UTC.',
+      'GPS L1 navigation signal — pseudorandom code and navigation message. Can decode ephemeris, almanac, UTC time.',
     howToReceive:
-      'Патч-антенна L1 1575.42 МГц + LNA + SAW-фильтр. RTL-SDR может принять сигнал (ниже уровня шума), но для декодирования нужен специализированный софт (gnss-sdr, GNSS-SDR). Это экспертный уровень.',
+      'L1 1575.42 MHz patch antenna + LNA + SAW filter. RTL-SDR can pick up the signal (below noise floor), but decoding requires specialized software (gnss-sdr). Expert level.',
     notes:
-      'Сигнал GPS ниже уровня шума (~-130 дБм). Для декодирования используется корреляция с известным PRN-кодом.',
+      'GPS signal is below the noise floor (~-130 dBm). Decoding uses correlation with known PRN codes.',
   },
   'glo-ops': {
     status: 'unavailable_for_rtlsdr',
@@ -524,13 +524,13 @@ const GROUP_PROFILES: Record<string, Omit<RadioProfile, 'noradId'>> = {
       },
     ],
     difficulty: 'expert',
-    antenna: 'Патч-антенна GLONASS L1 + LNA',
+    antenna: 'GLONASS L1 patch antenna + LNA',
     whatYouReceive:
-      'Навигационный сигнал ГЛОНАСС L1 — FDMA, каждый спутник на своей частоте (1598.0625–1605.375 МГц).',
+      'GLONASS L1 navigation signal — FDMA, each satellite on its own frequency (1598.0625–1605.375 MHz).',
     howToReceive:
-      'Аналогично GPS — патч-антенна, LNA, GNSS-SDR. Уникальная особенность: FDMA вместо CDMA, разные частоты для разных спутников.',
+      'Same as GPS — patch antenna, LNA, GNSS-SDR. Unique feature: FDMA instead of CDMA, different frequencies for different satellites.',
     notes:
-      'FDMA: частота = 1602 + k×0.5625 МГц, где k — номер частотного канала спутника.',
+      'FDMA: frequency = 1602 + k×0.5625 MHz, where k is the satellite frequency channel number.',
   },
   galileo: {
     status: 'unavailable_for_rtlsdr',
@@ -543,12 +543,12 @@ const GROUP_PROFILES: Record<string, Omit<RadioProfile, 'noradId'>> = {
       },
     ],
     difficulty: 'expert',
-    antenna: 'Патч-антенна L1 + LNA',
+    antenna: 'L1 patch antenna + LNA',
     whatYouReceive:
-      'Навигационный сигнал Galileo E1 — CBOC модуляция. Совместим с GPS L1 по частоте.',
+      'Galileo E1 navigation signal — CBOC modulation. Shares GPS L1 frequency.',
     howToReceive:
-      'Та же антенна, что для GPS L1. GNSS-SDR поддерживает Galileo E1. Более сложная модуляция (CBOC), чем GPS.',
-    notes: 'Европейская навигационная система. Полная группировка — 30 спутников.',
+      'Same antenna as GPS L1. GNSS-SDR supports Galileo E1. More complex modulation (CBOC) than GPS.',
+    notes: 'European navigation system. Full constellation — 30 satellites.',
   },
   beidou: {
     status: 'unavailable_for_rtlsdr',
@@ -561,12 +561,12 @@ const GROUP_PROFILES: Record<string, Omit<RadioProfile, 'noradId'>> = {
       },
     ],
     difficulty: 'expert',
-    antenna: 'Патч-антенна L-band + LNA',
+    antenna: 'L-band patch antenna + LNA',
     whatYouReceive:
-      'Навигационный сигнал BeiDou B1I — BPSK модуляция. Китайская навигационная система.',
+      'BeiDou B1I navigation signal — BPSK modulation. Chinese navigation system.',
     howToReceive:
-      'Патч-антенна L-band + LNA. GNSS-SDR поддерживает BeiDou B1I. Нужен широкополосный фронтенд.',
-    notes: 'Китайская система. 35+ спутников (MEO + GEO + IGSO).',
+      'L-band patch antenna + LNA. GNSS-SDR supports BeiDou B1I. Requires wideband frontend.',
+    notes: 'Chinese system. 35+ satellites (MEO + GEO + IGSO).',
   },
   starlink: {
     status: 'unavailable_for_rtlsdr',
@@ -579,12 +579,12 @@ const GROUP_PROFILES: Record<string, Omit<RadioProfile, 'noradId'>> = {
       },
     ],
     difficulty: 'expert',
-    antenna: 'Фазированная решётка Starlink (проприетарная)',
+    antenna: 'Starlink phased array (proprietary)',
     whatYouReceive:
-      'Широкополосный интернет-трафик Ku-band. Зашифрован, проприетарный протокол — полезного для радиолюбителя ничего.',
+      'Ku-band broadband internet traffic. Encrypted, proprietary protocol — nothing useful for amateur reception.',
     howToReceive:
-      'Невозможно на RTL-SDR. Ku-band 10.7–12.7 ГГц требует фазированной решётки с beam forming. Протокол проприетарный.',
-    notes: 'Starlink — коммерческая система SpaceX. Приём на любительском оборудовании невозможен.',
+      'Not possible with RTL-SDR. Ku-band 10.7–12.7 GHz requires phased array with beam forming. Proprietary protocol.',
+    notes: 'Starlink is a commercial SpaceX system. Amateur reception is not possible.',
   },
 };
 
