@@ -84,7 +84,9 @@ export function findPasses(
         }
       } else if (inPass) {
         inPass = false;
-        if (peakEl >= 5) {
+        const durationMin = (date.getTime() - passStart.getTime()) / 60_000;
+        // Skip GEO/always-visible satellites (no real pass exceeds 60 min)
+        if (peakEl >= 5 && durationMin <= 60) {
           passes.push({
             satId: sat.id,
             satName: sat.name,
@@ -97,16 +99,19 @@ export function findPasses(
       }
     }
 
-    // Handle pass that extends beyond the search window
+    // Handle pass that extends beyond the search window — skip if too long (GEO)
     if (inPass && peakEl >= 5) {
-      passes.push({
-        satId: sat.id,
-        satName: sat.name,
-        startTime: passStart,
-        peakTime,
-        endTime: new Date(endMs),
-        peakElevation: peakEl,
-      });
+      const durationMin = (endMs - passStart.getTime()) / 60_000;
+      if (durationMin <= 60) {
+        passes.push({
+          satId: sat.id,
+          satName: sat.name,
+          startTime: passStart,
+          peakTime,
+          endTime: new Date(endMs),
+          peakElevation: peakEl,
+        });
+      }
     }
   }
 
