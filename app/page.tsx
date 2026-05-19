@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import GlobeView from '@/components/GlobeView';
 import SatelliteList from '@/components/SatelliteList';
 import OrbitView from '@/components/OrbitView';
+import AntennaGuide from '@/components/AntennaGuide';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { parseTLEText, tlesToSatellites, extractNoradId } from '@/lib/tle';
 import { MASS_GROUPS } from '@/lib/constants';
@@ -135,6 +136,7 @@ export default function Home() {
         <SatelliteList />
       </main>
       <OrbitView />
+      <AntennaGuide />
     </>
   );
 }

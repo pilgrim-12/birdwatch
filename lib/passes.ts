@@ -113,3 +113,22 @@ export function findPasses(
   passes.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
   return passes;
 }
+
+/** Compute current elevation (degrees) of a satellite from an observer. */
+export function getCurrentElevation(
+  tle: TLEData,
+  observer: ObserverLocation,
+  date: Date = new Date(),
+): number | null {
+  try {
+    const satrec = twoline2satrec(tle.line1, tle.line2);
+    const observerGd = {
+      longitude: degreesToRadians(observer.lng),
+      latitude: degreesToRadians(observer.lat),
+      height: observer.alt / 1000,
+    };
+    return getElevation(satrec, observerGd, date);
+  } catch {
+    return null;
+  }
+}

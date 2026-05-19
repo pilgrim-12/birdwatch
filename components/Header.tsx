@@ -29,6 +29,7 @@ export default function Header() {
   const setMobileMenuOpen = useSatelliteStore((s) => s.setMobileMenuOpen);
   const isOrbitViewOpen = useSatelliteStore((s) => s.isOrbitViewOpen);
   const toggleOrbitView = useSatelliteStore((s) => s.toggleOrbitView);
+  const openAntennaGuide = useSatelliteStore((s) => s.openAntennaGuide);
 
   const toggleBtnClass = (active: boolean, activeColor = 'cyan') => {
     const colorMap: Record<string, string> = {
@@ -100,6 +101,13 @@ export default function Header() {
               className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${toggleBtnClass(isOrbitViewOpen)}`}
             >
               Orbit View
+            </button>
+
+            <button
+              onClick={() => openAntennaGuide()}
+              className="px-3 py-1.5 rounded text-xs font-medium transition-colors bg-gray-800 text-gray-500 border border-gray-700 hover:text-gray-300"
+            >
+              Antennas
             </button>
 
             {showBeams && (
@@ -240,6 +248,12 @@ export default function Header() {
                 className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(isOrbitViewOpen)}`}
               >
                 Orbit View
+              </button>
+              <button
+                onClick={() => { openAntennaGuide(); setMobileMenuOpen(false); }}
+                className="min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors bg-gray-800 text-gray-500 border border-gray-700 active:text-gray-300"
+              >
+                Antennas
               </button>
             </div>
             {showBeams && (

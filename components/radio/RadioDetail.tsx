@@ -12,6 +12,8 @@ import {
 } from '@/lib/radio/radioProfiles';
 import type { RadioProfile } from '@/lib/radio/radioProfiles';
 import { generateSatDumpCommand, downloadConfigJson } from '@/lib/radio/satdumpExport';
+import { matchAntennaTypes } from '@/lib/radio/antennaGuide';
+import { useSatelliteStore } from '@/store/useSatelliteStore';
 import type { ObserverLocation } from '@/types/satellite';
 import type { SatellitePass } from '@/lib/passes';
 
@@ -43,6 +45,8 @@ export function RadioDetail({
   observer,
   pass,
 }: RadioDetailProps) {
+  const openAntennaGuide = useSatelliteStore((s) => s.openAntennaGuide);
+
   const profile: RadioProfile | undefined = useMemo(() => {
     const individual = getRadioProfile(noradId);
     if (individual) return individual;
@@ -111,7 +115,15 @@ export function RadioDetail({
       {/* Antenna */}
       <div className="flex items-start gap-1.5">
         <span className="text-[10px] text-gray-500 shrink-0">Antenna:</span>
-        <span className="text-[11px] text-gray-300">{profile.antenna}</span>
+        <button
+          onClick={() => {
+            const matches = matchAntennaTypes(profile.antenna);
+            openAntennaGuide(matches[0]);
+          }}
+          className="text-[11px] text-cyan-400 hover:text-cyan-300 underline underline-offset-2 decoration-cyan-400/30 text-left"
+        >
+          {profile.antenna}
+        </button>
       </div>
 
       {/* What you receive */}

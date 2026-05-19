@@ -57,6 +57,12 @@ interface SatelliteStore {
   orbitViewSelectedSatId: number | null;
   toggleOrbitView: () => void;
   selectOrbitViewSat: (id: number | null) => void;
+
+  // Antenna Guide
+  isAntennaGuideOpen: boolean;
+  antennaGuideFilter: string | null;
+  toggleAntennaGuide: () => void;
+  openAntennaGuide: (filter?: string) => void;
 }
 
 export const useSatelliteStore = create<SatelliteStore>((set) => ({
@@ -125,4 +131,15 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
       orbitViewSelectedSatId: s.isOrbitViewOpen ? null : s.orbitViewSelectedSatId,
     })),
   selectOrbitViewSat: (id) => set({ orbitViewSelectedSatId: id }),
+
+  // Antenna Guide
+  isAntennaGuideOpen: false,
+  antennaGuideFilter: null,
+  toggleAntennaGuide: () =>
+    set((s) => ({
+      isAntennaGuideOpen: !s.isAntennaGuideOpen,
+      antennaGuideFilter: s.isAntennaGuideOpen ? null : s.antennaGuideFilter,
+    })),
+  openAntennaGuide: (filter) =>
+    set({ isAntennaGuideOpen: true, antennaGuideFilter: filter ?? null }),
 }));

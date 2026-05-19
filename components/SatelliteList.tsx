@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
-import { findPasses } from '@/lib/passes';
+import { findPasses, getCurrentElevation } from '@/lib/passes';
 import type { SatellitePass } from '@/lib/passes';
 import { GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
@@ -25,6 +25,19 @@ function formatTime(date: Date): string {
 function formatDuration(start: Date, end: Date): string {
   const mins = Math.round((end.getTime() - start.getTime()) / 60_000);
   return `${mins} min`;
+}
+
+function formatLiveLabel(
+  now: Date,
+  pass: SatellitePass,
+  timeText: string,
+  tle: { name: string; line1: string; line2: string } | undefined,
+  observer: { lat: number; lng: number; alt: number } | null,
+): string {
+  if (!tle || !observer) return `LIVE — ${timeText}`;
+  const el = getCurrentElevation(tle, observer, now);
+  if (el === null) return `LIVE — ${timeText}`;
+  return `LIVE ${el.toFixed(0)}\u00B0 — ${timeText}`;
 }
 
 function formatCountdown(now: Date, pass: { startTime: Date; endTime: Date }): { text: string; isLive: boolean; urgency: 'past' | 'live' | 'soon' | 'normal' } {
@@ -61,12 +74,18 @@ export default function SatelliteList() {
   const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
   const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);
 
-  // Ticking clock for countdown timers (updates every minute)
+  // Ticking clock — 10s during live passes for real-time elevation, 60s otherwise
   const [now, setNow] = useState(() => new Date());
+  const hasLivePass = useMemo(() => {
+    const t = now.getTime();
+    return passes.some((p) => p.startTime.getTime() <= t && p.endTime.getTime() > t);
+  }, [passes, now]);
+
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
+    const interval = hasLivePass ? 10_000 : 60_000;
+    const id = setInterval(() => setNow(new Date()), interval);
     return () => clearInterval(id);
-  }, []);
+  }, [hasLivePass]);
 
   const [detailSatId, setDetailSatId] = useState<number | null>(null);
   const [computingPasses, setComputingPasses] = useState(false);
@@ -88,14 +107,14 @@ export default function SatelliteList() {
     [positions, massPositions],
   );
 
-  // Map from NORAD ID to TLE for Doppler computation
+  // Map from NORAD ID to TLE for Doppler + live elevation
   const tleMap = useMemo(() => {
-    const map = new Map<number, { line1: string; line2: string }>();
-    for (const sat of satellites) {
-      map.set(sat.id, { line1: sat.tle.line1, line2: sat.tle.line2 });
+    const map = new Map<number, { name: string; line1: string; line2: string }>();
+    for (const sat of allSatellites) {
+      map.set(sat.id, sat.tle);
     }
     return map;
-  }, [satellites]);
+  }, [allSatellites]);
 
   // Measure list container height
   useEffect(() => {
@@ -181,7 +200,7 @@ export default function SatelliteList() {
       const freq = profile.downlinks[0].frequencyHz;
       const key = `${pass.satId}-${pass.startTime.getTime()}`;
       const doppler = computeMaxDoppler(
-        { name: pass.satName, ...tle },
+        tle,
         observer,
         pass.startTime.getTime(),
         pass.endTime.getTime(),
@@ -412,7 +431,7 @@ export default function SatelliteList() {
                       <span
                         className={`inline-block text-[10px] font-mono mt-0.5 px-1.5 py-0.5 rounded-full ${styles[cd.urgency]}`}
                       >
-                        {cd.isLive ? `LIVE — ${cd.text}` : cd.text}
+                        {cd.isLive ? formatLiveLabel(now, pass, cd.text, tleMap.get(pass.satId), observer) : cd.text}
                       </span>
                     );
                   })()}
@@ -633,7 +652,7 @@ export default function SatelliteList() {
                             <span
                               className={`inline-block text-[10px] font-mono mt-0.5 px-1.5 py-0.5 rounded-full ${styles[cd.urgency]}`}
                             >
-                              {cd.isLive ? `LIVE — ${cd.text}` : cd.text}
+                              {cd.isLive ? formatLiveLabel(now, pass, cd.text, tleMap.get(pass.satId), observer) : cd.text}
                             </span>
                           );
                         })()}
