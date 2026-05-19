@@ -276,16 +276,15 @@ export default function GlobeView() {
       }
     }
 
-    // Beams: fixed-length lines downward from each satellite
+    // Beams: lines from satellite to ground
     if (showBeams) {
-      const BEAM_LEN = 0.08; // ~500 km in relative altitude units
       for (const p of pointsData) {
         paths.push({
           pathId: `beam-${p.id}`,
           type: 'beam',
           points: [
             { lat: p.lat, lng: p.lng, alt: p.alt },
-            { lat: p.lat, lng: p.lng, alt: Math.max(0, p.alt - BEAM_LEN) },
+            { lat: p.lat, lng: p.lng, alt: 0 },
           ],
           selected: p.selected,
           color: p.color,
