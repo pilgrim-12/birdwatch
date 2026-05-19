@@ -184,9 +184,9 @@ export default function GlobeView() {
     );
   }, [selectedSatId, positions, massPositions]);
 
-  // Refresh orbit paths every 30 seconds so they stay aligned with satellite positions
+  // Refresh orbit paths every 5 minutes (orbits are stable for hours from a single TLE)
   useEffect(() => {
-    const interval = setInterval(() => setOrbitEpoch((n) => n + 1), 30_000);
+    const interval = setInterval(() => setOrbitEpoch((n) => n + 1), 300_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -316,6 +316,20 @@ export default function GlobeView() {
     return [{ id: 'mass-constellation', positions: massPositions }];
   }, [massPositions]);
 
+  // Cached geometries & materials for satellite spheres (avoid re-allocation every render)
+  const normalGeoRef = useRef(new THREE.SphereGeometry(1, 12, 10));
+  const selectedGeoRef = useRef(new THREE.SphereGeometry(1.8, 12, 10));
+  const materialCacheRef = useRef(new Map<string, THREE.MeshBasicMaterial>());
+  const getMaterial = useCallback((color: string | number) => {
+    const key = String(color);
+    let mat = materialCacheRef.current.get(key);
+    if (!mat) {
+      mat = new THREE.MeshBasicMaterial({ color });
+      materialCacheRef.current.set(key, mat);
+    }
+    return mat;
+  }, []);
+
   const starlinkMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const dummyObj = useRef(new THREE.Object3D());
 
@@ -400,11 +414,8 @@ export default function GlobeView() {
           objectLabel="name"
           objectThreeObject={(d: object) => {
             const point = d as PointData;
-            const radius = point.selected ? 1.8 : 1;
-            const geo = new THREE.SphereGeometry(radius, 12, 10);
-            const mat = new THREE.MeshBasicMaterial({
-              color: point.selected ? 0xffffff : point.color,
-            });
+            const geo = point.selected ? selectedGeoRef.current : normalGeoRef.current;
+            const mat = getMaterial(point.selected ? 0xffffff : point.color);
             return new THREE.Mesh(geo, mat);
           }}
           onObjectClick={handlePointClick}
