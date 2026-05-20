@@ -553,14 +553,16 @@ export default function SatelliteList() {
 
   return (
     <>
-      {/* Desktop: drag handle — outside aside to avoid overflow-hidden clipping */}
+      {/* Desktop: resize handle between globe and sidebar */}
       <div
         onMouseDown={handleResizeStart}
-        className={`hidden md:flex items-center shrink-0 w-2 cursor-col-resize group`}
+        className="hidden md:flex shrink-0 w-3 cursor-col-resize items-center justify-center bg-gray-800 hover:bg-gray-700 active:bg-cyan-900 transition-colors border-x border-gray-700"
       >
-        <div className={`w-0.5 h-12 rounded-full transition-colors ${
-          isResizing ? 'bg-cyan-400' : 'bg-gray-700 group-hover:bg-cyan-400/60'
-        }`} />
+        <div className="flex flex-col gap-1">
+          <div className={`w-1 h-1 rounded-full ${isResizing ? 'bg-cyan-400' : 'bg-gray-500'}`} />
+          <div className={`w-1 h-1 rounded-full ${isResizing ? 'bg-cyan-400' : 'bg-gray-500'}`} />
+          <div className={`w-1 h-1 rounded-full ${isResizing ? 'bg-cyan-400' : 'bg-gray-500'}`} />
+        </div>
       </div>
 
       <aside
