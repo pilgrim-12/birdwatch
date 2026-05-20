@@ -30,6 +30,8 @@ export default function Header() {
   const isOrbitViewOpen = useSatelliteStore((s) => s.isOrbitViewOpen);
   const toggleOrbitView = useSatelliteStore((s) => s.toggleOrbitView);
   const openAntennaGuide = useSatelliteStore((s) => s.openAntennaGuide);
+  const isHeaderCollapsed = useSatelliteStore((s) => s.isHeaderCollapsed);
+  const toggleHeaderCollapsed = useSatelliteStore((s) => s.toggleHeaderCollapsed);
 
   const toggleBtnClass = (active: boolean, activeColor = 'cyan') => {
     const colorMap: Record<string, string> = {
@@ -48,12 +50,12 @@ export default function Header() {
   return (
     <>
       <header className="shrink-0 bg-gray-900 border-b border-gray-800 px-4 md:px-6 py-2 flex flex-col gap-2">
-        {/* Row 1: Title + controls */}
+        {/* Row 1: Title + collapse toggle + controls */}
         <div className="flex items-center gap-3 md:gap-4">
           <h1 className="text-lg font-semibold tracking-tight text-white">BirdWatch</h1>
           <span className="text-xs text-gray-500 hidden sm:inline">Real-time satellite tracker</span>
 
-          {/* Desktop controls — hidden on mobile */}
+          {/* Desktop: collapse toggle + controls */}
           <div className="ml-auto hidden md:flex items-center gap-2">
             {observer && (
               <span className="text-xs text-orange-400 mr-2 flex items-center gap-1">
@@ -65,6 +67,13 @@ export default function Header() {
                 >
                   &times;
                 </button>
+              </span>
+            )}
+
+            {/* Show compact active groups count when collapsed */}
+            {isHeaderCollapsed && (
+              <span className="text-xs text-gray-500">
+                {activeGroups.length} groups
               </span>
             )}
 
@@ -110,28 +119,21 @@ export default function Header() {
               Antennas
             </button>
 
-            {showBeams && (
-              <div className="flex items-center gap-2 ml-1 border-l border-gray-700 pl-2">
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-gray-500">Thickness</span>
-                  <input type="range" min={1} max={10} value={beamWidth}
-                    onChange={(e) => setBeamWidth(Number(e.target.value))}
-                    className="w-14 h-1 accent-cyan-500" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-gray-500">Speed</span>
-                  <input type="range" min={0} max={3} value={beamSpeed}
-                    onChange={(e) => setBeamSpeed(Number(e.target.value))}
-                    className="w-10 h-1 accent-cyan-500" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-gray-500">Opacity</span>
-                  <input type="range" min={0} max={100} value={beamOpacity}
-                    onChange={(e) => setBeamOpacity(Number(e.target.value))}
-                    className="w-14 h-1 accent-cyan-500" />
-                </div>
-              </div>
-            )}
+            {/* Collapse/expand chevron */}
+            <button
+              onClick={toggleHeaderCollapsed}
+              className="w-7 h-7 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-gray-800 transition-colors ml-1"
+              title={isHeaderCollapsed ? 'Expand header' : 'Collapse header'}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className={`w-4 h-4 transition-transform ${isHeaderCollapsed ? 'rotate-180' : ''}`}
+              >
+                <path fillRule="evenodd" d="M9.47 6.47a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 1 1-1.06 1.06L10 8.06l-3.72 3.72a.75.75 0 0 1-1.06-1.06l4.25-4.25Z" clipRule="evenodd" />
+              </svg>
+            </button>
           </div>
 
           {/* Mobile: compact right side */}
@@ -160,43 +162,73 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Desktop: Satellite group selector (always visible) */}
-        <div className="hidden md:flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs text-gray-500 mr-1 shrink-0">Groups:</span>
-          <button
-            onClick={() => setActiveGroups([...ALLOWED_GROUPS.filter((g) => g !== 'active')])}
-            className="px-1.5 py-0.5 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
-          >
-            All
-          </button>
-          <button
-            onClick={() => setActiveGroups([])}
-            className="px-1.5 py-0.5 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
-          >
-            None
-          </button>
-          {ALLOWED_GROUPS.filter((g) => g !== 'active').map((group) => {
-            const isActive = activeGroups.includes(group);
-            const color = GROUP_COLORS[group as SatelliteGroup];
-            return (
+        {/* Desktop: Collapsible section — beam sliders + group selector */}
+        {!isHeaderCollapsed && (
+          <>
+            {/* Beam sliders (when beams are active) */}
+            {showBeams && (
+              <div className="hidden md:flex items-center gap-3 pl-1">
+                <span className="text-[10px] text-gray-500 shrink-0">Beam:</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-gray-500">Thickness</span>
+                  <input type="range" min={1} max={10} value={beamWidth}
+                    onChange={(e) => setBeamWidth(Number(e.target.value))}
+                    className="w-14 h-1 accent-cyan-500" />
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-gray-500">Speed</span>
+                  <input type="range" min={0} max={3} value={beamSpeed}
+                    onChange={(e) => setBeamSpeed(Number(e.target.value))}
+                    className="w-10 h-1 accent-cyan-500" />
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-gray-500">Opacity</span>
+                  <input type="range" min={0} max={100} value={beamOpacity}
+                    onChange={(e) => setBeamOpacity(Number(e.target.value))}
+                    className="w-14 h-1 accent-cyan-500" />
+                </div>
+              </div>
+            )}
+
+            {/* Satellite group selector */}
+            <div className="hidden md:flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs text-gray-500 mr-1 shrink-0">Groups:</span>
               <button
-                key={group}
-                onClick={() => toggleGroup(group as SatelliteGroup)}
-                className={`px-2 py-0.5 rounded text-xs transition-colors border flex items-center gap-1 ${
-                  isActive
-                    ? 'bg-gray-800 border-gray-600 text-gray-200'
-                    : 'bg-gray-800/50 text-gray-500 border-gray-700 hover:text-gray-300'
-                }`}
+                onClick={() => setActiveGroups([...ALLOWED_GROUPS.filter((g) => g !== 'active')])}
+                className="px-1.5 py-0.5 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
               >
-                <span
-                  className="w-2 h-2 rounded-full inline-block"
-                  style={{ backgroundColor: isActive ? color : '#6b7280' }}
-                />
-                {GROUP_LABELS[group as SatelliteGroup]}
+                All
               </button>
-            );
-          })}
-        </div>
+              <button
+                onClick={() => setActiveGroups([])}
+                className="px-1.5 py-0.5 rounded text-xs text-gray-400 border border-gray-700 hover:text-white hover:border-gray-500 transition-colors"
+              >
+                None
+              </button>
+              {ALLOWED_GROUPS.filter((g) => g !== 'active').map((group) => {
+                const isActive = activeGroups.includes(group);
+                const color = GROUP_COLORS[group as SatelliteGroup];
+                return (
+                  <button
+                    key={group}
+                    onClick={() => toggleGroup(group as SatelliteGroup)}
+                    className={`px-2 py-0.5 rounded text-xs transition-colors border flex items-center gap-1 ${
+                      isActive
+                        ? 'bg-gray-800 border-gray-600 text-gray-200'
+                        : 'bg-gray-800/50 text-gray-500 border-gray-700 hover:text-gray-300'
+                    }`}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full inline-block"
+                      style={{ backgroundColor: isActive ? color : '#6b7280' }}
+                    />
+                    {GROUP_LABELS[group as SatelliteGroup]}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </header>
 
       {/* Mobile full-screen menu overlay */}

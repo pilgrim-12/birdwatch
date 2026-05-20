@@ -529,7 +529,7 @@ export default function SatelliteList() {
         fixed inset-x-0 bottom-0 z-30 h-[55vh] rounded-t-2xl
         transform transition-transform duration-300 ease-in-out
         ${isMobilePanelOpen ? 'translate-y-0' : 'translate-y-full'}
-        md:relative md:transform-none md:translate-y-0 md:w-80 md:h-auto md:rounded-none md:z-auto
+        md:relative md:transform-none md:translate-y-0 md:w-72 lg:w-80 md:h-auto md:rounded-none md:z-auto
         shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col
       `}
     >
@@ -607,7 +607,7 @@ export default function SatelliteList() {
                 <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">
                   Passes (24h) &middot; {visiblePasses.length}
                 </h4>
-                <ul className="space-y-2 max-h-60 overflow-y-auto">
+                <ul className="space-y-2 max-h-[40vh] overflow-y-auto">
                   {visiblePasses.slice(0, 20).map((pass, i) => {
                     const passKey = `${pass.satId}-${pass.startTime.getTime()}`;
                     const isBest = passKey === bestPassKey;
@@ -688,6 +688,34 @@ export default function SatelliteList() {
                         })()}
                         {isBest && (
                           <div className="text-[10px] text-amber-400/70 mt-0.5">Best pass</div>
+                        )}
+                        {profile && !inactive && (
+                          <div className="mt-1.5 pt-1.5 border-t border-gray-700/50 space-y-0.5">
+                            {profile.downlinks.length > 0 && (
+                              <div className="flex items-center gap-1.5 text-[10px]">
+                                <span className="text-gray-500">Freq:</span>
+                                <span className="text-green-400 font-mono">
+                                  {profile.downlinks.map((d) =>
+                                    d.frequencyHz >= 1e9
+                                      ? `${(d.frequencyHz / 1e9).toFixed(3)} GHz`
+                                      : `${(d.frequencyHz / 1e6).toFixed(3)} MHz`
+                                  ).join(', ')}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-start gap-1.5 text-[10px]">
+                              <span className="text-gray-500 shrink-0">Ant:</span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDetailSatId(detailSatId === pass.satId ? null : pass.satId);
+                                }}
+                                className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 decoration-cyan-400/30 text-left"
+                              >
+                                {profile.antenna}
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </li>
                     );

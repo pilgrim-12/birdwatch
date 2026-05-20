@@ -58,6 +58,10 @@ interface SatelliteStore {
   toggleOrbitView: () => void;
   selectOrbitViewSat: (id: number | null) => void;
 
+  // Header collapse (desktop)
+  isHeaderCollapsed: boolean;
+  toggleHeaderCollapsed: () => void;
+
   // Antenna Guide
   isAntennaGuideOpen: boolean;
   antennaGuideFilter: string | null;
@@ -131,6 +135,10 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
       orbitViewSelectedSatId: s.isOrbitViewOpen ? null : s.orbitViewSelectedSatId,
     })),
   selectOrbitViewSat: (id) => set({ orbitViewSelectedSatId: id }),
+
+  // Header collapse (desktop)
+  isHeaderCollapsed: false,
+  toggleHeaderCollapsed: () => set((s) => ({ isHeaderCollapsed: !s.isHeaderCollapsed })),
 
   // Antenna Guide
   isAntennaGuideOpen: false,
