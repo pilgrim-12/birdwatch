@@ -395,6 +395,18 @@ export default function SatelliteList() {
                         {pass.satName}
                       </span>
                       <RadioBadge noradId={pass.satId} />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDetailSatId(detailSatId === pass.satId ? null : pass.satId);
+                        }}
+                        className="ml-0.5 w-5 h-5 rounded flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-700 active:bg-gray-600 transition-colors shrink-0"
+                        title="Show details"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                          <path fillRule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0ZM9 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM6.75 8a.75.75 0 0 0 0 1.5h.75v1.75a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8.25 8h-1.5Z" clipRule="evenodd" />
+                        </svg>
+                      </button>
                     </div>
                     <span className={`font-mono shrink-0 ${
                       pass.peakElevation >= 45 ? 'text-green-400' :
@@ -449,7 +461,7 @@ export default function SatelliteList() {
     </div>
   );
 
-  const detailPopup = detailSat && detailPos && (
+  const detailPopup = detailSat && (
     <div className="absolute inset-x-4 top-16 md:top-16 bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-4 z-50 max-h-[60vh] overflow-y-auto">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -463,24 +475,26 @@ export default function SatelliteList() {
           &times;
         </button>
       </div>
-      <dl className="space-y-2 text-xs">
-        <div className="flex justify-between">
-          <dt className="text-gray-400">Latitude</dt>
-          <dd className="text-white font-mono">{detailPos.lat.toFixed(4)}&deg;</dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-gray-400">Longitude</dt>
-          <dd className="text-white font-mono">{detailPos.lng.toFixed(4)}&deg;</dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-gray-400">Altitude</dt>
-          <dd className="text-white font-mono">{detailPos.alt.toFixed(1)} km</dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-gray-400">Velocity</dt>
-          <dd className="text-white font-mono">{detailPos.velocity.toFixed(2)} km/s</dd>
-        </div>
-      </dl>
+      {detailPos && (
+        <dl className="space-y-2 text-xs">
+          <div className="flex justify-between">
+            <dt className="text-gray-400">Latitude</dt>
+            <dd className="text-white font-mono">{detailPos.lat.toFixed(4)}&deg;</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-gray-400">Longitude</dt>
+            <dd className="text-white font-mono">{detailPos.lng.toFixed(4)}&deg;</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-gray-400">Altitude</dt>
+            <dd className="text-white font-mono">{detailPos.alt.toFixed(1)} km</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-gray-400">Velocity</dt>
+            <dd className="text-white font-mono">{detailPos.velocity.toFixed(2)} km/s</dd>
+          </div>
+        </dl>
+      )}
 
       {/* Radio section */}
       <RadioDetail
