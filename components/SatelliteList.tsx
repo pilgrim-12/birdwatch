@@ -438,15 +438,34 @@ export default function SatelliteList() {
                   {isBest && (
                     <div className="text-[10px] text-amber-400/70 mt-0.5">Best pass</div>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDetailSatId(detailSatId === pass.satId ? null : pass.satId);
-                    }}
-                    className="mt-1.5 w-full py-1.5 rounded text-[11px] font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors"
-                  >
-                    Antenna &amp; reception info
-                  </button>
+                  {profile && !inactive && (
+                    <div className="mt-1.5 pt-1.5 border-t border-gray-700/50 space-y-0.5">
+                      {profile.downlinks.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <span className="text-gray-500">Freq:</span>
+                          <span className="text-green-400 font-mono">
+                            {profile.downlinks.map((d) =>
+                              d.frequencyHz >= 1e9
+                                ? `${(d.frequencyHz / 1e9).toFixed(3)} GHz`
+                                : `${(d.frequencyHz / 1e6).toFixed(3)} MHz`
+                            ).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-start gap-1.5 text-[10px]">
+                        <span className="text-gray-500 shrink-0">Ant:</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailSatId(detailSatId === pass.satId ? null : pass.satId);
+                          }}
+                          className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 decoration-cyan-400/30 text-left"
+                        >
+                          {profile.antenna}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </li>
               );
             })}
