@@ -395,15 +395,6 @@ export default function SatelliteList() {
                         {pass.satName}
                       </span>
                       <RadioBadge noradId={pass.satId} />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDetailSatId(detailSatId === pass.satId ? null : pass.satId);
-                        }}
-                        className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors shrink-0"
-                      >
-                        Info
-                      </button>
                     </div>
                     <span className={`font-mono shrink-0 ${
                       pass.peakElevation >= 45 ? 'text-green-400' :
@@ -447,6 +438,15 @@ export default function SatelliteList() {
                   {isBest && (
                     <div className="text-[10px] text-amber-400/70 mt-0.5">Best pass</div>
                   )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDetailSatId(detailSatId === pass.satId ? null : pass.satId);
+                    }}
+                    className="mt-1.5 w-full py-1.5 rounded text-[11px] font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors"
+                  >
+                    Antenna &amp; reception info
+                  </button>
                 </li>
               );
             })}
