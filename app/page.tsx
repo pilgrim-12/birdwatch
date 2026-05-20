@@ -102,7 +102,7 @@ export default function Home() {
     <>
       <Header />
       <main className="flex flex-1 overflow-hidden">
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-w-0">
           <GlobeView />
           {/* Mobile bottom FAB bar */}
           <div className="md:hidden absolute bottom-3 left-3 right-3 z-20 flex gap-2">

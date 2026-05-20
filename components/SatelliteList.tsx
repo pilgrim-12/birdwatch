@@ -593,7 +593,7 @@ export default function SatelliteList() {
           transform transition-transform duration-300 ease-in-out
           ${isMobilePanelOpen ? 'translate-y-0' : 'translate-y-full'}
           md:relative md:transform-none md:translate-y-0 md:h-auto md:rounded-none md:z-auto
-          shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col
+          md:w-80 shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col
         `}
       >
       {/* Mobile: drag handle + tabs */}
