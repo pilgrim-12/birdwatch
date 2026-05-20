@@ -97,19 +97,39 @@ export default function SatelliteList() {
   const [listHeight, setListHeight] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
 
-  // Sidebar drag-resize handler
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  // Sync store sidebar width → DOM (desktop only)
+  useEffect(() => {
+    const el = sidebarRef.current;
+    if (!el) return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const apply = () => {
+      el.style.width = mq.matches ? sidebarWidth + 'px' : '';
+    };
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [sidebarWidth]);
+
+  // Sidebar drag-resize handler — direct DOM manipulation for smooth dragging
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
     const startX = e.clientX;
-    const startWidth = sidebarWidth;
+    const el = sidebarRef.current;
+    if (!el) return;
+    const startWidth = el.getBoundingClientRect().width;
 
     const handleMouseMove = (ev: MouseEvent) => {
       const delta = startX - ev.clientX;
-      setSidebarWidth(startWidth + delta);
+      const newWidth = Math.max(240, Math.min(600, startWidth + delta));
+      el.style.width = newWidth + 'px';
     };
     const handleMouseUp = () => {
       setIsResizing(false);
+      const finalWidth = el.getBoundingClientRect().width;
+      setSidebarWidth(finalWidth);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';
@@ -120,7 +140,7 @@ export default function SatelliteList() {
     document.addEventListener('mouseup', handleMouseUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-  }, [sidebarWidth, setSidebarWidth]);
+  }, [setSidebarWidth]);
 
   // Merge normal + mass satellites for display
   const allSatellites = useMemo(() => {
@@ -566,6 +586,7 @@ export default function SatelliteList() {
       </div>
 
       <aside
+        ref={sidebarRef}
         id="sat-sidebar"
         className={`
           fixed inset-x-0 bottom-0 z-30 h-[55vh] rounded-t-2xl
@@ -575,8 +596,6 @@ export default function SatelliteList() {
           shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col
         `}
       >
-        {/* Desktop-only sidebar width via media query (mobile stays full-width) */}
-        <style dangerouslySetInnerHTML={{ __html: `@media(min-width:768px){#sat-sidebar{width:${sidebarWidth}px!important}}` }} />
       {/* Mobile: drag handle + tabs */}
       <div className="md:hidden shrink-0">
         <div className="flex justify-center pt-2 pb-1">
