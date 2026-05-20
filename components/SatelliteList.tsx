@@ -400,12 +400,9 @@ export default function SatelliteList() {
                           e.stopPropagation();
                           setDetailSatId(detailSatId === pass.satId ? null : pass.satId);
                         }}
-                        className="ml-0.5 w-5 h-5 rounded flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-700 active:bg-gray-600 transition-colors shrink-0"
-                        title="Show details"
+                        className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 active:bg-cyan-500/30 transition-colors shrink-0"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                          <path fillRule="evenodd" d="M15 8A7 7 0 1 1 1 8a7 7 0 0 1 14 0ZM9 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM6.75 8a.75.75 0 0 0 0 1.5h.75v1.75a.75.75 0 0 0 1.5 0v-2.5A.75.75 0 0 0 8.25 8h-1.5Z" clipRule="evenodd" />
-                        </svg>
+                        Info
                       </button>
                     </div>
                     <span className={`font-mono shrink-0 ${
