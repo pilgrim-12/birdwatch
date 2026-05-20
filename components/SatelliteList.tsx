@@ -70,6 +70,8 @@ export default function SatelliteList() {
   const observer = useSatelliteStore((s) => s.observer);
   const passes = useSatelliteStore((s) => s.passes);
   const setPasses = useSatelliteStore((s) => s.setPasses);
+  const sidebarWidth = useSatelliteStore((s) => s.sidebarWidth);
+  const setSidebarWidth = useSatelliteStore((s) => s.setSidebarWidth);
 
   const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
   const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);
@@ -93,6 +95,32 @@ export default function SatelliteList() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const [listHeight, setListHeight] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
+
+  // Sidebar drag-resize handler
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      const delta = startX - ev.clientX;
+      setSidebarWidth(startWidth + delta);
+    };
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [sidebarWidth, setSidebarWidth]);
 
   // Merge normal + mass satellites for display
   const allSatellites = useMemo(() => {
@@ -529,10 +557,18 @@ export default function SatelliteList() {
         fixed inset-x-0 bottom-0 z-30 h-[55vh] rounded-t-2xl
         transform transition-transform duration-300 ease-in-out
         ${isMobilePanelOpen ? 'translate-y-0' : 'translate-y-full'}
-        md:relative md:transform-none md:translate-y-0 md:w-72 lg:w-80 md:h-auto md:rounded-none md:z-auto
+        md:relative md:transform-none md:translate-y-0 md:h-auto md:rounded-none md:z-auto
         shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col
       `}
+      style={{ width: sidebarWidth }}
     >
+      {/* Desktop: drag handle to resize sidebar */}
+      <div
+        onMouseDown={handleResizeStart}
+        className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 transition-colors ${
+          isResizing ? 'bg-cyan-500/50' : 'hover:bg-cyan-500/30'
+        }`}
+      />
       {/* Mobile: drag handle + tabs */}
       <div className="md:hidden shrink-0">
         <div className="flex justify-center pt-2 pb-1">
@@ -656,16 +692,16 @@ export default function SatelliteList() {
                             {pass.peakElevation.toFixed(0)}&deg;
                           </span>
                         </div>
-                        <div className="text-gray-500 mt-0.5 flex items-center justify-between">
-                          <span>
-                            {formatTime(pass.startTime)} &ndash; {formatTime(pass.endTime)}
-                            <span className="ml-2">
-                              ({formatDuration(pass.startTime, pass.endTime)})
-                            </span>
+                        <div className="text-gray-500 mt-0.5 flex items-center gap-1 flex-wrap">
+                          <span className="shrink-0">
+                            {formatTime(pass.startTime)}&ndash;{formatTime(pass.endTime)}
+                          </span>
+                          <span className="shrink-0">
+                            ({formatDuration(pass.startTime, pass.endTime)})
                           </span>
                           {doppler !== undefined && doppler > 0 && (
-                            <span className="text-gray-600 font-mono" title="Max Doppler shift">
-                              &plusmn;{(doppler / 1000).toFixed(1)} kHz
+                            <span className="text-gray-600 font-mono shrink-0" title="Max Doppler shift">
+                              &plusmn;{(doppler / 1000).toFixed(1)}kHz
                             </span>
                           )}
                         </div>
@@ -703,14 +739,14 @@ export default function SatelliteList() {
                                 </span>
                               </div>
                             )}
-                            <div className="flex items-start gap-1.5 text-[10px]">
+                            <div className="flex items-start gap-1.5 text-[10px] min-w-0">
                               <span className="text-gray-500 shrink-0">Ant:</span>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setDetailSatId(detailSatId === pass.satId ? null : pass.satId);
                                 }}
-                                className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 decoration-cyan-400/30 text-left"
+                                className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 decoration-cyan-400/30 text-left truncate"
                               >
                                 {profile.antenna}
                               </button>

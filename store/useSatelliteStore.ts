@@ -62,6 +62,10 @@ interface SatelliteStore {
   isHeaderCollapsed: boolean;
   toggleHeaderCollapsed: () => void;
 
+  // Sidebar resize (desktop)
+  sidebarWidth: number;
+  setSidebarWidth: (width: number) => void;
+
   // Antenna Guide
   isAntennaGuideOpen: boolean;
   antennaGuideFilter: string | null;
@@ -139,6 +143,10 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   // Header collapse (desktop)
   isHeaderCollapsed: false,
   toggleHeaderCollapsed: () => set((s) => ({ isHeaderCollapsed: !s.isHeaderCollapsed })),
+
+  // Sidebar resize (desktop)
+  sidebarWidth: 320,
+  setSidebarWidth: (width) => set({ sidebarWidth: Math.max(240, Math.min(600, width)) }),
 
   // Antenna Guide
   isAntennaGuideOpen: false,
