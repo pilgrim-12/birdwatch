@@ -553,6 +553,7 @@ export default function SatelliteList() {
 
   return (
     <aside
+      id="sat-sidebar"
       className={`
         fixed inset-x-0 bottom-0 z-30 h-[55vh] rounded-t-2xl
         transform transition-transform duration-300 ease-in-out
@@ -560,14 +561,17 @@ export default function SatelliteList() {
         md:relative md:transform-none md:translate-y-0 md:h-auto md:rounded-none md:z-auto
         shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col
       `}
-      style={{ width: sidebarWidth }}
     >
+      {/* Desktop-only sidebar width via media query (mobile stays full-width) */}
+      <style dangerouslySetInnerHTML={{ __html: `@media(min-width:768px){#sat-sidebar{width:${sidebarWidth}px!important}}` }} />
+
       {/* Desktop: drag handle to resize sidebar */}
       <div
         onMouseDown={handleResizeStart}
-        className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-10 transition-colors ${
-          isResizing ? 'bg-cyan-500/50' : 'hover:bg-cyan-500/30'
+        className={`hidden md:block absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 transition-colors ${
+          isResizing ? 'bg-cyan-500/60' : 'hover:bg-cyan-500/40'
         }`}
+        style={{ marginLeft: -2 }}
       />
       {/* Mobile: drag handle + tabs */}
       <div className="md:hidden shrink-0">
