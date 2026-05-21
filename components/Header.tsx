@@ -69,8 +69,13 @@ export default function Header() {
       <header className="shrink-0 bg-gray-900 border-b border-gray-800 px-4 md:px-5 py-1.5">
         <div className="flex items-center gap-2">
           <h1 className="text-base font-semibold tracking-tight text-white shrink-0 flex items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-blue-400 shrink-0">
-              <path d="M21.97 6.27c-.47-.53-1.28-.85-2.4-.85-1.52 0-2.77.62-3.74 1.43a9.4 9.4 0 0 0-1.2 1.25c-.3-.12-.63-.2-.97-.2-1.1 0-2.1.6-2.87 1.5C9.56 10.72 9 12.3 9 13.5c0 .17.01.34.04.5C6.4 13.3 4.1 11.6 2.5 9.2c-.2-.3-.6-.4-.9-.2-.3.2-.4.6-.2.9 1.8 2.8 4.5 4.8 7.6 5.6-.8.5-1.7.8-2.7.9-.3 0-.6.2-.7.5-.1.3 0 .6.2.8 2.2 1.6 4.8 2.3 7.4 2.3 3.3 0 6.3-1.3 8.2-3.7 1.6-2 2.4-4.5 2.4-7.1v-.3c.7-.6 1.2-1.3 1.5-2.1.1-.3 0-.7-.3-.8-.1-.1-.3-.1-.4 0l-.5.3Z" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-blue-400 shrink-0">
+              <path d="M16 7h.01" />
+              <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20" />
+              <path d="m20 7 2 .5-2 .5" />
+              <path d="M10 18v3" />
+              <path d="M14 17.75V21" />
+              <path d="M7 18a6 6 0 0 0 3.84-10.61" />
             </svg>
             BirdWatch
           </h1>
