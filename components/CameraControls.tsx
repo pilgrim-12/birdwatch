@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
+import type { CameraMode } from '@/store/useSatelliteStore';
 
 interface CameraControlsProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -10,87 +11,39 @@ interface CameraControlsProps {
 
 export function CameraControls({ globeRef }: CameraControlsProps) {
   const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
-  const positions = useSatelliteStore((s) => s.positions);
-  const massPositions = useSatelliteStore((s) => s.massPositions);
   const observer = useSatelliteStore((s) => s.observer);
+  const cameraMode = useSatelliteStore((s) => s.cameraMode);
+  const setCameraMode = useSatelliteStore((s) => s.setCameraMode);
 
-  const [tracking, setTracking] = useState(false);
-
-  // Stable ref to avoid re-attaching keydown listener on every position tick
-  const stateRef = useRef({ selectedSatId, positions, massPositions, observer, tracking });
+  // Stable ref for keyboard handler
+  const stateRef = useRef({ selectedSatId, observer, cameraMode });
   useEffect(() => {
-    stateRef.current = { selectedSatId, positions, massPositions, observer, tracking };
+    stateRef.current = { selectedSatId, observer, cameraMode };
   });
 
-  // Stop tracking when satellite is deselected
-  useEffect(() => {
-    if (selectedSatId === null) setTracking(false);
-  }, [selectedSatId]);
+  const handleSetMode = (mode: CameraMode) => {
+    const current = stateRef.current;
 
-  const flyTo = (lat: number, lng: number, altitude: number, ms = 1000) => {
-    globeRef.current?.pointOfView({ lat, lng, altitude }, ms);
-  };
-
-  const handleReset = () => {
-    setTracking(false);
-    flyTo(20, 0, 2.5);
-  };
-
-  const handleFocusSat = () => {
-    const { selectedSatId: id, positions: pos, massPositions: mPos } = stateRef.current;
-    if (id === null) return;
-    const p = pos.get(id) ?? mPos.get(id);
-    if (!p) return;
-    const current = globeRef.current?.pointOfView();
-    const alt = current ? Math.min(current.altitude, 1.5) : 1.5;
-    flyTo(p.lat, p.lng, alt, 800);
-  };
-
-  const handleToggleTracking = () => {
-    const { selectedSatId: id } = stateRef.current;
-    if (id === null) return;
-    setTracking((prev) => !prev);
-    // Initial focus when starting tracking
-    if (!stateRef.current.tracking) {
-      handleFocusSat();
+    if (mode === 'earth') {
+      setCameraMode('earth');
+      // Also reset camera position via pointOfView
+      globeRef.current?.pointOfView({ lat: 20, lng: 0, altitude: 2.5 }, 1000);
+      return;
     }
-  };
 
-  const handleGoObserver = () => {
-    const { observer: obs } = stateRef.current;
-    if (!obs) return;
-    setTracking(false);
-    flyTo(obs.lat, obs.lng, 0.5, 800);
-  };
+    // Toggle: if already in this mode, return to earth
+    if (current.cameraMode === mode) {
+      setCameraMode('earth');
+      globeRef.current?.pointOfView({ lat: 20, lng: 0, altitude: 2.5 }, 1000);
+      return;
+    }
 
-  const handleCloseView = () => {
-    const { selectedSatId: id, positions: pos, massPositions: mPos } = stateRef.current;
-    if (id === null) return;
-    const p = pos.get(id) ?? mPos.get(id);
-    if (!p) return;
-    flyTo(p.lat, p.lng, 0.15, 800);
-  };
+    // Validation
+    if ((mode === 'orbit-satellite' || mode === 'satellite-pov') && current.selectedSatId === null) return;
+    if (mode === 'ground-pov' && !current.observer) return;
 
-  const handleTopDown = () => {
-    setTracking(false);
-    const current = globeRef.current?.pointOfView();
-    flyTo(89.9, current?.lng ?? 0, 3.0);
+    setCameraMode(mode);
   };
-
-  // Continuous tracking: update camera to follow satellite every 500ms
-  useEffect(() => {
-    if (!tracking) return;
-    const interval = setInterval(() => {
-      const { selectedSatId: id, positions: pos, massPositions: mPos } = stateRef.current;
-      if (id === null) { setTracking(false); return; }
-      const p = pos.get(id) ?? mPos.get(id);
-      if (!p) return;
-      const current = globeRef.current?.pointOfView();
-      if (!current) return;
-      globeRef.current.pointOfView({ lat: p.lat, lng: p.lng, altitude: current.altitude }, 600);
-    }, 500);
-    return () => clearInterval(interval);
-  }, [tracking, globeRef]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -98,16 +51,20 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       switch (e.key.toLowerCase()) {
         case 'r':
-          handleReset();
+        case 'escape':
+          handleSetMode('earth');
           break;
-        case 'f':
-          handleFocusSat();
+        case '1':
+          handleSetMode('orbit-satellite');
           break;
-        case 'o':
-          handleGoObserver();
+        case '2':
+          handleSetMode('ground-pov');
           break;
-        case 't':
-          handleToggleTracking();
+        case '3':
+          handleSetMode('click-pivot');
+          break;
+        case '4':
+          handleSetMode('satellite-pov');
           break;
       }
     };
@@ -122,91 +79,85 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
   const btnBase =
     'w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400';
 
+  const modeBtn = (mode: CameraMode) =>
+    `${btnBase} ${
+      cameraMode === mode
+        ? 'text-cyan-400 bg-cyan-500/20 hover:bg-cyan-500/30'
+        : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+    }`;
+
   return (
     <div className="absolute top-4 right-4 md:top-auto md:bottom-4 md:left-4 md:right-auto flex flex-col gap-1 bg-gray-900/70 backdrop-blur-sm rounded-lg p-1.5 border border-gray-700/50 z-10">
-      {/* Reset View */}
+      {/* Earth Mode (default) */}
       <button
-        className={`${btnBase} text-gray-400 hover:text-white hover:bg-gray-700/50`}
-        onClick={handleReset}
-        title="Reset view (R)"
+        className={modeBtn('earth')}
+        onClick={() => handleSetMode('earth')}
+        title="Earth view (R)"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M8 1L3 5.5V14h4v-4h2v4h4V5.5L8 1z" />
+          <circle cx="8" cy="8" r="6" />
+          <ellipse cx="8" cy="8" rx="2.5" ry="6" />
+          <line x1="2" y1="8" x2="14" y2="8" />
         </svg>
       </button>
 
-      {/* Focus Satellite (one-time) */}
+      {/* Orbit Around Satellite */}
       <button
-        className={`${btnBase} text-gray-400 hover:text-white hover:bg-gray-700/50`}
-        onClick={handleFocusSat}
+        className={modeBtn('orbit-satellite')}
+        onClick={() => handleSetMode('orbit-satellite')}
         disabled={!hasSat}
-        title="Focus satellite (F)"
+        title="Orbit satellite (1)"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <circle cx="8" cy="8" r="2" />
+          <ellipse cx="8" cy="8" rx="6" ry="3" transform="rotate(-30 8 8)" strokeDasharray="3,2" />
+        </svg>
+      </button>
+
+      {/* Ground Station POV */}
+      <button
+        className={modeBtn('ground-pov')}
+        onClick={() => handleSetMode('ground-pov')}
+        disabled={!hasObs}
+        title="Ground station view (2)"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 14h10" />
+          <path d="M8 14V9" />
+          <path d="M5 9l3-5 3 5" />
+          <circle cx="8" cy="3" r="1" />
+        </svg>
+      </button>
+
+      {/* Click to Set Pivot */}
+      <button
+        className={modeBtn('click-pivot')}
+        onClick={() => handleSetMode('click-pivot')}
+        title="Click to set pivot (3)"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="8" cy="8" r="3" />
           <line x1="8" y1="1" x2="8" y2="4" />
           <line x1="8" y1="12" x2="8" y2="15" />
           <line x1="1" y1="8" x2="4" y2="8" />
           <line x1="12" y1="8" x2="15" y2="8" />
+          <circle cx="8" cy="8" r="1" fill="currentColor" />
         </svg>
       </button>
 
-      {/* Track Satellite (continuous follow) */}
+      {/* Satellite POV */}
       <button
-        className={`${btnBase} ${
-          tracking
-            ? 'text-cyan-400 bg-cyan-500/20 hover:bg-cyan-500/30'
-            : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-        }`}
-        onClick={handleToggleTracking}
+        className={modeBtn('satellite-pov')}
+        onClick={() => handleSetMode('satellite-pov')}
         disabled={!hasSat}
-        title={tracking ? 'Stop tracking (T)' : 'Track satellite (T)'}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-          <circle cx="8" cy="8" r="2" />
-          <circle cx="8" cy="8" r="5" strokeDasharray="3,2" />
-          {tracking && <circle cx="8" cy="8" r="7" strokeDasharray="2,2" opacity="0.5" />}
-        </svg>
-      </button>
-
-      {/* Close-up view */}
-      <button
-        className={`${btnBase} text-gray-400 hover:text-white hover:bg-gray-700/50`}
-        onClick={handleCloseView}
-        disabled={!hasSat}
-        title="Close-up view"
+        title="Satellite POV (4)"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="7" cy="7" r="4" />
-          <line x1="10" y1="10" x2="14" y2="14" />
-          <line x1="5" y1="7" x2="9" y2="7" />
-          <line x1="7" y1="5" x2="7" y2="9" />
-        </svg>
-      </button>
-
-      {/* Go to Observer */}
-      <button
-        className={`${btnBase} text-gray-400 hover:text-white hover:bg-gray-700/50`}
-        onClick={handleGoObserver}
-        disabled={!hasObs}
-        title="Go to observer (O)"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M8 1C5.8 1 4 2.8 4 5c0 3 4 8 4 8s4-5 4-8c0-2.2-1.8-4-4-4z" />
-          <circle cx="8" cy="5" r="1.5" />
-        </svg>
-      </button>
-
-      {/* Top-Down View */}
-      <button
-        className={`${btnBase} text-gray-400 hover:text-white hover:bg-gray-700/50`}
-        onClick={handleTopDown}
-        title="Top-down view"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="8" cy="6" r="3" />
-          <line x1="8" y1="10" x2="8" y2="15" />
-          <polyline points="5.5,12.5 8,15 10.5,12.5" />
+          <path d="M10 2l4 4-2 2-4-4z" />
+          <path d="M6 6L2 14" />
+          <line x1="3" y1="3" x2="5" y2="5" />
+          <circle cx="12" cy="12" r="2" />
+          <path d="M10 14a4 4 0 0 0 4-4" />
         </svg>
       </button>
     </div>

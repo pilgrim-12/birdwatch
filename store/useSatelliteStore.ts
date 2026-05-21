@@ -3,6 +3,8 @@ import type { Satellite, ObserverLocation, SatellitePosition } from '@/types/sat
 import type { SatellitePass } from '@/lib/passes';
 import type { SatelliteGroup } from '@/lib/constants';
 
+export type CameraMode = 'earth' | 'orbit-satellite' | 'ground-pov' | 'click-pivot' | 'satellite-pov';
+
 interface SatelliteStore {
   satellites: Satellite[];
   observer: ObserverLocation | null;
@@ -73,6 +75,12 @@ interface SatelliteStore {
   antennaGuideFilter: string | null;
   toggleAntennaGuide: () => void;
   openAntennaGuide: (filter?: string) => void;
+
+  // Camera modes
+  cameraMode: CameraMode;
+  pivotPoint: { lat: number; lng: number; alt: number } | null;
+  setCameraMode: (mode: CameraMode) => void;
+  setPivotPoint: (point: { lat: number; lng: number; alt: number } | null) => void;
 }
 
 export const useSatelliteStore = create<SatelliteStore>((set) => ({
@@ -162,4 +170,10 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
     })),
   openAntennaGuide: (filter) =>
     set({ isAntennaGuideOpen: true, antennaGuideFilter: filter ?? null }),
+
+  // Camera modes
+  cameraMode: 'earth',
+  pivotPoint: null,
+  setCameraMode: (mode) => set({ cameraMode: mode }),
+  setPivotPoint: (point) => set({ pivotPoint: point }),
 }));

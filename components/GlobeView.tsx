@@ -10,11 +10,11 @@ import { computeOrbitPath } from '@/lib/orbit';
 import { EARTH_RADIUS_KM, GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { TLEData } from '@/types/satellite';
+import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
+import { useCameraMode } from '@/hooks/useCameraMode';
 import { CameraControls } from './CameraControls';
 
 const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
-
-const GLOBE_RADIUS = 100; // three-globe default internal radius
 
 interface PointData {
   id: number;
@@ -50,18 +50,6 @@ interface MassLayerDatum {
   positions: Map<number, { lat: number; lng: number; alt: number; velocity: number }>;
 }
 
-/** Convert lat/lng/relativeAlt to 3D cartesian (matches three-globe's internal coordinate system) */
-function polar2Cartesian(lat: number, lng: number, relAlt: number): THREE.Vector3 {
-  const phi = (90 - lat) * (Math.PI / 180);
-  const theta = (90 - lng) * (Math.PI / 180);
-  const r = GLOBE_RADIUS * (1 + relAlt);
-  return new THREE.Vector3(
-    r * Math.sin(phi) * Math.cos(theta),
-    r * Math.cos(phi),
-    r * Math.sin(phi) * Math.sin(theta),
-  );
-}
-
 export default function GlobeView() {
   const satellites = useSatelliteStore((s) => s.satellites);
   const positions = useSatelliteStore((s) => s.positions);
@@ -78,6 +66,8 @@ export default function GlobeView() {
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
   const beamWidth = useSatelliteStore((s) => s.beamWidth);
   const beamSpeed = useSatelliteStore((s) => s.beamSpeed);
+  const cameraMode = useSatelliteStore((s) => s.cameraMode);
+  const setPivotPoint = useSatelliteStore((s) => s.setPivotPoint);
 
   // Mass group (Starlink) state
   const massSatellites = useSatelliteStore((s) => s.massSatellites);
@@ -88,6 +78,10 @@ export default function GlobeView() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const globeRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Camera mode management hook
+  useCameraMode(globeRef);
+
   // Counter that increments every 30s to force orbit path refresh
   const [orbitEpoch, setOrbitEpoch] = useState(0);
 
@@ -139,8 +133,10 @@ export default function GlobeView() {
     return () => clearInterval(timer);
   }, [nightMode]); // re-apply when texture changes (night/day)
 
-  // Set zoom constraints and damping on OrbitControls
+  // Set zoom constraints and damping on OrbitControls (only in earth mode)
   useEffect(() => {
+    if (cameraMode !== 'earth') return;
+
     const globe = globeRef.current;
     if (!globe) return;
 
@@ -161,13 +157,16 @@ export default function GlobeView() {
     }, 500);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [cameraMode]);
 
-  // Auto-fly camera to selected satellite
+  // Auto-fly camera to selected satellite (only in earth mode)
   // Fly to satellite when selected from the sidebar
   const prevSelectedRef = useRef<number | null>(null);
   const hasFlewRef = useRef(false);
   useEffect(() => {
+    // Don't auto-fly when in non-earth camera modes
+    if (cameraMode !== 'earth') return;
+
     if (selectedSatId === null) {
       prevSelectedRef.current = null;
       hasFlewRef.current = false;
@@ -192,7 +191,7 @@ export default function GlobeView() {
       },
       800,
     );
-  }, [selectedSatId, positions, massPositions]);
+  }, [selectedSatId, positions, massPositions, cameraMode]);
 
   // Refresh orbit paths every 5 minutes (orbits are stable for hours from a single TLE)
   useEffect(() => {
@@ -421,9 +420,13 @@ export default function GlobeView() {
 
   const handleGlobeClick = useCallback(
     ({ lat, lng }: { lat: number; lng: number }) => {
-      setObserver({ lat, lng, alt: 0 });
+      if (cameraMode === 'click-pivot') {
+        setPivotPoint({ lat, lng, alt: 0 });
+      } else {
+        setObserver({ lat, lng, alt: 0 });
+      }
     },
-    [setObserver],
+    [cameraMode, setObserver, setPivotPoint],
   );
 
   return (
