@@ -68,7 +68,12 @@ export default function Header() {
     <>
       <header className="shrink-0 bg-gray-900 border-b border-gray-800 px-4 md:px-5 py-1.5">
         <div className="flex items-center gap-2">
-          <h1 className="text-base font-semibold tracking-tight text-white shrink-0">BirdWatch</h1>
+          <h1 className="text-base font-semibold tracking-tight text-white shrink-0 flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-blue-400 shrink-0">
+              <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53A4.48 4.48 0 0 0 22.43.36a9.09 9.09 0 0 1-2.88 1.1A4.52 4.52 0 0 0 11.8 4.5v1A10.66 10.66 0 0 1 2.8 1.2s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3Z" />
+            </svg>
+            BirdWatch
+          </h1>
 
           {/* Desktop: single row — observer + toggles + settings gear */}
           <div className="ml-auto hidden md:flex items-center gap-1.5">
