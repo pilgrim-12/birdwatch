@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { EARTH_RADIUS_KM } from '@/lib/constants';
@@ -8,8 +8,6 @@ import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GlobeRef = React.MutableRefObject<any>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ControlsAny = any;
 
 function easeInOutQuad(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -18,201 +16,149 @@ function easeInOutQuad(t: number): number {
 interface Transition {
   startTime: number;
   duration: number;
-  startPos: THREE.Vector3;
-  endPos: THREE.Vector3;
-  startTarget: THREE.Vector3;
-  endTarget: THREE.Vector3;
-  startNear?: number;
-  endNear?: number;
+  fromPos: THREE.Vector3;
+  toPos: THREE.Vector3;
+  fromTarget: THREE.Vector3;
+  toTarget: THREE.Vector3;
 }
 
 /**
- * Free camera hook — permanently unlocks OrbitControls:
- * - Pan (right-click drag or shift+left-drag) to shift camera laterally
- * - Free orbit pivot — double-click any point to set new rotation center
- * - Adaptive speed — rotate/zoom speed adjusts based on distance to target
- * - Near-surface adjustment — camera.near adapts when close to globe
- * - Follow modes (track / sat-pov) for continuous satellite following
+ * Free camera hook.
+ *
+ * Strategy: globe.gl calls `controls.target.setScalar(0)` on every user
+ * interaction to force the orbit center back to Earth's origin. We override
+ * that single method so the reset becomes a no-op. Everything else (pan,
+ * orbit, zoom) then works naturally through Three.js OrbitControls.
  */
 export function useCameraMode(globeRef: GlobeRef): void {
-  const cameraFollow = useSatelliteStore((s) => s.cameraFollow);
-  const setCameraFollow = useSatelliteStore((s) => s.setCameraFollow);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const originalListenersRef = useRef<((...args: any[]) => void)[] | null>(null);
-  const isOverriddenRef = useRef(false);
-  const controlsReadyRef = useRef(false);
-
+  const patchedRef = useRef(false);
   const transitionRef = useRef<Transition | null>(null);
-  const prevTargetRef = useRef(new THREE.Vector3());
-  const rafIdRef = useRef<number | null>(null);
+  const prevSatPosRef = useRef(new THREE.Vector3());
+  const rafRef = useRef<number | null>(null);
 
-  // Replacement change listener — does NOT reset target to origin
-  const replacementListenerRef = useRef(function replacementListener() {
-    const globe = globeRef.current;
-    if (!globe) return;
-    try {
-      const controls = globe.controls() as ControlsAny;
-      const camera = globe.camera() as THREE.PerspectiveCamera;
-
-      // Adaptive speed based on distance to target
-      const dist = camera.position.distanceTo(controls.target);
-      const normalizedDist = dist / GLOBE_RADIUS;
-      controls.rotateSpeed = Math.max(0.05, normalizedDist * 0.3);
-      controls.zoomSpeed = Math.max(0.1, Math.sqrt(normalizedDist) * 0.5);
-
-      // Adaptive near plane — prevent clipping when close to surface
-      const distToOrigin = camera.position.length();
-      const altAboveSurface = distToOrigin - GLOBE_RADIUS;
-      if (altAboveSurface < GLOBE_RADIUS * 0.05) {
-        camera.near = 0.01;
-      } else if (altAboveSurface < GLOBE_RADIUS * 0.2) {
-        camera.near = 0.05;
-      } else {
-        camera.near = 0.1;
-      }
-      camera.updateProjectionMatrix();
-    } catch {
-      // ignore
-    }
-  });
-
-  function overrideListeners(controls: ControlsAny) {
-    if (isOverriddenRef.current) return;
-    isOverriddenRef.current = true;
-
-    const existing = controls._listeners?.['change'];
-    if (existing) {
-      for (const fn of [...existing]) {
-        controls.removeEventListener('change', fn);
-      }
-    }
-
-    controls.addEventListener('change', replacementListenerRef.current);
-  }
-
-  // Capture original listeners, then permanently override for free camera
+  // 1. Patch controls once they're ready
   useEffect(() => {
-    const globe = globeRef.current;
-    if (!globe) return;
-
     const timer = setInterval(() => {
+      const globe = globeRef.current;
+      if (!globe || patchedRef.current) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let controls: any;
       try {
-        const controls = globe.controls() as ControlsAny;
-        if (controls && !controlsReadyRef.current) {
-          // Capture originals
-          const changeListeners = controls._listeners?.['change'];
-          if (changeListeners && changeListeners.length > 0) {
-            originalListenersRef.current = [...changeListeners];
-          }
-          controlsReadyRef.current = true;
-
-          // Permanently override — free camera is always active
-          overrideListeners(controls);
-
-          // Enable pan (shift+left-drag or right-drag)
-          controls.enablePan = true;
-          controls.panSpeed = 0.5;
-
-          // Relax constraints for free movement
-          controls.minDistance = 1;
-          controls.maxDistance = GLOBE_RADIUS * 12;
-          controls.enableDamping = true;
-          controls.dampingFactor = 0.1;
-
-          clearInterval(timer);
-        }
+        controls = globe.controls();
+        if (!controls) return;
       } catch {
-        // Globe not ready yet
+        return;
       }
+
+      patchedRef.current = true;
+      clearInterval(timer);
+
+      // --- Override setScalar on target to block globe.gl's reset ---
+      const target = controls.target as THREE.Vector3;
+      const origSetScalar = target.setScalar.bind(target);
+      target.setScalar = function (s: number) {
+        if (s === 0) return this; // block the (0,0,0) reset
+        return origSetScalar(s);
+      };
+
+      // --- Enable pan & relax constraints ---
+      controls.enablePan = true;
+      controls.panSpeed = 0.5;
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.1;
+      controls.minDistance = 1;
+      controls.maxDistance = GLOBE_RADIUS * 12;
     }, 300);
 
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globeRef]);
 
-  // Double-click on canvas to set new orbit pivot
+  // 2. Double-click to set new orbit pivot
   useEffect(() => {
-    const globe = globeRef.current;
-    if (!globe) return;
-
-    // Wait for scene to be ready
     const timer = setInterval(() => {
+      const globe = globeRef.current;
+      if (!globe) return;
+
+      let canvas: HTMLCanvasElement;
       try {
         const renderer = globe.renderer();
         if (!renderer) return;
-        const canvas = renderer.domElement as HTMLCanvasElement;
+        canvas = renderer.domElement as HTMLCanvasElement;
         if (!canvas) return;
-        clearInterval(timer);
-
-        const handleDblClick = (e: MouseEvent) => {
-          // Raycast from mouse position to find globe intersection
-          const rect = canvas.getBoundingClientRect();
-          const mouse = new THREE.Vector2(
-            ((e.clientX - rect.left) / rect.width) * 2 - 1,
-            -((e.clientY - rect.top) / rect.height) * 2 + 1,
-          );
-
-          const camera = globe.camera() as THREE.PerspectiveCamera;
-          const raycaster = new THREE.Raycaster();
-          raycaster.setFromCamera(mouse, camera);
-
-          // Intersect with a sphere at globe radius
-          const globeSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), GLOBE_RADIUS);
-          const intersectPoint = new THREE.Vector3();
-          const hit = raycaster.ray.intersectSphere(globeSphere, intersectPoint);
-
-          if (hit) {
-            const controls = globe.controls() as ControlsAny;
-            if (!controls) return;
-
-            // Stop any follow mode
-            useSatelliteStore.getState().setCameraFollow('none');
-
-            // Smooth transition to new pivot
-            transitionRef.current = {
-              startTime: performance.now(),
-              duration: 500,
-              startPos: camera.position.clone(),
-              endPos: camera.position.clone(), // keep camera where it is
-              startTarget: controls.target.clone(),
-              endTarget: intersectPoint.clone(),
-            };
-          }
-        };
-
-        canvas.addEventListener('dblclick', handleDblClick);
-        // Store cleanup ref
-        (canvas as ControlsAny).__freeCamDblClick = handleDblClick;
       } catch {
-        // not ready
+        return;
       }
+
+      clearInterval(timer);
+
+      const handleDblClick = (e: MouseEvent) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+          ((e.clientX - rect.left) / rect.width) * 2 - 1,
+          -((e.clientY - rect.top) / rect.height) * 2 + 1,
+        );
+
+        let camera: THREE.PerspectiveCamera;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let controls: any;
+        try {
+          camera = globe.camera() as THREE.PerspectiveCamera;
+          controls = globe.controls();
+          if (!controls) return;
+        } catch {
+          return;
+        }
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+
+        // Intersect with globe sphere
+        const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), GLOBE_RADIUS);
+        const hit = new THREE.Vector3();
+        if (!raycaster.ray.intersectSphere(sphere, hit)) return;
+
+        // Stop any follow mode
+        useSatelliteStore.getState().setCameraFollow('none');
+
+        // Smooth transition: keep camera where it is, move target to hit point
+        transitionRef.current = {
+          startTime: performance.now(),
+          duration: 400,
+          fromPos: camera.position.clone(),
+          toPos: camera.position.clone(),
+          fromTarget: controls.target.clone(),
+          toTarget: hit.clone(),
+        };
+      };
+
+      canvas.addEventListener('dblclick', handleDblClick);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (canvas as any).__dblHandler = handleDblClick;
     }, 500);
 
     return () => {
       clearInterval(timer);
       try {
-        const renderer = globeRef.current?.renderer();
-        const canvas = renderer?.domElement as ControlsAny;
-        if (canvas?.__freeCamDblClick) {
-          canvas.removeEventListener('dblclick', canvas.__freeCamDblClick);
-          delete canvas.__freeCamDblClick;
+        const canvas = globeRef.current?.renderer()?.domElement;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (canvas?.__dblHandler) {
+          canvas.removeEventListener('dblclick', (canvas as any).__dblHandler);
         }
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
     };
   }, [globeRef]);
 
-  // Main animation loop — always running for transitions + follow modes
+  // 3. Animation loop: handle transitions, follow modes, adaptive speed
   useEffect(() => {
-    function animate() {
-      rafIdRef.current = requestAnimationFrame(animate);
+    function tick() {
+      rafRef.current = requestAnimationFrame(tick);
 
       const globe = globeRef.current;
-      if (!globe) return;
+      if (!globe || !patchedRef.current) return;
 
-      let controls: ControlsAny;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let controls: any;
       let camera: THREE.PerspectiveCamera;
       try {
         controls = globe.controls();
@@ -222,33 +168,35 @@ export function useCameraMode(globeRef: GlobeRef): void {
         return;
       }
 
-      const now = performance.now();
+      // --- Adaptive speed ---
+      const dist = camera.position.distanceTo(controls.target);
+      const nd = dist / GLOBE_RADIUS;
+      controls.rotateSpeed = Math.max(0.05, nd * 0.3);
+      controls.zoomSpeed = Math.max(0.1, Math.sqrt(nd) * 0.5);
 
-      // Handle smooth transitions (pivot change, preset fly-to)
-      if (transitionRef.current) {
-        const tr = transitionRef.current;
-        const elapsed = now - tr.startTime;
-        const t = Math.min(elapsed / tr.duration, 1);
-        const eased = easeInOutQuad(t);
+      // --- Adaptive near plane ---
+      const alt = camera.position.length() - GLOBE_RADIUS;
+      camera.near = alt < GLOBE_RADIUS * 0.05 ? 0.01
+                   : alt < GLOBE_RADIUS * 0.2 ? 0.05
+                   : 0.1;
+      camera.updateProjectionMatrix();
 
-        camera.position.lerpVectors(tr.startPos, tr.endPos, eased);
-        controls.target.lerpVectors(tr.startTarget, tr.endTarget, eased);
-
-        if (tr.startNear !== undefined && tr.endNear !== undefined) {
-          camera.near = tr.startNear + (tr.endNear - tr.startNear) * eased;
-          camera.updateProjectionMatrix();
-        }
-
-        controls.update();
-
+      // --- Smooth transition ---
+      const tr = transitionRef.current;
+      if (tr) {
+        const t = Math.min((performance.now() - tr.startTime) / tr.duration, 1);
+        const e = easeInOutQuad(t);
+        camera.position.lerpVectors(tr.fromPos, tr.toPos, e);
+        controls.target.lerpVectors(tr.fromTarget, tr.toTarget, e);
         if (t >= 1) {
           transitionRef.current = null;
-          prevTargetRef.current.copy(tr.endTarget);
+          prevSatPosRef.current.copy(tr.toTarget);
         }
+        controls.update();
         return;
       }
 
-      // Follow modes
+      // --- Follow modes ---
       const store = useSatelliteStore.getState();
 
       if (store.cameraFollow === 'none') {
@@ -256,93 +204,81 @@ export function useCameraMode(globeRef: GlobeRef): void {
         return;
       }
 
-      // Auto-stop follow if satellite deselected
+      // Auto-stop if satellite deselected
       if (store.selectedSatId === null) {
-        setCameraFollow('none');
+        store.setCameraFollow('none');
+        controls.update();
         return;
       }
 
       const pos = store.positions.get(store.selectedSatId)
         ?? store.massPositions.get(store.selectedSatId);
-      if (!pos) return;
+      if (!pos) { controls.update(); return; }
 
       const relAlt = pos.alt / EARTH_RADIUS_KM;
+      const satPos = polar2Cartesian(pos.lat, pos.lng, relAlt);
 
       if (store.cameraFollow === 'track') {
-        // Delta-based tracking: shift camera + target by satellite movement
-        const newTarget = polar2Cartesian(pos.lat, pos.lng, relAlt);
-
-        if (prevTargetRef.current.length() < 0.001) {
-          // First frame — initialize
-          prevTargetRef.current.copy(newTarget);
-          controls.target.copy(newTarget);
+        // Delta-based: shift camera + target by satellite movement
+        if (prevSatPosRef.current.lengthSq() < 0.01) {
+          prevSatPosRef.current.copy(satPos);
+          controls.target.copy(satPos);
         } else {
-          const delta = new THREE.Vector3().subVectors(newTarget, prevTargetRef.current);
-          if (delta.length() > 0.001) {
+          const delta = satPos.clone().sub(prevSatPosRef.current);
+          if (delta.lengthSq() > 0.000001) {
             camera.position.add(delta);
-            controls.target.copy(newTarget);
-            prevTargetRef.current.copy(newTarget);
+            controls.target.copy(satPos);
+            prevSatPosRef.current.copy(satPos);
           }
         }
       } else if (store.cameraFollow === 'sat-pov') {
-        // Camera at satellite, looking at Earth
-        const satPos = polar2Cartesian(pos.lat, pos.lng, relAlt);
+        // Camera locked at satellite, looking at Earth center
         camera.position.copy(satPos);
-        controls.target.setScalar(0);
-
-        const dist = satPos.length();
-        controls.minDistance = dist - 2;
-        controls.maxDistance = dist + 2;
+        // We blocked setScalar(0) so set target directly:
+        controls.target.set(0, 0, 0);
+        const d = satPos.length();
+        controls.minDistance = d - 2;
+        controls.maxDistance = d + 2;
       }
 
       controls.update();
     }
 
-    animate();
-
+    tick();
     return () => {
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globeRef]);
 
-  // Public method for presets to trigger transitions
-  // Exposed via a ref on the globe element (avoids prop drilling)
-  const flyTo = useCallback((
-    endPos: THREE.Vector3,
-    endTarget: THREE.Vector3,
-    duration = 800,
-    endNear?: number,
-  ) => {
+  // 4. Expose flyTo for preset buttons
+  useEffect(() => {
     const globe = globeRef.current;
     if (!globe) return;
-    try {
-      const controls = globe.controls() as ControlsAny;
-      const camera = globe.camera() as THREE.PerspectiveCamera;
-      if (!controls) return;
+
+    globe.__freeCamFlyTo = (
+      toPos: THREE.Vector3,
+      toTarget: THREE.Vector3,
+      duration = 800,
+    ) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let controls: any;
+      let camera: THREE.PerspectiveCamera;
+      try {
+        controls = globe.controls();
+        camera = globe.camera() as THREE.PerspectiveCamera;
+        if (!controls) return;
+      } catch {
+        return;
+      }
 
       transitionRef.current = {
         startTime: performance.now(),
         duration,
-        startPos: camera.position.clone(),
-        endPos,
-        startTarget: controls.target.clone(),
-        endTarget,
-        startNear: endNear !== undefined ? camera.near : undefined,
-        endNear,
+        fromPos: camera.position.clone(),
+        toPos,
+        fromTarget: controls.target.clone(),
+        toTarget,
       };
-    } catch {
-      // ignore
-    }
+    };
   }, [globeRef]);
-
-  // Expose flyTo on globeRef for CameraControls to use
-  useEffect(() => {
-    if (globeRef.current) {
-      globeRef.current.__freeCamFlyTo = flyTo;
-    }
-  }, [globeRef, flyTo]);
 }

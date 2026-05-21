@@ -31,12 +31,11 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
     }
   }, [selectedSatId, cameraFollow, setCameraFollow]);
 
-  // Helper: use the free camera's flyTo if available, else fallback to pointOfView
-  const flyTo = (endPos: THREE.Vector3, endTarget: THREE.Vector3, duration = 800, endNear?: number) => {
+  const flyTo = (endPos: THREE.Vector3, endTarget: THREE.Vector3, duration = 800) => {
     const globe = globeRef.current;
     if (!globe) return;
     if (globe.__freeCamFlyTo) {
-      globe.__freeCamFlyTo(endPos, endTarget, duration, endNear);
+      globe.__freeCamFlyTo(endPos, endTarget, duration);
     }
   };
 
@@ -70,16 +69,25 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
   };
 
   const handleTrack = () => {
-    const { selectedSatId: id, cameraFollow: follow } = stateRef.current;
+    const { selectedSatId: id, positions: pos, massPositions: mPos, cameraFollow: follow } = stateRef.current;
     if (id === null) return;
     if (follow === 'track') {
       setCameraFollow('none');
     } else {
+      // Fly to satellite first, then start tracking
+      const p = pos.get(id) ?? mPos.get(id);
+      if (p) {
+        const relAlt = p.alt / EARTH_RADIUS_KM;
+        const satPos3D = polar2Cartesian(p.lat, p.lng, relAlt);
+        const dirFromCenter = satPos3D.clone().normalize();
+        const up = new THREE.Vector3(0, 1, 0);
+        const offsetDir = new THREE.Vector3().crossVectors(up, dirFromCenter).normalize();
+        if (offsetDir.length() < 0.01) offsetDir.set(1, 0, 0);
+        const orbitDist = Math.max(15, relAlt * GLOBE_RADIUS * 0.3);
+        const endCamPos = satPos3D.clone().add(offsetDir.multiplyScalar(orbitDist));
+        flyTo(endCamPos, satPos3D, 800);
+      }
       setCameraFollow('track');
-      // Also fly to satellite on start
-      handleFocusSat();
-      // Re-set to track after focus (handleFocusSat sets 'none')
-      setTimeout(() => setCameraFollow('track'), 50);
     }
   };
 
@@ -90,7 +98,7 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
 
     const surfacePos = polar2Cartesian(obs.lat, obs.lng, 0.002);
     const zenith = polar2Cartesian(obs.lat, obs.lng, 0.15);
-    flyTo(surfacePos, zenith, 800, 0.01);
+    flyTo(surfacePos, zenith, 800);
   };
 
   const handleSatPov = () => {
@@ -106,7 +114,7 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
       const satPos3D = polar2Cartesian(p.lat, p.lng, relAlt);
       const earthCenter = new THREE.Vector3(0, 0, 0);
       flyTo(satPos3D, earthCenter, 800);
-      setTimeout(() => setCameraFollow('sat-pov'), 50);
+      setCameraFollow('sat-pov');
     }
   };
 
