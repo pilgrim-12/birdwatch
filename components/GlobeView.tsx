@@ -295,12 +295,18 @@ export default function GlobeView() {
     return paths;
   }, [showTrajectories, showBeams, orbitPathsRaw, selectedSatId, pointsData]);
 
-  // HTML tooltip label for selected satellite (matches hover style)
+  // HTML labels for satellites on the globe
   const htmlLabelsData = useMemo(() => {
-    if (!showLabels || selectedSatId === null) return [];
-    const sat = pointsData.find((p) => p.id === selectedSatId);
-    if (!sat) return [];
-    return [{ id: sat.id, lat: sat.lat, lng: sat.lng, alt: sat.alt + 0.015, name: sat.name, color: sat.color }];
+    if (!showLabels) return [];
+    return pointsData.map((p) => ({
+      id: p.id,
+      lat: p.lat,
+      lng: p.lng,
+      alt: p.alt + 0.015,
+      name: p.name,
+      color: p.color,
+      selected: p.id === selectedSatId,
+    }));
   }, [showLabels, selectedSatId, pointsData]);
 
   // Observer ring
@@ -424,10 +430,12 @@ export default function GlobeView() {
           htmlLng="lng"
           htmlAltitude="alt"
           htmlElement={(d: object) => {
-            const data = d as { name: string; color: string };
+            const data = d as { name: string; color: string; selected: boolean };
             const el = document.createElement('div');
             el.textContent = data.name;
-            el.style.cssText = `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.75);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};`;
+            el.style.cssText = data.selected
+              ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;`
+              : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none;transform:translateY(-14px);`;
             return el;
           }}
           htmlTransitionDuration={0}
