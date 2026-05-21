@@ -12,6 +12,7 @@ interface SatelliteStore {
   showTrajectories: boolean;
   showLabels: boolean;
   showBeams: boolean;
+  showLookLine: boolean;
   nightMode: boolean;
   beamOpacity: number; // 0-100
   beamWidth: number; // stroke thickness 1-10
@@ -30,6 +31,7 @@ interface SatelliteStore {
   toggleTrajectories: () => void;
   toggleLabels: () => void;
   toggleBeams: () => void;
+  toggleLookLine: () => void;
   toggleNightMode: () => void;
   setBeamOpacity: (value: number) => void;
   setBeamWidth: (width: number) => void;
@@ -82,6 +84,7 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   showTrajectories: false,
   showLabels: true,
   showBeams: true,
+  showLookLine: false,
   nightMode: true,
   beamOpacity: 50,
   beamWidth: 2,
@@ -98,6 +101,7 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   toggleTrajectories: () => set((s) => ({ showTrajectories: !s.showTrajectories })),
   toggleLabels: () => set((s) => ({ showLabels: !s.showLabels })),
   toggleBeams: () => set((s) => ({ showBeams: !s.showBeams })),
+  toggleLookLine: () => set((s) => ({ showLookLine: !s.showLookLine })),
   toggleNightMode: () => set((s) => ({ nightMode: !s.nightMode })),
   setBeamOpacity: (value) => set({ beamOpacity: value }),
   setBeamWidth: (width) => set({ beamWidth: width }),

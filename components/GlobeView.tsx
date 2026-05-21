@@ -30,10 +30,19 @@ interface PointData {
 
 interface CombinedPath {
   pathId: string;
-  type: 'orbit' | 'beam';
+  type: 'orbit' | 'beam' | 'look-line';
   points: { lat: number; lng: number; alt: number }[];
   selected: boolean;
   color: string;
+}
+
+/** Great-circle distance in radians between two lat/lng points */
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 interface MassLayerDatum {
@@ -64,6 +73,7 @@ export default function GlobeView() {
   const showTrajectories = useSatelliteStore((s) => s.showTrajectories);
   const showLabels = useSatelliteStore((s) => s.showLabels);
   const showBeams = useSatelliteStore((s) => s.showBeams);
+  const showLookLine = useSatelliteStore((s) => s.showLookLine);
   const nightMode = useSatelliteStore((s) => s.nightMode);
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
   const beamWidth = useSatelliteStore((s) => s.beamWidth);
@@ -292,8 +302,31 @@ export default function GlobeView() {
       }
     }
 
+    // Look-line: perpendicular from observer to closest point on selected satellite's orbit
+    if (showLookLine && observer && selectedSatId !== null) {
+      const selectedOrbit = orbitPathsRaw.find((o) => o.id === selectedSatId);
+      if (selectedOrbit && selectedOrbit.points.length > 0) {
+        let minDist = Infinity;
+        let closest = selectedOrbit.points[0];
+        for (const pt of selectedOrbit.points) {
+          const d = haversineDistance(observer.lat, observer.lng, pt.lat, pt.lng);
+          if (d < minDist) { minDist = d; closest = pt; }
+        }
+        paths.push({
+          pathId: 'look-line',
+          type: 'look-line',
+          points: [
+            { lat: observer.lat, lng: observer.lng, alt: 0 },
+            { lat: closest.lat, lng: closest.lng, alt: closest.alt },
+          ],
+          selected: true,
+          color: '#ff9800',
+        });
+      }
+    }
+
     return paths;
-  }, [showTrajectories, showBeams, orbitPathsRaw, selectedSatId, pointsData]);
+  }, [showTrajectories, showBeams, showLookLine, orbitPathsRaw, selectedSatId, pointsData, observer]);
 
   // HTML labels for satellites on the globe
   const htmlLabelsData = useMemo(() => {
@@ -449,6 +482,7 @@ export default function GlobeView() {
           pathColor={(d: object) => {
             const path = d as CombinedPath;
             const hex = path.color;
+            if (path.type === 'look-line') return `${hex}FF`;
             if (path.type === 'beam') {
               const selectedAlpha = Math.round((beamOpacity / 100) * 255).toString(16).padStart(2, '0');
               const normalAlpha = Math.round((beamOpacity / 100) * 180).toString(16).padStart(2, '0');
@@ -458,21 +492,25 @@ export default function GlobeView() {
           }}
           pathStroke={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'look-line') return 1.5;
             if (path.type === 'beam') return path.selected ? beamWidth * 1.5 : beamWidth * 0.5;
             return path.selected ? 2 : 0.8;
           }}
           pathDashLength={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'look-line') return 0;
             if (path.type === 'beam') return 0.3;
             return path.selected ? 0 : 1;
           }}
           pathDashGap={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'look-line') return 0;
             if (path.type === 'beam') return 0.7;
             return path.selected ? 0 : 0.5;
           }}
           pathDashAnimateTime={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'look-line') return 0;
             if (path.type === 'beam') {
               const speedMap = [0, 4000, 2000, 800];
               return speedMap[beamSpeed] ?? 2000;
