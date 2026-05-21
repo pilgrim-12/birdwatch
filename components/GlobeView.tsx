@@ -66,8 +66,7 @@ export default function GlobeView() {
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
   const beamWidth = useSatelliteStore((s) => s.beamWidth);
   const beamSpeed = useSatelliteStore((s) => s.beamSpeed);
-  const cameraMode = useSatelliteStore((s) => s.cameraMode);
-  const setPivotPoint = useSatelliteStore((s) => s.setPivotPoint);
+  const cameraFollow = useSatelliteStore((s) => s.cameraFollow);
 
   // Mass group (Starlink) state
   const massSatellites = useSatelliteStore((s) => s.massSatellites);
@@ -133,39 +132,13 @@ export default function GlobeView() {
     return () => clearInterval(timer);
   }, [nightMode]); // re-apply when texture changes (night/day)
 
-  // Set zoom constraints and damping on OrbitControls (only in earth mode)
-  useEffect(() => {
-    if (cameraMode !== 'earth') return;
+  // OrbitControls constraints are managed by useCameraMode hook (free camera)
 
-    const globe = globeRef.current;
-    if (!globe) return;
-
-    const timer = setInterval(() => {
-      try {
-        const controls = globe.controls();
-        if (controls) {
-          controls.minDistance = GLOBE_RADIUS * 1.2;
-          controls.maxDistance = GLOBE_RADIUS * 8;
-          controls.enableDamping = true;
-          controls.dampingFactor = 0.1;
-          controls.rotateSpeed = 0.5;
-          clearInterval(timer);
-        }
-      } catch {
-        // Globe not ready yet
-      }
-    }, 500);
-
-    return () => clearInterval(timer);
-  }, [cameraMode]);
-
-  // Auto-fly camera to selected satellite (only in earth mode)
-  // Fly to satellite when selected from the sidebar
+  // Auto-fly camera to selected satellite (skip when in follow mode)
   const prevSelectedRef = useRef<number | null>(null);
   const hasFlewRef = useRef(false);
   useEffect(() => {
-    // Don't auto-fly when in non-earth camera modes
-    if (cameraMode !== 'earth') return;
+    if (cameraFollow !== 'none') return;
 
     if (selectedSatId === null) {
       prevSelectedRef.current = null;
@@ -182,16 +155,24 @@ export default function GlobeView() {
     if (!pos || !globeRef.current) return;
 
     hasFlewRef.current = true;
-    const current = globeRef.current.pointOfView();
-    globeRef.current.pointOfView(
-      {
-        lat: pos.lat,
-        lng: pos.lng,
-        altitude: Math.min(current?.altitude ?? 1.5, 1.5),
-      },
-      800,
-    );
-  }, [selectedSatId, positions, massPositions, cameraMode]);
+
+    // Use free camera flyTo if available, else fallback to pointOfView
+    const relAlt = pos.alt / EARTH_RADIUS_KM;
+    const satPos3D = polar2Cartesian(pos.lat, pos.lng, relAlt);
+    const dirFromCenter = satPos3D.clone().normalize();
+    const camDist = Math.max(GLOBE_RADIUS * 0.3, satPos3D.length() * 0.3);
+    const endCamPos = satPos3D.clone().add(dirFromCenter.multiplyScalar(camDist));
+
+    if (globeRef.current.__freeCamFlyTo) {
+      globeRef.current.__freeCamFlyTo(endCamPos, satPos3D, 800);
+    } else {
+      const current = globeRef.current.pointOfView();
+      globeRef.current.pointOfView(
+        { lat: pos.lat, lng: pos.lng, altitude: Math.min(current?.altitude ?? 1.5, 1.5) },
+        800,
+      );
+    }
+  }, [selectedSatId, positions, massPositions, cameraFollow]);
 
   // Refresh orbit paths every 5 minutes (orbits are stable for hours from a single TLE)
   useEffect(() => {
@@ -420,13 +401,9 @@ export default function GlobeView() {
 
   const handleGlobeClick = useCallback(
     ({ lat, lng }: { lat: number; lng: number }) => {
-      if (cameraMode === 'click-pivot') {
-        setPivotPoint({ lat, lng, alt: 0 });
-      } else {
-        setObserver({ lat, lng, alt: 0 });
-      }
+      setObserver({ lat, lng, alt: 0 });
     },
-    [cameraMode, setObserver, setPivotPoint],
+    [setObserver],
   );
 
   return (

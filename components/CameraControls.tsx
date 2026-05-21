@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import * as THREE from 'three';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
-import type { CameraMode } from '@/store/useSatelliteStore';
+import { EARTH_RADIUS_KM } from '@/lib/constants';
+import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
 
 interface CameraControlsProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,37 +14,110 @@ interface CameraControlsProps {
 export function CameraControls({ globeRef }: CameraControlsProps) {
   const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
   const observer = useSatelliteStore((s) => s.observer);
-  const cameraMode = useSatelliteStore((s) => s.cameraMode);
-  const setCameraMode = useSatelliteStore((s) => s.setCameraMode);
+  const cameraFollow = useSatelliteStore((s) => s.cameraFollow);
+  const setCameraFollow = useSatelliteStore((s) => s.setCameraFollow);
+  const positions = useSatelliteStore((s) => s.positions);
+  const massPositions = useSatelliteStore((s) => s.massPositions);
 
-  // Stable ref for keyboard handler
-  const stateRef = useRef({ selectedSatId, observer, cameraMode });
+  const stateRef = useRef({ selectedSatId, observer, positions, massPositions, cameraFollow });
   useEffect(() => {
-    stateRef.current = { selectedSatId, observer, cameraMode };
+    stateRef.current = { selectedSatId, observer, positions, massPositions, cameraFollow };
   });
 
-  const handleSetMode = (mode: CameraMode) => {
-    const current = stateRef.current;
-
-    if (mode === 'earth') {
-      setCameraMode('earth');
-      // Also reset camera position via pointOfView
-      globeRef.current?.pointOfView({ lat: 20, lng: 0, altitude: 2.5 }, 1000);
-      return;
+  // Stop follow when satellite deselected
+  useEffect(() => {
+    if (selectedSatId === null && cameraFollow !== 'none') {
+      setCameraFollow('none');
     }
+  }, [selectedSatId, cameraFollow, setCameraFollow]);
 
-    // Toggle: if already in this mode, return to earth
-    if (current.cameraMode === mode) {
-      setCameraMode('earth');
-      globeRef.current?.pointOfView({ lat: 20, lng: 0, altitude: 2.5 }, 1000);
-      return;
+  // Helper: use the free camera's flyTo if available, else fallback to pointOfView
+  const flyTo = (endPos: THREE.Vector3, endTarget: THREE.Vector3, duration = 800, endNear?: number) => {
+    const globe = globeRef.current;
+    if (!globe) return;
+    if (globe.__freeCamFlyTo) {
+      globe.__freeCamFlyTo(endPos, endTarget, duration, endNear);
     }
+  };
 
-    // Validation
-    if ((mode === 'orbit-satellite' || mode === 'satellite-pov') && current.selectedSatId === null) return;
-    if (mode === 'ground-pov' && !current.observer) return;
+  const handleReset = () => {
+    setCameraFollow('none');
+    // Reset target to Earth center, camera to default overview position
+    const endTarget = new THREE.Vector3(0, 0, 0);
+    const endPos = polar2Cartesian(20, 0, 1.5);
+    flyTo(endPos, endTarget, 1000);
+  };
 
-    setCameraMode(mode);
+  const handleFocusSat = () => {
+    const { selectedSatId: id, positions: pos, massPositions: mPos } = stateRef.current;
+    if (id === null) return;
+    const p = pos.get(id) ?? mPos.get(id);
+    if (!p) return;
+
+    setCameraFollow('none');
+    const relAlt = p.alt / EARTH_RADIUS_KM;
+    const satPos3D = polar2Cartesian(p.lat, p.lng, relAlt);
+
+    // Position camera at offset from satellite, target on satellite
+    const dirFromCenter = satPos3D.clone().normalize();
+    const up = new THREE.Vector3(0, 1, 0);
+    const offsetDir = new THREE.Vector3().crossVectors(up, dirFromCenter).normalize();
+    if (offsetDir.length() < 0.01) offsetDir.set(1, 0, 0);
+    const orbitDist = Math.max(15, relAlt * GLOBE_RADIUS * 0.3);
+    const endCamPos = satPos3D.clone().add(offsetDir.multiplyScalar(orbitDist));
+
+    flyTo(endCamPos, satPos3D, 800);
+  };
+
+  const handleTrack = () => {
+    const { selectedSatId: id, cameraFollow: follow } = stateRef.current;
+    if (id === null) return;
+    if (follow === 'track') {
+      setCameraFollow('none');
+    } else {
+      setCameraFollow('track');
+      // Also fly to satellite on start
+      handleFocusSat();
+      // Re-set to track after focus (handleFocusSat sets 'none')
+      setTimeout(() => setCameraFollow('track'), 50);
+    }
+  };
+
+  const handleGroundView = () => {
+    const { observer: obs } = stateRef.current;
+    if (!obs) return;
+    setCameraFollow('none');
+
+    const surfacePos = polar2Cartesian(obs.lat, obs.lng, 0.002);
+    const zenith = polar2Cartesian(obs.lat, obs.lng, 0.15);
+    flyTo(surfacePos, zenith, 800, 0.01);
+  };
+
+  const handleSatPov = () => {
+    const { selectedSatId: id, positions: pos, massPositions: mPos, cameraFollow: follow } = stateRef.current;
+    if (id === null) return;
+    if (follow === 'sat-pov') {
+      setCameraFollow('none');
+    } else {
+      const p = pos.get(id) ?? mPos.get(id);
+      if (!p) return;
+
+      const relAlt = p.alt / EARTH_RADIUS_KM;
+      const satPos3D = polar2Cartesian(p.lat, p.lng, relAlt);
+      const earthCenter = new THREE.Vector3(0, 0, 0);
+      flyTo(satPos3D, earthCenter, 800);
+      setTimeout(() => setCameraFollow('sat-pov'), 50);
+    }
+  };
+
+  const handleGoObserver = () => {
+    const { observer: obs } = stateRef.current;
+    if (!obs) return;
+    setCameraFollow('none');
+
+    const obsPos = polar2Cartesian(obs.lat, obs.lng, 0);
+    const endCamPos = polar2Cartesian(obs.lat, obs.lng, 0.4);
+    flyTo(endCamPos, obsPos, 800);
   };
 
   // Keyboard shortcuts
@@ -52,19 +127,22 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
       switch (e.key.toLowerCase()) {
         case 'r':
         case 'escape':
-          handleSetMode('earth');
+          handleReset();
           break;
-        case '1':
-          handleSetMode('orbit-satellite');
+        case 'f':
+          handleFocusSat();
           break;
-        case '2':
-          handleSetMode('ground-pov');
+        case 't':
+          handleTrack();
           break;
-        case '3':
-          handleSetMode('click-pivot');
+        case 'g':
+          handleGroundView();
           break;
-        case '4':
-          handleSetMode('satellite-pov');
+        case 'v':
+          handleSatPov();
+          break;
+        case 'o':
+          handleGoObserver();
           break;
       }
     };
@@ -78,22 +156,13 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
 
   const btnBase =
     'w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400';
-
-  const modeBtn = (mode: CameraMode) =>
-    `${btnBase} ${
-      cameraMode === mode
-        ? 'text-cyan-400 bg-cyan-500/20 hover:bg-cyan-500/30'
-        : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
-    }`;
+  const btnNormal = `${btnBase} text-gray-400 hover:text-white hover:bg-gray-700/50`;
+  const btnActive = `${btnBase} text-cyan-400 bg-cyan-500/20 hover:bg-cyan-500/30`;
 
   return (
     <div className="absolute top-4 right-4 md:top-auto md:bottom-4 md:left-4 md:right-auto flex flex-col gap-1 bg-gray-900/70 backdrop-blur-sm rounded-lg p-1.5 border border-gray-700/50 z-10">
-      {/* Earth Mode (default) */}
-      <button
-        className={modeBtn('earth')}
-        onClick={() => handleSetMode('earth')}
-        title="Earth view (R)"
-      >
+      {/* Reset / Home */}
+      <button className={btnNormal} onClick={handleReset} title="Reset view (R)">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="8" cy="8" r="6" />
           <ellipse cx="8" cy="8" rx="2.5" ry="6" />
@@ -101,26 +170,35 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
         </svg>
       </button>
 
-      {/* Orbit Around Satellite */}
-      <button
-        className={modeBtn('orbit-satellite')}
-        onClick={() => handleSetMode('orbit-satellite')}
-        disabled={!hasSat}
-        title="Orbit satellite (1)"
-      >
+      {/* Focus Satellite */}
+      <button className={btnNormal} onClick={handleFocusSat} disabled={!hasSat} title="Focus satellite (F)">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-          <circle cx="8" cy="8" r="2" />
-          <ellipse cx="8" cy="8" rx="6" ry="3" transform="rotate(-30 8 8)" strokeDasharray="3,2" />
+          <circle cx="8" cy="8" r="3" />
+          <line x1="8" y1="1" x2="8" y2="4" />
+          <line x1="8" y1="12" x2="8" y2="15" />
+          <line x1="1" y1="8" x2="4" y2="8" />
+          <line x1="12" y1="8" x2="15" y2="8" />
         </svg>
       </button>
 
-      {/* Ground Station POV */}
+      {/* Track Satellite (continuous follow) */}
       <button
-        className={modeBtn('ground-pov')}
-        onClick={() => handleSetMode('ground-pov')}
-        disabled={!hasObs}
-        title="Ground station view (2)"
+        className={cameraFollow === 'track' ? btnActive : btnNormal}
+        onClick={handleTrack}
+        disabled={!hasSat}
+        title={cameraFollow === 'track' ? 'Stop tracking (T)' : 'Track satellite (T)'}
       >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <circle cx="8" cy="8" r="2" />
+          <circle cx="8" cy="8" r="5" strokeDasharray="3,2" />
+          {cameraFollow === 'track' && <circle cx="8" cy="8" r="7" strokeDasharray="2,2" opacity="0.5" />}
+        </svg>
+      </button>
+
+      <div className="w-6 h-px bg-gray-700/50 mx-auto my-0.5" />
+
+      {/* Ground View — camera at observer, looking up at sky */}
+      <button className={btnNormal} onClick={handleGroundView} disabled={!hasObs} title="Ground sky view (G)">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 14h10" />
           <path d="M8 14V9" />
@@ -129,28 +207,12 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
         </svg>
       </button>
 
-      {/* Click to Set Pivot */}
+      {/* Satellite POV — camera at satellite, looking down */}
       <button
-        className={modeBtn('click-pivot')}
-        onClick={() => handleSetMode('click-pivot')}
-        title="Click to set pivot (3)"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="8" cy="8" r="3" />
-          <line x1="8" y1="1" x2="8" y2="4" />
-          <line x1="8" y1="12" x2="8" y2="15" />
-          <line x1="1" y1="8" x2="4" y2="8" />
-          <line x1="12" y1="8" x2="15" y2="8" />
-          <circle cx="8" cy="8" r="1" fill="currentColor" />
-        </svg>
-      </button>
-
-      {/* Satellite POV */}
-      <button
-        className={modeBtn('satellite-pov')}
-        onClick={() => handleSetMode('satellite-pov')}
+        className={cameraFollow === 'sat-pov' ? btnActive : btnNormal}
+        onClick={handleSatPov}
         disabled={!hasSat}
-        title="Satellite POV (4)"
+        title={cameraFollow === 'sat-pov' ? 'Exit satellite POV (V)' : 'Satellite POV (V)'}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M10 2l4 4-2 2-4-4z" />
@@ -158,6 +220,14 @@ export function CameraControls({ globeRef }: CameraControlsProps) {
           <line x1="3" y1="3" x2="5" y2="5" />
           <circle cx="12" cy="12" r="2" />
           <path d="M10 14a4 4 0 0 0 4-4" />
+        </svg>
+      </button>
+
+      {/* Go to Observer */}
+      <button className={btnNormal} onClick={handleGoObserver} disabled={!hasObs} title="Go to observer (O)">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 1C5.8 1 4 2.8 4 5c0 3 4 8 4 8s4-5 4-8c0-2.2-1.8-4-4-4z" />
+          <circle cx="8" cy="5" r="1.5" />
         </svg>
       </button>
     </div>
