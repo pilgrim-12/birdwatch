@@ -25,10 +25,15 @@ interface Transition {
 /**
  * Free camera hook.
  *
- * Strategy: globe.gl calls `controls.target.setScalar(0)` on every user
- * interaction to force the orbit center back to Earth's origin. We override
- * that single method so the reset becomes a no-op. Everything else (pan,
- * orbit, zoom) then works naturally through Three.js OrbitControls.
+ * globe.gl forces `controls.target.setScalar(0)` on every OrbitControls
+ * 'change' event, locking the orbit center to Earth's origin. It also
+ * overrides rotateSpeed/zoomSpeed in the same listener.
+ *
+ * Strategy:
+ * 1. Override `target.setScalar` so the (0,0,0) reset becomes a no-op
+ * 2. Remove globe.gl's change listener entirely
+ * 3. Add our own change listener with adaptive speed based on distance to target
+ * 4. Run rAF loop for transitions, follow modes, and adaptive near plane
  */
 export function useCameraMode(globeRef: GlobeRef): void {
   const patchedRef = useRef(false);
@@ -36,7 +41,7 @@ export function useCameraMode(globeRef: GlobeRef): void {
   const prevSatPosRef = useRef(new THREE.Vector3());
   const rafRef = useRef<number | null>(null);
 
-  // 1. Patch controls once they're ready
+  // 1. Patch controls once ready + expose flyTo + replace change listener
   useEffect(() => {
     const timer = setInterval(() => {
       const globe = globeRef.current;
@@ -62,6 +67,30 @@ export function useCameraMode(globeRef: GlobeRef): void {
         return origSetScalar(s);
       };
 
+      // --- Remove globe.gl's change listener ---
+      // It does: setScalar(0) (blocked above), speed overrides (conflict), setPointOfView
+      // We replace with our own that only does adaptive speed.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const listeners = (controls as any)._listeners?.change;
+        if (Array.isArray(listeners)) {
+          const copy = [...listeners];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          copy.forEach((fn: any) => controls.removeEventListener('change', fn));
+        }
+      } catch { /* _listeners may not be accessible — setScalar override still protects us */ }
+
+      // --- Our change listener: adaptive speed based on distance to orbit target ---
+      controls.addEventListener('change', () => {
+        try {
+          const camera = globe.camera() as THREE.PerspectiveCamera;
+          const dist = camera.position.distanceTo(controls.target);
+          const nd = dist / GLOBE_RADIUS;
+          controls.rotateSpeed = Math.max(0.05, nd * 0.3);
+          controls.zoomSpeed = Math.max(0.1, Math.sqrt(nd) * 0.5);
+        } catch { /* ignore */ }
+      });
+
       // --- Enable pan & relax constraints ---
       controls.enablePan = true;
       controls.panSpeed = 0.5;
@@ -69,6 +98,34 @@ export function useCameraMode(globeRef: GlobeRef): void {
       controls.dampingFactor = 0.1;
       controls.minDistance = 1;
       controls.maxDistance = GLOBE_RADIUS * 12;
+
+      // --- Expose flyTo for CameraControls buttons ---
+      globe.__freeCamFlyTo = (
+        toPos: THREE.Vector3,
+        toTarget: THREE.Vector3,
+        duration = 800,
+      ) => {
+        // Fetch current camera/controls fresh each time (avoid stale closures)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let ctrl: any;
+        let cam: THREE.PerspectiveCamera;
+        try {
+          ctrl = globe.controls();
+          cam = globe.camera() as THREE.PerspectiveCamera;
+          if (!ctrl) return;
+        } catch {
+          return;
+        }
+
+        transitionRef.current = {
+          startTime: performance.now(),
+          duration,
+          fromPos: cam.position.clone(),
+          toPos,
+          fromTarget: ctrl.target.clone(),
+          toTarget,
+        };
+      };
     }, 300);
 
     return () => clearInterval(timer);
@@ -149,7 +206,7 @@ export function useCameraMode(globeRef: GlobeRef): void {
     };
   }, [globeRef]);
 
-  // 3. Animation loop: handle transitions, follow modes, adaptive speed
+  // 3. Animation loop: transitions, follow modes, adaptive near plane
   useEffect(() => {
     function tick() {
       rafRef.current = requestAnimationFrame(tick);
@@ -167,12 +224,6 @@ export function useCameraMode(globeRef: GlobeRef): void {
       } catch {
         return;
       }
-
-      // --- Adaptive speed ---
-      const dist = camera.position.distanceTo(controls.target);
-      const nd = dist / GLOBE_RADIUS;
-      controls.rotateSpeed = Math.max(0.05, nd * 0.3);
-      controls.zoomSpeed = Math.max(0.1, Math.sqrt(nd) * 0.5);
 
       // --- Adaptive near plane ---
       const alt = camera.position.length() - GLOBE_RADIUS;
@@ -234,7 +285,6 @@ export function useCameraMode(globeRef: GlobeRef): void {
       } else if (store.cameraFollow === 'sat-pov') {
         // Camera locked at satellite, looking at Earth center
         camera.position.copy(satPos);
-        // We blocked setScalar(0) so set target directly:
         controls.target.set(0, 0, 0);
         const d = satPos.length();
         controls.minDistance = d - 2;
@@ -247,38 +297,6 @@ export function useCameraMode(globeRef: GlobeRef): void {
     tick();
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    };
-  }, [globeRef]);
-
-  // 4. Expose flyTo for preset buttons
-  useEffect(() => {
-    const globe = globeRef.current;
-    if (!globe) return;
-
-    globe.__freeCamFlyTo = (
-      toPos: THREE.Vector3,
-      toTarget: THREE.Vector3,
-      duration = 800,
-    ) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let controls: any;
-      let camera: THREE.PerspectiveCamera;
-      try {
-        controls = globe.controls();
-        camera = globe.camera() as THREE.PerspectiveCamera;
-        if (!controls) return;
-      } catch {
-        return;
-      }
-
-      transitionRef.current = {
-        startTime: performance.now(),
-        duration,
-        fromPos: camera.position.clone(),
-        toPos,
-        fromTarget: controls.target.clone(),
-        toTarget,
-      };
     };
   }, [globeRef]);
 }
