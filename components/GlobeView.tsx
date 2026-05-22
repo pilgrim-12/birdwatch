@@ -526,13 +526,13 @@ export default function GlobeView() {
             const path = d as CombinedPath;
             if (path.type === 'look-line') return 0;
             if (path.type === 'beam') return 0.3;
-            return path.selected ? 0 : 1;
+            return path.selected ? 1.2 : 1;
           }}
           pathDashGap={(d: object) => {
             const path = d as CombinedPath;
             if (path.type === 'look-line') return 0;
             if (path.type === 'beam') return 0.7;
-            return path.selected ? 0 : 0.5;
+            return path.selected ? 0.4 : 0.5;
           }}
           pathDashAnimateTime={(d: object) => {
             const path = d as CombinedPath;
@@ -541,7 +541,8 @@ export default function GlobeView() {
               const speedMap = [0, 4000, 2000, 800];
               return speedMap[beamSpeed] ?? 2000;
             }
-            return 0;
+            // Positive = dashes flow from past to future (satellite movement direction)
+            return path.type === 'orbit' ? 50000 : 0;
           }}
           pathTransitionDuration={0}
           // Mass group (Starlink) — rendered as InstancedMesh (single draw call)
