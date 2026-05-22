@@ -225,6 +225,10 @@ export function useCameraMode(globeRef: GlobeRef): void {
         return;
       }
 
+      // --- Reset zoom constraints (sat-pov restricts them to d±2) ---
+      controls.minDistance = 1;
+      controls.maxDistance = GLOBE_RADIUS * 12;
+
       // --- Adaptive near plane ---
       const alt = camera.position.length() - GLOBE_RADIUS;
       camera.near = alt < GLOBE_RADIUS * 0.05 ? 0.01
