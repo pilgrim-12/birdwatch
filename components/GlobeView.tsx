@@ -81,6 +81,51 @@ export default function GlobeView() {
   // Camera mode management hook
   useCameraMode(globeRef);
 
+  // Hide labels for satellites occluded by the globe (behind Earth)
+  useEffect(() => {
+    const ray = new THREE.Ray();
+    const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), GLOBE_RADIUS);
+    const hitPoint = new THREE.Vector3();
+    let raf: number;
+
+    function tick() {
+      raf = requestAnimationFrame(tick);
+      const globe = globeRef.current;
+      if (!globe) return;
+
+      let camera: THREE.PerspectiveCamera;
+      try {
+        camera = globe.camera() as THREE.PerspectiveCamera;
+      } catch {
+        return;
+      }
+
+      const container = containerRef.current;
+      if (!container) return;
+
+      const labels = container.querySelectorAll<HTMLElement>('[data-sat-pos]');
+      for (const el of labels) {
+        const attr = el.getAttribute('data-sat-pos');
+        if (!attr) continue;
+        const [lat, lng, alt] = attr.split(',').map(Number);
+        const satPos = polar2Cartesian(lat, lng, alt);
+
+        ray.origin.copy(camera.position);
+        ray.direction.copy(satPos).sub(camera.position).normalize();
+        const hit = ray.intersectSphere(sphere, hitPoint);
+
+        if (hit && camera.position.distanceTo(hitPoint) < camera.position.distanceTo(satPos) - 0.5) {
+          el.style.display = 'none';
+        } else {
+          el.style.display = '';
+        }
+      }
+    }
+
+    tick();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   // Counter that increments every 30s to force orbit path refresh
   const [orbitEpoch, setOrbitEpoch] = useState(0);
 
@@ -443,9 +488,10 @@ export default function GlobeView() {
           htmlLng="lng"
           htmlAltitude="alt"
           htmlElement={(d: object) => {
-            const data = d as { name: string; color: string; selected: boolean };
+            const data = d as { name: string; color: string; selected: boolean; lat: number; lng: number; alt: number };
             const el = document.createElement('div');
             el.textContent = data.name;
+            el.setAttribute('data-sat-pos', `${data.lat},${data.lng},${data.alt}`);
             el.style.cssText = data.selected
               ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;`
               : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none;transform:translateY(-14px);`;
