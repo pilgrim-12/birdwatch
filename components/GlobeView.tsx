@@ -407,7 +407,7 @@ export default function GlobeView() {
   );
 
   return (
-    <div ref={containerRef} className="w-full h-full relative">
+    <div ref={containerRef} className="w-full h-full relative z-0">
       <CameraControls globeRef={globeRef} />
       {dimensions.width > 0 && (
         <Globe
