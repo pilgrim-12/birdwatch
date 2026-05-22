@@ -23,7 +23,7 @@ function getElevation(
   date: Date,
 ): number | null {
   const posVel = propagate(satrec, date);
-  if (typeof posVel.position === 'boolean') return null;
+  if (!posVel.position || typeof posVel.position === 'boolean') return null;
 
   const gmst = gstime(date);
   const ecf = eciToEcf(posVel.position, gmst);
@@ -54,64 +54,64 @@ export function findPasses(
   };
 
   for (const sat of satellites) {
-    let satrec: ReturnType<typeof twoline2satrec>;
     try {
-      satrec = twoline2satrec(sat.tle.line1, sat.tle.line2);
-    } catch {
-      continue;
-    }
+      const satrec = twoline2satrec(sat.tle.line1, sat.tle.line2);
 
-    let inPass = false;
-    let passStart = new Date();
-    let peakEl = 0;
-    let peakTime = new Date();
+      let inPass = false;
+      let passStart = new Date();
+      let peakEl = 0;
+      let peakTime = new Date();
 
-    for (let t = now; t <= endMs; t += stepMs) {
-      const date = new Date(t);
-      const el = getElevation(satrec, observerGd, date);
-      if (el === null) continue;
+      for (let t = now; t <= endMs; t += stepMs) {
+        const date = new Date(t);
+        const el = getElevation(satrec, observerGd, date);
+        if (el === null) continue;
 
-      if (el > minElevation) {
-        if (!inPass) {
-          inPass = true;
-          passStart = date;
-          peakEl = el;
-          peakTime = date;
+        if (el > minElevation) {
+          if (!inPass) {
+            inPass = true;
+            passStart = date;
+            peakEl = el;
+            peakTime = date;
+          }
+          if (el > peakEl) {
+            peakEl = el;
+            peakTime = date;
+          }
+        } else if (inPass) {
+          inPass = false;
+          const durationMin = (date.getTime() - passStart.getTime()) / 60_000;
+          // Skip GEO/always-visible satellites (no real pass exceeds 60 min)
+          if (peakEl >= 5 && durationMin <= 60) {
+            passes.push({
+              satId: sat.id,
+              satName: sat.name,
+              startTime: passStart,
+              peakTime,
+              endTime: date,
+              peakElevation: peakEl,
+            });
+          }
         }
-        if (el > peakEl) {
-          peakEl = el;
-          peakTime = date;
-        }
-      } else if (inPass) {
-        inPass = false;
-        const durationMin = (date.getTime() - passStart.getTime()) / 60_000;
-        // Skip GEO/always-visible satellites (no real pass exceeds 60 min)
-        if (peakEl >= 5 && durationMin <= 60) {
+      }
+
+      // Handle pass that extends beyond the search window — skip if too long (GEO)
+      if (inPass && peakEl >= 5) {
+        const durationMin = (endMs - passStart.getTime()) / 60_000;
+        if (durationMin <= 60) {
           passes.push({
             satId: sat.id,
             satName: sat.name,
             startTime: passStart,
             peakTime,
-            endTime: date,
+            endTime: new Date(endMs),
             peakElevation: peakEl,
           });
         }
       }
-    }
-
-    // Handle pass that extends beyond the search window — skip if too long (GEO)
-    if (inPass && peakEl >= 5) {
-      const durationMin = (endMs - passStart.getTime()) / 60_000;
-      if (durationMin <= 60) {
-        passes.push({
-          satId: sat.id,
-          satName: sat.name,
-          startTime: passStart,
-          peakTime,
-          endTime: new Date(endMs),
-          peakElevation: peakEl,
-        });
-      }
+    } catch {
+      // Skip satellites with bad TLE or propagation errors
+      continue;
     }
   }
 
