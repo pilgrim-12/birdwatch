@@ -15,8 +15,7 @@ export const ANTENNA_TYPES: AntennaType[] = [
   {
     id: 'v-dipole',
     name: 'V-Dipole',
-    imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Yagi_3_element.svg/500px-Yagi_3_element.svg.png',
+    imageUrl: '/antennas/v-dipole.png',
     imageAlt: 'Dipole antenna element diagram',
     bands: '137 MHz (VHF)',
     difficulty: 1,
@@ -30,8 +29,7 @@ export const ANTENNA_TYPES: AntennaType[] = [
   {
     id: 'qfh',
     name: 'QFH (Quadrifilar Helix)',
-    imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Helical_antenna.jpg/400px-Helical_antenna.jpg',
+    imageUrl: '/antennas/qfh.jpg',
     imageAlt: 'Helical antenna similar to QFH design',
     bands: '137 MHz (VHF)',
     difficulty: 2,
@@ -45,8 +43,7 @@ export const ANTENNA_TYPES: AntennaType[] = [
   {
     id: 'yagi',
     name: 'Yagi-Uda',
-    imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/a/a7/Yagi_uda_antenna.jpg',
+    imageUrl: '/antennas/yagi.jpg',
     imageAlt: 'Yagi-Uda directional antenna',
     bands: '144 MHz / 430 MHz (VHF/UHF)',
     difficulty: 2,
@@ -60,8 +57,7 @@ export const ANTENNA_TYPES: AntennaType[] = [
   {
     id: 'arrow-ii',
     name: 'Arrow II Dual-Band',
-    imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/4/42/Two_meter_yagi.jpg',
+    imageUrl: '/antennas/arrow-ii.jpg',
     imageAlt: 'Two-meter Yagi antenna used for satellite work',
     bands: '144 / 430 MHz (VHF + UHF)',
     difficulty: 1,
@@ -75,8 +71,7 @@ export const ANTENNA_TYPES: AntennaType[] = [
   {
     id: 'dish',
     name: 'Parabolic Dish',
-    imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Erdfunkstelle_Raisting_2.jpg/500px-Erdfunkstelle_Raisting_2.jpg',
+    imageUrl: '/antennas/dish.jpg',
     imageAlt: 'Parabolic dish antenna for satellite reception',
     bands: 'L-band / S-band / X-band / Ku-band',
     difficulty: 3,
@@ -90,8 +85,7 @@ export const ANTENNA_TYPES: AntennaType[] = [
   {
     id: 'patch',
     name: 'Patch Antenna',
-    imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Patch_antenna_w_cutaway.gif/500px-Patch_antenna_w_cutaway.gif',
+    imageUrl: '/antennas/patch.gif',
     imageAlt: 'Patch antenna cutaway diagram showing layers',
     bands: 'L1 / L2 (1.2–1.6 GHz)',
     difficulty: 2,
@@ -105,8 +99,7 @@ export const ANTENNA_TYPES: AntennaType[] = [
   {
     id: 'whip',
     name: 'Whip / Rubber Duck',
-    imageUrl:
-      'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Baofeng_UV-5R_transceiver.jpg/400px-Baofeng_UV-5R_transceiver.jpg',
+    imageUrl: '/antennas/whip.jpg',
     imageAlt: 'Baofeng UV-5R handheld radio with whip antenna',
     bands: '144 MHz (VHF)',
     difficulty: 1,
