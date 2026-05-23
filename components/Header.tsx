@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
-import { ALLOWED_GROUPS, GROUP_LABELS, GROUP_COLORS } from '@/lib/constants';
+import { ALLOWED_GROUPS, GROUP_LABELS, GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 
 export default function Header() {
@@ -36,6 +36,7 @@ export default function Header() {
 
   // Desktop settings dropdown
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [infoGroup, setInfoGroup] = useState<string | null>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -235,10 +236,36 @@ export default function Header() {
                               style={{ backgroundColor: isActive ? color : '#6b7280' }}
                             />
                             {GROUP_LABELS[group as SatelliteGroup]}
+                            <span
+                              onClick={(e) => { e.stopPropagation(); setInfoGroup(infoGroup === group ? null : group); }}
+                              className="ml-0.5 w-3 h-3 rounded-full inline-flex items-center justify-center text-[8px] text-gray-500 hover:text-cyan-400 hover:bg-gray-700 transition-colors shrink-0"
+                            >
+                              i
+                            </span>
                           </button>
                         );
                       })}
                     </div>
+                    {/* Group info card */}
+                    {infoGroup && GROUP_INFO[infoGroup as SatelliteGroup] && (() => {
+                      const info = GROUP_INFO[infoGroup as SatelliteGroup];
+                      const color = GROUP_COLORS[infoGroup as SatelliteGroup];
+                      return (
+                        <div className="mt-2 p-2.5 rounded-lg border border-gray-700 bg-gray-800/80 text-[11px] space-y-1">
+                          <div className="flex items-center gap-1.5 font-semibold text-gray-200">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                            {GROUP_LABELS[infoGroup as SatelliteGroup]}
+                          </div>
+                          <div className="text-gray-400 flex flex-wrap gap-x-3 gap-y-0.5">
+                            <span>{info.operator}</span>
+                            <span>{info.orbit}</span>
+                            <span>{info.count} sats</span>
+                            {info.since !== 'N/A' && <span>since {info.since}</span>}
+                          </div>
+                          <p className="text-gray-300 leading-relaxed">{info.description}</p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -423,11 +450,37 @@ export default function Header() {
                       className="w-3 h-3 rounded-full shrink-0"
                       style={{ backgroundColor: isActive ? color : '#6b7280' }}
                     />
-                    {GROUP_LABELS[group as SatelliteGroup]}
+                    <span className="flex-1 text-left">{GROUP_LABELS[group as SatelliteGroup]}</span>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); setInfoGroup(infoGroup === group ? null : group); }}
+                      className="w-5 h-5 rounded-full inline-flex items-center justify-center text-[10px] text-gray-500 active:text-cyan-400 active:bg-gray-700 shrink-0"
+                    >
+                      i
+                    </span>
                   </button>
                 );
               })}
             </div>
+            {/* Group info card (mobile) */}
+            {infoGroup && GROUP_INFO[infoGroup as SatelliteGroup] && (() => {
+              const info = GROUP_INFO[infoGroup as SatelliteGroup];
+              const color = GROUP_COLORS[infoGroup as SatelliteGroup];
+              return (
+                <div className="mt-3 p-3 rounded-lg border border-gray-700 bg-gray-800/80 text-sm space-y-1.5">
+                  <div className="flex items-center gap-2 font-semibold text-gray-200">
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                    {GROUP_LABELS[infoGroup as SatelliteGroup]}
+                  </div>
+                  <div className="text-gray-400 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                    <span>{info.operator}</span>
+                    <span>{info.orbit}</span>
+                    <span>{info.count} sats</span>
+                    {info.since !== 'N/A' && <span>since {info.since}</span>}
+                  </div>
+                  <p className="text-gray-300 leading-relaxed text-xs">{info.description}</p>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
