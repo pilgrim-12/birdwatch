@@ -18,15 +18,15 @@ export interface OrbitPoint {
 /**
  * Compute an orbit trail for a satellite.
  * Returns points sampled from the past up to slightly after startDate,
- * covering `fraction` of one orbital period (default 0.85).
+ * covering `fraction` of one orbital period (default 0.50).
  * The trail shows where the satellite has been — it extends behind,
- * not ahead.
+ * not ahead. 50% gives a clear half-orbit arc trailing behind.
  */
 export function computeOrbitPath(
   tle: TLEData,
   startDate: Date,
   steps: number = 180,
-  fraction: number = 0.85,
+  fraction: number = 0.50,
 ): OrbitPoint[] {
   // Mean motion (revs/day) is in TLE line 2, columns 53-63
   const meanMotion = parseFloat(tle.line2.substring(52, 63).trim());

@@ -219,9 +219,9 @@ export default function GlobeView() {
     }
   }, [selectedSatId, positions, massPositions, cameraFollow]);
 
-  // Refresh orbit paths every 5 minutes (orbits are stable for hours from a single TLE)
+  // Refresh orbit trails every 30s so the trail stays attached to the satellite
   useEffect(() => {
-    const interval = setInterval(() => setOrbitEpoch((n) => n + 1), 300_000);
+    const interval = setInterval(() => setOrbitEpoch((n) => n + 1), 30_000);
     return () => clearInterval(interval);
   }, []);
 
