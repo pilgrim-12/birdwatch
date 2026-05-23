@@ -34,11 +34,8 @@ export function computeOrbitPath(
 
   const periodSeconds = 86400 / meanMotion;
   const durationSeconds = periodSeconds * fraction;
-  // End 5% of period after startDate so the satellite stays on the trail
-  // between refresh intervals
-  const bufferMs = periodSeconds * 0.05 * 1000;
-  const endMs = startDate.getTime() + bufferMs;
-  const originMs = endMs - durationSeconds * 1000;
+  // Trail ends at startDate (now) — no forward buffer
+  const originMs = startDate.getTime() - durationSeconds * 1000;
 
   const satrec = twoline2satrec(tle.line1, tle.line2);
   const points: OrbitPoint[] = [];
