@@ -16,10 +16,11 @@ export interface OrbitPoint {
 }
 
 /**
- * Compute an orbit path for a satellite.
- * Returns points sampled from slightly before startDate forward,
+ * Compute an orbit trail for a satellite.
+ * Returns points sampled from the past up to slightly after startDate,
  * covering `fraction` of one orbital period (default 0.85).
- * The gap at the end makes the orbit direction visually clear.
+ * The trail shows where the satellite has been — it extends behind,
+ * not ahead.
  */
 export function computeOrbitPath(
   tle: TLEData,
@@ -32,11 +33,12 @@ export function computeOrbitPath(
   if (meanMotion <= 0) return [];
 
   const periodSeconds = 86400 / meanMotion;
-  // Start 5% of period before startDate so satellite stays on the path
-  // even if the orbit is a few minutes stale
-  const offsetMs = periodSeconds * 0.05 * 1000;
-  const originMs = startDate.getTime() - offsetMs;
   const durationSeconds = periodSeconds * fraction;
+  // End 5% of period after startDate so the satellite stays on the trail
+  // between refresh intervals
+  const bufferMs = periodSeconds * 0.05 * 1000;
+  const endMs = startDate.getTime() + bufferMs;
+  const originMs = endMs - durationSeconds * 1000;
 
   const satrec = twoline2satrec(tle.line1, tle.line2);
   const points: OrbitPoint[] = [];
