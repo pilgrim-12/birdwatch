@@ -52,7 +52,12 @@ export async function GET(
       text = filtered.join('\n');
     } else {
       // Map internal group names to CelesTrak group names where they differ
-      const celestrakGroup = group === 'iridium' ? 'iridium-NEXT' : group;
+      const CELESTRAK_NAME_MAP: Record<string, string> = {
+        iridium: 'iridium-NEXT',
+        sarsat: 'sarsat',
+        tdrss: 'tdrss',
+      };
+      const celestrakGroup = CELESTRAK_NAME_MAP[group] ?? group;
       const url = `${CELESTRAK_BASE_URL}?GROUP=${celestrakGroup}&FORMAT=tle`;
       const response = await fetch(url, { next: { revalidate: 3600 } });
 
