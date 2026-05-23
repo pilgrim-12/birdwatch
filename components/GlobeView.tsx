@@ -541,8 +541,8 @@ export default function GlobeView() {
               const speedMap = [0, 4000, 2000, 800];
               return speedMap[beamSpeed] ?? 2000;
             }
-            // Positive = dashes flow from past to future (satellite movement direction)
-            return path.type === 'orbit' ? 50000 : 0;
+            // Negative = dashes flow forward along the path (satellite movement direction)
+            return path.type === 'orbit' ? -50000 : 0;
           }}
           pathTransitionDuration={0}
           // Mass group (Starlink) — rendered as InstancedMesh (single draw call)
