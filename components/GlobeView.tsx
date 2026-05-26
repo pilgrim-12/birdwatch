@@ -81,6 +81,9 @@ export default function GlobeView() {
   // Camera mode management hook
   useCameraMode(globeRef);
 
+  // Ref for current label positions — updated below after htmlLabelsData is computed
+  const labelPosRef = useRef<Map<number, { lat: number; lng: number; alt: number }>>(new Map());
+
   // Hide labels for satellites occluded by the globe (behind Earth)
   useEffect(() => {
     const ray = new THREE.Ray();
@@ -103,12 +106,14 @@ export default function GlobeView() {
       const container = containerRef.current;
       if (!container) return;
 
-      const labels = container.querySelectorAll<HTMLElement>('[data-sat-pos]');
+      const labels = container.querySelectorAll<HTMLElement>('[data-sat-id]');
+      const posMap = labelPosRef.current;
       for (const el of labels) {
-        const attr = el.getAttribute('data-sat-pos');
-        if (!attr) continue;
-        const [lat, lng, alt] = attr.split(',').map(Number);
-        const satPos = polar2Cartesian(lat, lng, alt);
+        const idStr = el.getAttribute('data-sat-id');
+        if (!idStr) continue;
+        const pos = posMap.get(Number(idStr));
+        if (!pos) continue;
+        const satPos = polar2Cartesian(pos.lat, pos.lng, pos.alt);
 
         ray.origin.copy(camera.position);
         ray.direction.copy(satPos).sub(camera.position).normalize();
@@ -367,6 +372,15 @@ export default function GlobeView() {
     }));
   }, [showLabels, selectedSatId, pointsData]);
 
+  // Sync label positions ref for occlusion check
+  useEffect(() => {
+    const m = new Map<number, { lat: number; lng: number; alt: number }>();
+    for (const l of htmlLabelsData) {
+      m.set(l.id, { lat: l.lat, lng: l.lng, alt: l.alt });
+    }
+    labelPosRef.current = m;
+  }, [htmlLabelsData]);
+
   // Observer ring
   const ringsData = useMemo(() => {
     if (!observer) return [];
@@ -488,10 +502,10 @@ export default function GlobeView() {
           htmlLng="lng"
           htmlAltitude="alt"
           htmlElement={(d: object) => {
-            const data = d as { name: string; color: string; selected: boolean; lat: number; lng: number; alt: number };
+            const data = d as { id: number; name: string; color: string; selected: boolean; lat: number; lng: number; alt: number };
             const el = document.createElement('div');
             el.textContent = data.name;
-            el.setAttribute('data-sat-pos', `${data.lat},${data.lng},${data.alt}`);
+            el.setAttribute('data-sat-id', String(data.id));
             el.style.cssText = data.selected
               ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;`
               : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none;transform:translateY(-14px);`;
