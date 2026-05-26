@@ -120,9 +120,9 @@ export default function GlobeView() {
         const hit = ray.intersectSphere(sphere, hitPoint);
 
         if (hit && camera.position.distanceTo(hitPoint) < camera.position.distanceTo(satPos) - 0.5) {
-          el.style.display = 'none';
+          el.style.visibility = 'hidden';
         } else {
-          el.style.display = '';
+          el.style.visibility = 'visible';
         }
       }
     }
