@@ -85,6 +85,8 @@ export default function GlobeView() {
   const labelPosRef = useRef<Map<number, { lat: number; lng: number; alt: number }>>(new Map());
 
   // Hide labels for satellites occluded by the globe (behind Earth)
+  // Uses scene traversal to set CSS2DObject.visible directly — the only
+  // reliable way, since CSS2DRenderer controls element styles each frame.
   useEffect(() => {
     const ray = new THREE.Ray();
     const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), GLOBE_RADIUS);
@@ -97,34 +99,33 @@ export default function GlobeView() {
       if (!globe) return;
 
       let camera: THREE.PerspectiveCamera;
+      let scene: THREE.Scene;
       try {
         camera = globe.camera() as THREE.PerspectiveCamera;
+        scene = globe.scene() as THREE.Scene;
       } catch {
         return;
       }
 
-      const container = containerRef.current;
-      if (!container) return;
-
-      const labels = container.querySelectorAll<HTMLElement>('[data-sat-id]');
       const posMap = labelPosRef.current;
-      for (const el of labels) {
-        const idStr = el.getAttribute('data-sat-id');
-        if (!idStr) continue;
-        const pos = posMap.get(Number(idStr));
-        if (!pos) continue;
-        const satPos = polar2Cartesian(pos.lat, pos.lng, pos.alt);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      scene.traverse((obj: any) => {
+        if (!obj.isCSS2DObject) return;
+        const el = obj.element as HTMLElement | undefined;
+        const idStr = el?.getAttribute?.('data-sat-id');
+        if (!idStr) return;
+
+        const pos = posMap.get(Number(idStr));
+        if (!pos) { obj.visible = false; return; }
+
+        const satPos = polar2Cartesian(pos.lat, pos.lng, pos.alt);
         ray.origin.copy(camera.position);
         ray.direction.copy(satPos).sub(camera.position).normalize();
         const hit = ray.intersectSphere(sphere, hitPoint);
 
-        if (hit && camera.position.distanceTo(hitPoint) < camera.position.distanceTo(satPos) - 0.5) {
-          el.style.visibility = 'hidden';
-        } else {
-          el.style.visibility = 'visible';
-        }
-      }
+        obj.visible = !(hit && camera.position.distanceTo(hitPoint) < camera.position.distanceTo(satPos) - 0.5);
+      });
     }
 
     tick();
