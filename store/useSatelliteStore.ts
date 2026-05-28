@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Satellite, ObserverLocation, SatellitePosition } from '@/types/satellite';
 import type { SatellitePass } from '@/lib/passes';
 import type { SatelliteGroup } from '@/lib/constants';
@@ -81,7 +82,9 @@ interface SatelliteStore {
   setCameraFollow: (follow: CameraFollow) => void;
 }
 
-export const useSatelliteStore = create<SatelliteStore>((set) => ({
+export const useSatelliteStore = create<SatelliteStore>()(
+  persist(
+    (set) => ({
   satellites: [],
   observer: null,
   selectedSatId: null,
@@ -172,4 +175,21 @@ export const useSatelliteStore = create<SatelliteStore>((set) => ({
   // Free camera
   cameraFollow: 'none',
   setCameraFollow: (follow) => set({ cameraFollow: follow }),
-}));
+    }),
+    {
+      name: 'birdwatch-settings',
+      partialize: (state) => ({
+        showTrajectories: state.showTrajectories,
+        showLabels: state.showLabels,
+        showBeams: state.showBeams,
+        showLookLine: state.showLookLine,
+        nightMode: state.nightMode,
+        beamOpacity: state.beamOpacity,
+        beamWidth: state.beamWidth,
+        beamSpeed: state.beamSpeed,
+        activeGroups: state.activeGroups,
+        sidebarWidth: state.sidebarWidth,
+      }),
+    },
+  ),
+);
