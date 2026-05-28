@@ -433,9 +433,15 @@ export default function GlobeView() {
     return [{ id: 'mass-constellation', positions: massPositions }];
   }, [massPositions]);
 
-  // Cached geometries & materials for satellite spheres (avoid re-allocation every render)
-  const normalGeoRef = useRef(new THREE.SphereGeometry(1, 12, 10));
-  const selectedGeoRef = useRef(new THREE.SphereGeometry(1.8, 12, 10));
+  // Cached geometries & materials for satellite 3D models (body + solar panels + antenna)
+  const bodyGeoRef = useRef(new THREE.BoxGeometry(1.0, 0.6, 0.6));
+  const panelGeoRef = useRef(new THREE.BoxGeometry(1.6, 0.05, 0.8));
+  const antennaGeoRef = useRef(new THREE.ConeGeometry(0.2, 0.5, 6));
+  const selectedBodyGeoRef = useRef(new THREE.BoxGeometry(1.6, 1.0, 1.0));
+  const selectedPanelGeoRef = useRef(new THREE.BoxGeometry(2.6, 0.08, 1.3));
+  const selectedAntennaGeoRef = useRef(new THREE.ConeGeometry(0.35, 0.8, 6));
+  const panelMatRef = useRef(new THREE.MeshBasicMaterial({ color: 0x1a237e }));
+  const selectedPanelMatRef = useRef(new THREE.MeshBasicMaterial({ color: 0x3949ab }));
   const materialCacheRef = useRef(new Map<string, THREE.MeshBasicMaterial>());
   const getMaterial = useCallback((color: string | number) => {
     const key = String(color);
@@ -447,11 +453,41 @@ export default function GlobeView() {
     return mat;
   }, []);
 
+  const createSatelliteModel = useCallback((color: string | number, selected: boolean) => {
+    const group = new THREE.Group();
+    const bGeo = selected ? selectedBodyGeoRef.current : bodyGeoRef.current;
+    const pGeo = selected ? selectedPanelGeoRef.current : panelGeoRef.current;
+    const aGeo = selected ? selectedAntennaGeoRef.current : antennaGeoRef.current;
+    const bodyMat = getMaterial(color);
+    const pMat = selected ? selectedPanelMatRef.current : panelMatRef.current;
+
+    // Main bus (body)
+    const body = new THREE.Mesh(bGeo, bodyMat);
+    group.add(body);
+
+    // Solar panel — left
+    const panelL = new THREE.Mesh(pGeo, pMat);
+    panelL.position.x = selected ? -2.1 : -1.3;
+    group.add(panelL);
+
+    // Solar panel — right
+    const panelR = new THREE.Mesh(pGeo, pMat);
+    panelR.position.x = selected ? 2.1 : 1.3;
+    group.add(panelR);
+
+    // Antenna dish on top
+    const antenna = new THREE.Mesh(aGeo, bodyMat);
+    antenna.position.y = selected ? 0.7 : 0.45;
+    group.add(antenna);
+
+    return group;
+  }, [getMaterial]);
+
   const starlinkMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const dummyObj = useRef(new THREE.Object3D());
 
   const createMassMesh = useCallback(() => {
-    const geo = new THREE.SphereGeometry(0.6, 6, 4); // low-poly for performance
+    const geo = new THREE.BoxGeometry(0.8, 0.15, 0.4); // flat satellite shape for performance
     const mat = new THREE.MeshBasicMaterial({
       color: GROUP_COLORS.starlink,
       transparent: true,
@@ -531,9 +567,7 @@ export default function GlobeView() {
           objectLabel="name"
           objectThreeObject={(d: object) => {
             const point = d as PointData;
-            const geo = point.selected ? selectedGeoRef.current : normalGeoRef.current;
-            const mat = getMaterial(point.selected ? 0xffffff : point.color);
-            return new THREE.Mesh(geo, mat);
+            return createSatelliteModel(point.selected ? 0xffffff : point.color, point.selected);
           }}
           onObjectClick={handlePointClick}
           // HTML tooltip label for selected satellite

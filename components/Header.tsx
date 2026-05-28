@@ -251,18 +251,25 @@ export default function Header() {
                       const info = GROUP_INFO[infoGroup as SatelliteGroup];
                       const color = GROUP_COLORS[infoGroup as SatelliteGroup];
                       return (
-                        <div className="mt-2 p-2.5 rounded-lg border border-gray-700 bg-gray-800/80 text-[11px] space-y-1">
+                        <div className="mt-2 p-2.5 rounded-lg border border-gray-700 bg-gray-800/80 text-[11px] space-y-1.5">
                           <div className="flex items-center gap-1.5 font-semibold text-gray-200">
                             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
                             {GROUP_LABELS[infoGroup as SatelliteGroup]}
-                          </div>
-                          <div className="text-gray-400 flex flex-wrap gap-x-3 gap-y-0.5">
-                            <span>{info.operator}</span>
-                            <span>{info.orbit}</span>
-                            <span>{info.count} sats</span>
-                            {info.since !== 'N/A' && <span>since {info.since}</span>}
+                            <span className="ml-auto text-[10px] font-normal px-1.5 py-0.5 rounded bg-gray-700 text-cyan-400">{info.purpose}</span>
                           </div>
                           <p className="text-gray-300 leading-relaxed">{info.description}</p>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-gray-400">
+                            <span><span className="text-gray-500">Operator:</span> {info.operator}</span>
+                            <span><span className="text-gray-500">Country:</span> {info.country}</span>
+                            <span><span className="text-gray-500">Orbit:</span> {info.orbit}</span>
+                            <span><span className="text-gray-500">Count:</span> {info.count}</span>
+                            {info.since !== 'N/A' && <span><span className="text-gray-500">Since:</span> {info.since}</span>}
+                          </div>
+                          {info.frequency !== 'N/A (optical only)' && info.frequency !== 'N/A (passive laser retroreflectors)' && (
+                            <div className="text-gray-400 pt-0.5 border-t border-gray-700/50">
+                              <span className="text-gray-500">Freq:</span> {info.frequency}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -466,18 +473,25 @@ export default function Header() {
               const info = GROUP_INFO[infoGroup as SatelliteGroup];
               const color = GROUP_COLORS[infoGroup as SatelliteGroup];
               return (
-                <div className="mt-3 p-3 rounded-lg border border-gray-700 bg-gray-800/80 text-sm space-y-1.5">
+                <div className="mt-3 p-3 rounded-lg border border-gray-700 bg-gray-800/80 text-sm space-y-2">
                   <div className="flex items-center gap-2 font-semibold text-gray-200">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
                     {GROUP_LABELS[infoGroup as SatelliteGroup]}
-                  </div>
-                  <div className="text-gray-400 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
-                    <span>{info.operator}</span>
-                    <span>{info.orbit}</span>
-                    <span>{info.count} sats</span>
-                    {info.since !== 'N/A' && <span>since {info.since}</span>}
+                    <span className="ml-auto text-[11px] font-normal px-2 py-0.5 rounded bg-gray-700 text-cyan-400">{info.purpose}</span>
                   </div>
                   <p className="text-gray-300 leading-relaxed text-xs">{info.description}</p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-400">
+                    <span><span className="text-gray-500">Operator:</span> {info.operator}</span>
+                    <span><span className="text-gray-500">Country:</span> {info.country}</span>
+                    <span><span className="text-gray-500">Orbit:</span> {info.orbit}</span>
+                    <span><span className="text-gray-500">Count:</span> {info.count}</span>
+                    {info.since !== 'N/A' && <span><span className="text-gray-500">Since:</span> {info.since}</span>}
+                  </div>
+                  {info.frequency !== 'N/A (optical only)' && info.frequency !== 'N/A (passive laser retroreflectors)' && (
+                    <div className="text-xs text-gray-400 pt-1 border-t border-gray-700/50">
+                      <span className="text-gray-500">Freq:</span> {info.frequency}
+                    </div>
+                  )}
                 </div>
               );
             })()}

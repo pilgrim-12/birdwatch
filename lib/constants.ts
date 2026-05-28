@@ -107,6 +107,9 @@ export interface GroupInfo {
   orbit: string;
   count: string;
   since: string;
+  purpose: string;
+  country: string;
+  frequency: string;
 }
 
 export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
@@ -116,6 +119,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO (400–420 km)',
     count: '~10',
     since: '1998',
+    purpose: 'Crewed Research',
+    country: 'International',
+    frequency: 'S-band, Ku-band, UHF (145.8/437.8 MHz)',
   },
   weather: {
     description: 'Meteorological satellites providing global weather imagery, atmospheric sounding, and storm tracking data.',
@@ -123,6 +129,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO & GEO',
     count: '~50',
     since: '1960s',
+    purpose: 'Meteorology',
+    country: 'International',
+    frequency: 'L-band (1694–1710 MHz), S-band, UHF (137 MHz APT)',
   },
   noaa: {
     description: 'US polar-orbiting weather satellites transmitting APT/HRPT imagery. Popular targets for amateur radio reception.',
@@ -130,6 +139,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'Sun-sync LEO (800–870 km)',
     count: '~6',
     since: '1998',
+    purpose: 'Weather Imaging',
+    country: 'USA',
+    frequency: '137 MHz APT, 1698/1707 MHz HRPT',
   },
   amateur: {
     description: 'Satellites carrying amateur radio transponders, digipeaters, and beacons for ham radio operators worldwide.',
@@ -137,6 +149,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO (400–1500 km)',
     count: '~100+',
     since: '1961',
+    purpose: 'Amateur Radio',
+    country: 'International',
+    frequency: 'VHF/UHF (145/435 MHz), HF (10m/15m)',
   },
   science: {
     description: 'Scientific research missions studying Earth, space physics, astronomy, and fundamental science from orbit.',
@@ -144,6 +159,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'Various (LEO to L2)',
     count: '~70',
     since: '1960s',
+    purpose: 'Scientific Research',
+    country: 'International',
+    frequency: 'S-band, X-band, Ka-band (varies by mission)',
   },
   resource: {
     description: 'Earth observation satellites for land/ocean/atmosphere monitoring, agriculture, forestry, and resource management.',
@@ -151,6 +169,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'Sun-sync LEO (500–900 km)',
     count: '~40',
     since: '1972',
+    purpose: 'Earth Observation',
+    country: 'International',
+    frequency: 'X-band (8 GHz), S-band downlink',
   },
   goes: {
     description: 'Geostationary Operational Environmental Satellites providing continuous weather imagery of the Western Hemisphere.',
@@ -158,6 +179,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'GEO (35,786 km)',
     count: '~5',
     since: '1975',
+    purpose: 'Weather Monitoring',
+    country: 'USA',
+    frequency: 'L-band (1686.6 MHz HRIT/LRIT), S-band',
   },
   'gps-ops': {
     description: 'US Global Positioning System constellation providing precision navigation, timing, and positioning worldwide.',
@@ -165,6 +189,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'MEO (20,180 km)',
     count: '~31',
     since: '1978',
+    purpose: 'Navigation (GNSS)',
+    country: 'USA',
+    frequency: 'L1 (1575.42 MHz), L2 (1227.6 MHz), L5 (1176.45 MHz)',
   },
   'glo-ops': {
     description: 'Russian global navigation satellite system, counterpart to GPS. Provides positioning for military and civilian use.',
@@ -172,6 +199,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'MEO (19,130 km)',
     count: '~24',
     since: '1982',
+    purpose: 'Navigation (GNSS)',
+    country: 'Russia',
+    frequency: 'L1 (1602 MHz), L2 (1246 MHz), L3 (1202 MHz)',
   },
   galileo: {
     description: 'European Union global navigation satellite system providing high-accuracy positioning independent of GPS/GLONASS.',
@@ -179,6 +209,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'MEO (23,222 km)',
     count: '~28',
     since: '2011',
+    purpose: 'Navigation (GNSS)',
+    country: 'EU',
+    frequency: 'E1 (1575.42 MHz), E5a/E5b (1176/1207 MHz), E6 (1278 MHz)',
   },
   beidou: {
     description: 'Chinese global navigation satellite system (BDS) with regional and global coverage for positioning and messaging.',
@@ -186,6 +219,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'MEO/GEO/IGSO',
     count: '~45',
     since: '2000',
+    purpose: 'Navigation (GNSS)',
+    country: 'China',
+    frequency: 'B1 (1561 MHz), B2 (1207 MHz), B3 (1268 MHz)',
   },
   iridium: {
     description: 'Global satellite phone and data network. Iridium NEXT constellation replaced original Iridium in 2017–2019.',
@@ -193,6 +229,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO (780 km)',
     count: '~75',
     since: '2017 (NEXT)',
+    purpose: 'Communication (Voice/Data)',
+    country: 'USA',
+    frequency: 'L-band (1616–1626.5 MHz), Ka-band crosslinks',
   },
   military: {
     description: 'Unclassified military satellites for communications, early warning, surveillance, and signals intelligence.',
@@ -200,6 +239,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'Various',
     count: '~100+',
     since: '1960s',
+    purpose: 'Defense & Intelligence',
+    country: 'International',
+    frequency: 'UHF, SHF, EHF (classified/varies)',
   },
   starlink: {
     description: 'SpaceX mega-constellation for global broadband internet. Largest satellite constellation in history.',
@@ -207,6 +249,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO (540–570 km)',
     count: '~6400+',
     since: '2019',
+    purpose: 'Broadband Internet',
+    country: 'USA',
+    frequency: 'Ku-band (10.7–12.7 / 14–14.5 GHz), Ka-band, V-band (future)',
   },
   oneweb: {
     description: 'LEO broadband internet constellation providing global connectivity, including Arctic coverage.',
@@ -214,6 +259,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO (1,200 km)',
     count: '~630',
     since: '2020',
+    purpose: 'Broadband Internet',
+    country: 'UK / France',
+    frequency: 'Ku-band (10.7–12.75 / 14–14.5 GHz), Ka-band gateway',
   },
   globalstar: {
     description: 'Satellite phone and IoT data network with spot-beam architecture for voice and low-rate data.',
@@ -221,6 +269,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO (1,414 km)',
     count: '~48',
     since: '1998',
+    purpose: 'Communication (Voice/IoT)',
+    country: 'USA',
+    frequency: 'L-band (1610–1618 MHz), S-band (2483–2500 MHz), C-band feeder',
   },
   orbcomm: {
     description: 'Machine-to-machine (M2M) and IoT messaging constellation for asset tracking, fleet management, and SCADA.',
@@ -228,6 +279,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO (750 km)',
     count: '~36',
     since: '1997',
+    purpose: 'IoT / M2M Data',
+    country: 'USA',
+    frequency: 'VHF (137–138 MHz uplink, 400 MHz downlink)',
   },
   intelsat: {
     description: 'One of the largest GEO satellite operators providing broadcast TV, telephony, and enterprise data worldwide.',
@@ -235,6 +289,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'GEO (35,786 km)',
     count: '~50',
     since: '1965',
+    purpose: 'Communication (TV/Data)',
+    country: 'USA / Luxembourg',
+    frequency: 'C-band (3.4–4.2 / 5.9–6.4 GHz), Ku-band, Ka-band',
   },
   ses: {
     description: 'Major satellite operator with GEO fleet (SES) and MEO constellation (O3b mPOWER) for video and data.',
@@ -242,6 +299,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'GEO + MEO (8,062 km)',
     count: '~70',
     since: '1988',
+    purpose: 'Communication (TV/Data)',
+    country: 'Luxembourg',
+    frequency: 'C-band, Ku-band, Ka-band (O3b mPOWER)',
   },
   planet: {
     description: 'Earth imaging constellation of Dove/SuperDove 3U CubeSats capturing daily global imagery at 3–5m resolution.',
@@ -249,6 +309,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'Sun-sync LEO (475–525 km)',
     count: '~200+',
     since: '2014',
+    purpose: 'Earth Imaging',
+    country: 'USA',
+    frequency: 'X-band (8 GHz downlink), S-band TT&C',
   },
   spire: {
     description: 'CubeSat constellation for weather data (GNSS-RO), maritime tracking (AIS), and aircraft tracking (ADS-B).',
@@ -256,6 +319,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO (400–650 km)',
     count: '~100+',
     since: '2015',
+    purpose: 'Weather / AIS / ADS-B',
+    country: 'USA',
+    frequency: 'GNSS-RO L-band, VHF (162 MHz AIS), 1090 MHz ADS-B',
   },
   geo: {
     description: 'All satellites in geostationary orbit — stationary above equator. Includes comms, weather, and military.',
@@ -263,6 +329,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'GEO (35,786 km)',
     count: '~500+',
     since: '1964',
+    purpose: 'Mixed (Comms/Weather/Military)',
+    country: 'International',
+    frequency: 'C/Ku/Ka-band (varies)',
   },
   visual: {
     description: 'Brightest satellites visible to the naked eye. Useful for planning visual observation sessions.',
@@ -270,6 +339,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'Various',
     count: '~100',
     since: 'N/A',
+    purpose: 'Visual Observation',
+    country: 'International',
+    frequency: 'N/A (optical only)',
   },
   sarsat: {
     description: 'COSPAS-SARSAT search and rescue system. Detects emergency beacons (EPIRB, ELT, PLB) and relays distress alerts.',
@@ -277,6 +349,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO + MEO + GEO',
     count: '~10',
     since: '1982',
+    purpose: 'Search & Rescue',
+    country: 'International',
+    frequency: '406 MHz (beacon), 1544 MHz (relay downlink)',
   },
   education: {
     description: 'CubeSats and small satellites built by universities and student teams for educational and research purposes.',
@@ -284,6 +359,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO (300–700 km)',
     count: '~100+',
     since: '2003',
+    purpose: 'Education / STEM',
+    country: 'International',
+    frequency: 'VHF/UHF (145/435 MHz), S-band (varies)',
   },
   engineering: {
     description: 'Technology demonstration and experimental satellites testing new hardware, propulsion, and communication systems.',
@@ -291,6 +369,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO',
     count: '~50+',
     since: '1990s',
+    purpose: 'Technology Demo',
+    country: 'International',
+    frequency: 'S-band, X-band (varies by mission)',
   },
   geodetic: {
     description: 'Passive laser retroreflector satellites used for precise geodesy, plate tectonics, and gravity field measurement.',
@@ -298,6 +379,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'LEO–MEO (800–5,900 km)',
     count: '~10',
     since: '1976',
+    purpose: 'Geodesy / Geophysics',
+    country: 'USA / Italy / Japan',
+    frequency: 'N/A (passive laser retroreflectors)',
   },
   tdrss: {
     description: 'NASA Tracking and Data Relay Satellite System — relay network for ISS, Hubble, and LEO spacecraft communications.',
@@ -305,6 +389,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'GEO (35,786 km)',
     count: '~9',
     since: '1983',
+    purpose: 'Data Relay',
+    country: 'USA',
+    frequency: 'S-band, Ku-band (13.7 GHz), Ka-band (26 GHz)',
   },
   molniya: {
     description: 'Russian communications satellites in highly elliptical Molniya orbits optimized for high-latitude coverage.',
@@ -312,6 +399,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'HEO (500–40,000 km)',
     count: '~5',
     since: '1965',
+    purpose: 'Communication (HEO)',
+    country: 'Russia',
+    frequency: 'C-band, UHF military bands',
   },
   active: {
     description: 'All cataloged active satellites from the combined CelesTrak database.',
@@ -319,6 +409,9 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     orbit: 'Various',
     count: '~10,000+',
     since: 'N/A',
+    purpose: 'All Active Payloads',
+    country: 'International',
+    frequency: 'All bands',
   },
 };
 
