@@ -84,17 +84,26 @@ export default function GlobeView() {
   // Ref for current label positions — updated below after htmlLabelsData is computed
   const labelPosRef = useRef<Map<number, { lat: number; lng: number; alt: number }>>(new Map());
 
+  // Cache CSS2DObject refs keyed by sat id — avoids scene.traverse() every frame
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const css2dCacheRef = useRef<Map<number, any>>(new Map());
+  const css2dScanCountRef = useRef(0);
+
   // Hide labels for satellites occluded by the globe (behind Earth)
-  // Uses scene traversal to set CSS2DObject.visible directly — the only
-  // reliable way, since CSS2DRenderer controls element styles each frame.
+  // Uses cached CSS2DObject refs instead of scene.traverse() each frame.
   useEffect(() => {
     const ray = new THREE.Ray();
     const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), GLOBE_RADIUS);
     const hitPoint = new THREE.Vector3();
+    const satVec = new THREE.Vector3();
     let raf: number;
 
     function tick() {
       raf = requestAnimationFrame(tick);
+
+      // Skip entirely when labels are off — no work to do
+      if (!useSatelliteStore.getState().showLabels) return;
+
       const globe = globeRef.current;
       if (!globe) return;
 
@@ -107,24 +116,34 @@ export default function GlobeView() {
         return;
       }
 
+      // Rebuild CSS2DObject cache every 120 frames (~2s) or when empty
+      const cache = css2dCacheRef.current;
+      css2dScanCountRef.current++;
+      if (cache.size === 0 || css2dScanCountRef.current >= 120) {
+        css2dScanCountRef.current = 0;
+        cache.clear();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        scene.traverse((obj: any) => {
+          if (!obj.isCSS2DObject) return;
+          const el = obj.element as HTMLElement | undefined;
+          const idStr = el?.getAttribute?.('data-sat-id');
+          if (idStr) cache.set(Number(idStr), obj);
+        });
+      }
+
       const posMap = labelPosRef.current;
+      const camPos = camera.position;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      scene.traverse((obj: any) => {
-        if (!obj.isCSS2DObject) return;
-        const el = obj.element as HTMLElement | undefined;
-        const idStr = el?.getAttribute?.('data-sat-id');
-        if (!idStr) return;
-
-        const pos = posMap.get(Number(idStr));
+      cache.forEach((obj, id) => {
+        const pos = posMap.get(id);
         if (!pos) { obj.visible = false; return; }
 
-        const satPos = polar2Cartesian(pos.lat, pos.lng, pos.alt);
-        ray.origin.copy(camera.position);
-        ray.direction.copy(satPos).sub(camera.position).normalize();
+        polar2Cartesian(pos.lat, pos.lng, pos.alt, satVec);
+        ray.origin.copy(camPos);
+        ray.direction.copy(satVec).sub(camPos).normalize();
         const hit = ray.intersectSphere(sphere, hitPoint);
 
-        obj.visible = !(hit && camera.position.distanceTo(hitPoint) < camera.position.distanceTo(satPos) - 0.5);
+        obj.visible = !(hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5);
       });
     }
 
@@ -267,16 +286,36 @@ export default function GlobeView() {
     };
   }, [massSatellites, updateMassPositions]);
 
+  // Orbit trail cache — avoids recomputing on re-renders within the same epoch.
+  // Cleared on each epoch tick (30s) since trails are time-dependent.
+  const orbitCacheRef = useRef<{ epoch: number; data: Map<string, { lat: number; lng: number; alt: number }[]> }>({ epoch: -1, data: new Map() });
+
   // Orbit paths — recompute when satellites change or every 30s (normal satellites only)
   const orbitPathsRaw = useMemo(() => {
-    return satellites.map((sat) => ({
-      id: sat.id,
-      group: sat.group,
-      color: GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff',
-      points: computeOrbitPath(sat.tle, new Date(), 90),
-    }));
+    // Clear cache when epoch changes (trails are time-dependent)
+    if (orbitCacheRef.current.epoch !== orbitEpoch) {
+      orbitCacheRef.current = { epoch: orbitEpoch, data: new Map() };
+    }
+    const cache = orbitCacheRef.current.data;
+
+    return satellites.map((sat) => {
+      const cacheKey = sat.tle.line1 + sat.tle.line2;
+      // Use fewer steps for non-selected satellites (60 vs 90)
+      const steps = sat.id === selectedSatId ? 90 : 60;
+      let points = cache.get(cacheKey);
+      if (!points) {
+        points = computeOrbitPath(sat.tle, new Date(), steps);
+        cache.set(cacheKey, points);
+      }
+      return {
+        id: sat.id,
+        group: sat.group,
+        color: GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff',
+        points,
+      };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [satellites, orbitEpoch]);
+  }, [satellites, orbitEpoch, selectedSatId]);
 
   // Points data (normal satellites only)
   const pointsData: PointData[] = useMemo(() => {

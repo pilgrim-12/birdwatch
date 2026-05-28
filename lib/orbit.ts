@@ -1,5 +1,4 @@
 import {
-  twoline2satrec,
   propagate,
   gstime,
   eciToGeodetic,
@@ -8,6 +7,7 @@ import {
 } from 'satellite.js';
 import type { TLEData } from '@/types/satellite';
 import { EARTH_RADIUS_KM } from '@/lib/constants';
+import { getCachedSatrec } from '@/lib/sgp4';
 
 export interface OrbitPoint {
   lat: number;
@@ -37,7 +37,7 @@ export function computeOrbitPath(
   // Trail ends at startDate (now) — no forward buffer
   const originMs = startDate.getTime() - durationSeconds * 1000;
 
-  const satrec = twoline2satrec(tle.line1, tle.line2);
+  const satrec = getCachedSatrec(tle);
   const points: OrbitPoint[] = [];
 
   for (let i = 0; i <= steps; i++) {

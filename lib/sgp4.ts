@@ -6,14 +6,31 @@ import {
   degreesLat,
   degreesLong,
 } from 'satellite.js';
+import type { SatRec } from 'satellite.js';
 import type { SatellitePosition, TLEData } from '@/types/satellite';
 
-// TODO: Move propagation to a Web Worker for better performance with large satellite sets.
-// This will be needed especially for groups like 'starlink' and 'active' with thousands of satellites.
+// Cache satrec objects keyed by TLE lines — twoline2satrec is expensive
+// and the same TLE is propagated many times between updates.
+const satrecCache = new Map<string, SatRec>();
+
+export function getCachedSatrec(tle: TLEData): SatRec {
+  const key = tle.line1 + tle.line2;
+  let rec = satrecCache.get(key);
+  if (!rec) {
+    rec = twoline2satrec(tle.line1, tle.line2);
+    satrecCache.set(key, rec);
+  }
+  return rec;
+}
+
+/** Clear cache when TLE data is refreshed */
+export function clearSatrecCache(): void {
+  satrecCache.clear();
+}
 
 export function propagateSatellite(tle: TLEData, date: Date): SatellitePosition | null {
   try {
-    const satrec = twoline2satrec(tle.line1, tle.line2);
+    const satrec = getCachedSatrec(tle);
     const positionAndVelocity = propagate(satrec, date);
 
     if (

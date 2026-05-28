@@ -229,12 +229,15 @@ export function useCameraMode(globeRef: GlobeRef): void {
       controls.minDistance = 1;
       controls.maxDistance = GLOBE_RADIUS * 12;
 
-      // --- Adaptive near plane ---
+      // --- Adaptive near plane (only update when value changes) ---
       const alt = camera.position.length() - GLOBE_RADIUS;
-      camera.near = alt < GLOBE_RADIUS * 0.05 ? 0.01
-                   : alt < GLOBE_RADIUS * 0.2 ? 0.05
-                   : 0.1;
-      camera.updateProjectionMatrix();
+      const newNear = alt < GLOBE_RADIUS * 0.05 ? 0.01
+                    : alt < GLOBE_RADIUS * 0.2 ? 0.05
+                    : 0.1;
+      if (camera.near !== newNear) {
+        camera.near = newNear;
+        camera.updateProjectionMatrix();
+      }
 
       // --- Smooth transition ---
       const tr = transitionRef.current;
