@@ -70,13 +70,13 @@ export default function Header() {
       <header className="shrink-0 bg-gray-900 border-b border-gray-800 px-4 md:px-5 py-1.5">
         <div className="flex items-center gap-2">
           <h1 className="text-base font-semibold tracking-tight text-white shrink-0 flex items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-blue-400 shrink-0">
-              <path d="M16 7h.01" />
-              <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20" />
-              <path d="m20 7 2 .5-2 .5" />
-              <path d="M10 18v3" />
-              <path d="M14 17.75V21" />
-              <path d="M7 18a6 6 0 0 0 3.84-10.61" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5 text-blue-400 shrink-0">
+              {/* Sharp triangle pointing down */}
+              <polygon points="12,23 1,3 23,3" fill="currentColor" />
+              {/* Bird silhouette cutout — wings spread inside the triangle */}
+              <path d="M12,8 Q9,6 5,7 Q8,9 9,12 L12,10 L15,12 Q16,9 19,7 Q15,6 12,8Z" fill="#111827" />
+              {/* Bird tail */}
+              <path d="M11,13 L12,17 L13,13 Z" fill="#111827" />
             </svg>
             BirdWatch
           </h1>
