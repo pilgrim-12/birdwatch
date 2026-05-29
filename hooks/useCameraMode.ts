@@ -97,7 +97,7 @@ export function useCameraMode(globeRef: GlobeRef): void {
       controls.enableDamping = true;
       controls.dampingFactor = 0.1;
       controls.minDistance = 1;
-      controls.maxDistance = GLOBE_RADIUS * 12;
+      controls.maxDistance = GLOBE_RADIUS * 25;
 
       // --- Expose flyTo for CameraControls buttons ---
       globe.__freeCamFlyTo = (
@@ -227,7 +227,7 @@ export function useCameraMode(globeRef: GlobeRef): void {
 
       // --- Reset zoom constraints (sat-pov restricts them to d±2) ---
       controls.minDistance = 1;
-      controls.maxDistance = GLOBE_RADIUS * 12;
+      controls.maxDistance = GLOBE_RADIUS * 25;
 
       // --- Adaptive near plane (only update when value changes) ---
       const alt = camera.position.length() - GLOBE_RADIUS;
