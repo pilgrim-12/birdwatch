@@ -128,7 +128,7 @@ export default function Header() {
                       yurachernov12@gmail.com
                     </a>
                   </p>
-                  <p className="text-gray-500">Data source: CelesTrak / NORAD TLE</p>
+                  <p className="text-gray-500">Data: CelesTrak TLE + SatNOGS DB</p>
                 </div>
               </div>
             )}
@@ -587,7 +587,7 @@ export default function Header() {
                   yurachernov12@gmail.com
                 </a>
               </p>
-              <p className="text-gray-500">Data source: CelesTrak / NORAD TLE</p>
+              <p className="text-gray-500">Data: CelesTrak TLE + SatNOGS DB</p>
             </div>
           </div>
         </div>

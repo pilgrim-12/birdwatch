@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Satellite, ObserverLocation, SatellitePosition } from '@/types/satellite';
 import type { SatellitePass } from '@/lib/passes';
 import type { SatelliteGroup } from '@/lib/constants';
+import type { SatNogsInfo, SatNogsTransmitter } from '@/types/satnogs';
 
 export type CameraFollow = 'none' | 'track' | 'sat-pov';
 
@@ -80,6 +81,13 @@ interface SatelliteStore {
   // Free camera
   cameraFollow: CameraFollow;
   setCameraFollow: (follow: CameraFollow) => void;
+
+  // SatNOGS enrichment
+  satnogsInfo: Map<number, SatNogsInfo>;
+  satnogsTransmitters: Map<number, SatNogsTransmitter[]>;
+  satnogsLoaded: boolean;
+  setSatnogsInfo: (info: Map<number, SatNogsInfo>) => void;
+  setSatnogsTransmitters: (tx: Map<number, SatNogsTransmitter[]>) => void;
 }
 
 export const useSatelliteStore = create<SatelliteStore>()(
@@ -175,6 +183,13 @@ export const useSatelliteStore = create<SatelliteStore>()(
   // Free camera
   cameraFollow: 'none',
   setCameraFollow: (follow) => set({ cameraFollow: follow }),
+
+  // SatNOGS enrichment
+  satnogsInfo: new Map(),
+  satnogsTransmitters: new Map(),
+  satnogsLoaded: false,
+  setSatnogsInfo: (info) => set({ satnogsInfo: info, satnogsLoaded: true }),
+  setSatnogsTransmitters: (tx) => set({ satnogsTransmitters: tx }),
     }),
     {
       name: 'birdwatch-settings',

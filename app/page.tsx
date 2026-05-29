@@ -11,11 +11,15 @@ import { parseTLEText, tlesToSatellites, extractNoradId } from '@/lib/tle';
 import { MASS_GROUPS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { Satellite } from '@/types/satellite';
+import type { SatNogsInfo, SatNogsTransmitter } from '@/types/satnogs';
 
 export default function Home() {
   const setSatellites = useSatelliteStore((s) => s.setSatellites);
   const setMassSatellites = useSatelliteStore((s) => s.setMassSatellites);
   const activeGroups = useSatelliteStore((s) => s.activeGroups);
+  const setSatnogsInfo = useSatelliteStore((s) => s.setSatnogsInfo);
+  const setSatnogsTransmitters = useSatelliteStore((s) => s.setSatnogsTransmitters);
+  const satnogsLoaded = useSatelliteStore((s) => s.satnogsLoaded);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +97,42 @@ export default function Home() {
       cancelled = true;
     };
   }, [activeGroups, setSatellites, setMassSatellites]);
+
+  // Fetch SatNOGS enrichment data once on mount (non-blocking)
+  useEffect(() => {
+    if (satnogsLoaded) return;
+
+    async function fetchSatNOGS() {
+      try {
+        const [satRes, txRes] = await Promise.all([
+          fetch('/api/satnogs/satellites'),
+          fetch('/api/satnogs/transmitters'),
+        ]);
+
+        if (satRes.ok) {
+          const satData: Record<string, SatNogsInfo> = await satRes.json();
+          const infoMap = new Map<number, SatNogsInfo>();
+          for (const [id, info] of Object.entries(satData)) {
+            infoMap.set(Number(id), info);
+          }
+          setSatnogsInfo(infoMap);
+        }
+
+        if (txRes.ok) {
+          const txData: Record<string, SatNogsTransmitter[]> = await txRes.json();
+          const txMap = new Map<number, SatNogsTransmitter[]>();
+          for (const [id, transmitters] of Object.entries(txData)) {
+            txMap.set(Number(id), transmitters);
+          }
+          setSatnogsTransmitters(txMap);
+        }
+      } catch {
+        // SatNOGS unavailable — app works fine without it
+      }
+    }
+
+    fetchSatNOGS();
+  }, [satnogsLoaded, setSatnogsInfo, setSatnogsTransmitters]);
 
   const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
   const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);
