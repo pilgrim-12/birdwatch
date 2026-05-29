@@ -20,8 +20,17 @@ export default function Home() {
   const setSatnogsInfo = useSatelliteStore((s) => s.setSatnogsInfo);
   const setSatnogsTransmitters = useSatelliteStore((s) => s.setSatnogsTransmitters);
   const satnogsLoaded = useSatelliteStore((s) => s.satnogsLoaded);
+  const sourceCelestrak = useSatelliteStore((s) => s.sourceCelestrak);
+  const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
 
+  // Fetch CelesTrak TLE data
   useEffect(() => {
+    if (!sourceCelestrak) {
+      setSatellites([]);
+      setMassSatellites([]);
+      return;
+    }
+
     let cancelled = false;
 
     // Separate mass groups (starlink, active) from normal groups
@@ -96,10 +105,16 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [activeGroups, setSatellites, setMassSatellites]);
+  }, [activeGroups, sourceCelestrak, setSatellites, setMassSatellites]);
 
-  // Fetch SatNOGS enrichment data once on mount (non-blocking)
+  // Fetch SatNOGS enrichment data (non-blocking)
   useEffect(() => {
+    if (!sourceSatnogs) {
+      // Clear SatNOGS data when disabled
+      setSatnogsInfo(new Map());
+      setSatnogsTransmitters(new Map());
+      return;
+    }
     if (satnogsLoaded) return;
 
     async function fetchSatNOGS() {
@@ -132,7 +147,7 @@ export default function Home() {
     }
 
     fetchSatNOGS();
-  }, [satnogsLoaded, setSatnogsInfo, setSatnogsTransmitters]);
+  }, [sourceSatnogs, satnogsLoaded, setSatnogsInfo, setSatnogsTransmitters]);
 
   const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
   const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);

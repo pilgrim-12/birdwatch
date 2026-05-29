@@ -33,6 +33,10 @@ export default function Header() {
   const isOrbitViewOpen = useSatelliteStore((s) => s.isOrbitViewOpen);
   const toggleOrbitView = useSatelliteStore((s) => s.toggleOrbitView);
   const openAntennaGuide = useSatelliteStore((s) => s.openAntennaGuide);
+  const sourceCelestrak = useSatelliteStore((s) => s.sourceCelestrak);
+  const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
+  const toggleSourceCelestrak = useSatelliteStore((s) => s.toggleSourceCelestrak);
+  const toggleSourceSatnogs = useSatelliteStore((s) => s.toggleSourceSatnogs);
 
   // Desktop settings dropdown
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -258,6 +262,51 @@ export default function Header() {
                     </div>
                   )}
 
+                  {/* Data Sources */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Data Sources</span>
+                    <div className="flex flex-col gap-1.5">
+                      <label className={`flex items-start gap-2 p-2 rounded-lg border transition-colors cursor-pointer ${
+                        sourceCelestrak ? 'bg-gray-800 border-gray-600' : 'bg-gray-800/30 border-gray-700 opacity-50'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={sourceCelestrak}
+                          onChange={toggleSourceCelestrak}
+                          className="mt-0.5 accent-cyan-500 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-medium text-gray-200">CelesTrak TLE</span>
+                            <span className="text-[9px] px-1 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">Primary</span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">
+                            NORAD orbital elements (TLE). Real-time satellite positions, orbits, pass predictions. Source: CelesTrak / US Space Command.
+                          </p>
+                        </div>
+                      </label>
+                      <label className={`flex items-start gap-2 p-2 rounded-lg border transition-colors cursor-pointer ${
+                        sourceSatnogs ? 'bg-gray-800 border-gray-600' : 'bg-gray-800/30 border-gray-700 opacity-50'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={sourceSatnogs}
+                          onChange={toggleSourceSatnogs}
+                          className="mt-0.5 accent-cyan-500 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-medium text-gray-200">SatNOGS DB</span>
+                            <span className="text-[9px] px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Enrichment</span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">
+                            Satellite metadata &amp; transmitters. Adds status (alive/dead), operator, launch date, frequencies, modulation modes. Source: SatNOGS open network.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
                   {/* Groups */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -462,6 +511,51 @@ export default function Header() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Data Sources section (mobile) */}
+          <div className="px-4 py-4 border-b border-gray-800">
+            <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-3">Data Sources</h3>
+            <div className="space-y-2">
+              <label className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                sourceCelestrak ? 'bg-gray-800 border-gray-600' : 'bg-gray-800/30 border-gray-700 opacity-50'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={sourceCelestrak}
+                  onChange={toggleSourceCelestrak}
+                  className="mt-0.5 accent-cyan-500 w-4 h-4 shrink-0"
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-gray-200">CelesTrak TLE</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">Primary</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    NORAD orbital elements. Real-time positions, orbits, pass predictions.
+                  </p>
+                </div>
+              </label>
+              <label className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                sourceSatnogs ? 'bg-gray-800 border-gray-600' : 'bg-gray-800/30 border-gray-700 opacity-50'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={sourceSatnogs}
+                  onChange={toggleSourceSatnogs}
+                  className="mt-0.5 accent-cyan-500 w-4 h-4 shrink-0"
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-gray-200">SatNOGS DB</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Enrichment</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Satellite metadata &amp; transmitters. Status, operator, launch date, frequencies.
+                  </p>
+                </div>
+              </label>
+            </div>
           </div>
 
           {/* Observer section */}

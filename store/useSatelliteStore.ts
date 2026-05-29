@@ -88,6 +88,12 @@ interface SatelliteStore {
   satnogsLoaded: boolean;
   setSatnogsInfo: (info: Map<number, SatNogsInfo>) => void;
   setSatnogsTransmitters: (tx: Map<number, SatNogsTransmitter[]>) => void;
+
+  // Data sources toggles (persisted)
+  sourceCelestrak: boolean;
+  sourceSatnogs: boolean;
+  toggleSourceCelestrak: () => void;
+  toggleSourceSatnogs: () => void;
 }
 
 export const useSatelliteStore = create<SatelliteStore>()(
@@ -190,6 +196,12 @@ export const useSatelliteStore = create<SatelliteStore>()(
   satnogsLoaded: false,
   setSatnogsInfo: (info) => set({ satnogsInfo: info, satnogsLoaded: true }),
   setSatnogsTransmitters: (tx) => set({ satnogsTransmitters: tx }),
+
+  // Data sources toggles
+  sourceCelestrak: true,
+  sourceSatnogs: true,
+  toggleSourceCelestrak: () => set((s) => ({ sourceCelestrak: !s.sourceCelestrak })),
+  toggleSourceSatnogs: () => set((s) => ({ sourceSatnogs: !s.sourceSatnogs, satnogsLoaded: false })),
     }),
     {
       name: 'birdwatch-settings',
@@ -204,6 +216,8 @@ export const useSatelliteStore = create<SatelliteStore>()(
         beamSpeed: state.beamSpeed,
         activeGroups: state.activeGroups,
         sidebarWidth: state.sidebarWidth,
+        sourceCelestrak: state.sourceCelestrak,
+        sourceSatnogs: state.sourceSatnogs,
       }),
     },
   ),
