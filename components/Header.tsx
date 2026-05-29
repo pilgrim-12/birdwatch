@@ -33,6 +33,8 @@ export default function Header() {
   const isOrbitViewOpen = useSatelliteStore((s) => s.isOrbitViewOpen);
   const toggleOrbitView = useSatelliteStore((s) => s.toggleOrbitView);
   const openAntennaGuide = useSatelliteStore((s) => s.openAntennaGuide);
+  const mapMode = useSatelliteStore((s) => s.mapMode);
+  const toggleMapMode = useSatelliteStore((s) => s.toggleMapMode);
   const sourceCelestrak = useSatelliteStore((s) => s.sourceCelestrak);
   const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
   const toggleSourceCelestrak = useSatelliteStore((s) => s.toggleSourceCelestrak);
@@ -183,6 +185,13 @@ export default function Header() {
               className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${toggleBtnClass(nightMode, 'night')}`}
             >
               {nightMode ? 'Night' : 'Day'}
+            </button>
+            <button
+              onClick={toggleMapMode}
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${toggleBtnClass(mapMode === 'flat')}`}
+              title={mapMode === 'globe' ? 'Switch to 2D flat map' : 'Switch to 3D globe'}
+            >
+              {mapMode === 'globe' ? '2D' : '3D'}
             </button>
 
             <div className="w-px h-5 bg-gray-700" />
@@ -470,6 +479,12 @@ export default function Header() {
                 className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(nightMode, 'night')}`}
               >
                 {nightMode ? 'Night' : 'Day'}
+              </button>
+              <button
+                onClick={() => { toggleMapMode(); setMobileMenuOpen(false); }}
+                className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(mapMode === 'flat')}`}
+              >
+                {mapMode === 'globe' ? '2D Map' : '3D Globe'}
               </button>
               <button
                 onClick={() => { toggleOrbitView(); setMobileMenuOpen(false); }}

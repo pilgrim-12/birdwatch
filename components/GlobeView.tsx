@@ -4,12 +4,9 @@ import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
-import { propagateAll } from '@/lib/sgp4';
-import { propagateChunked } from '@/lib/propagateChunked';
 import { computeOrbitPath } from '@/lib/orbit';
 import { EARTH_RADIUS_KM, GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
-import type { TLEData } from '@/types/satellite';
 import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
 import { useCameraMode } from '@/hooks/useCameraMode';
 import { CameraControls } from './CameraControls';
@@ -53,7 +50,6 @@ interface MassLayerDatum {
 export default function GlobeView() {
   const satellites = useSatelliteStore((s) => s.satellites);
   const positions = useSatelliteStore((s) => s.positions);
-  const updatePositions = useSatelliteStore((s) => s.updatePositions);
   const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
   const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
   const observer = useSatelliteStore((s) => s.observer);
@@ -69,9 +65,7 @@ export default function GlobeView() {
   const cameraFollow = useSatelliteStore((s) => s.cameraFollow);
 
   // Mass group (Starlink) state
-  const massSatellites = useSatelliteStore((s) => s.massSatellites);
   const massPositions = useSatelliteStore((s) => s.massPositions);
-  const updateMassPositions = useSatelliteStore((s) => s.updateMassPositions);
 
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,8 +83,19 @@ export default function GlobeView() {
   const css2dCacheRef = useRef<Map<number, any>>(new Map());
   const css2dScanCountRef = useRef(0);
 
-  // Hide labels for satellites occluded by the globe (behind Earth)
-  // Uses cached CSS2DObject refs instead of scene.traverse() each frame.
+  // Stable map of PointData — reuses same object references so three-globe
+  // doesn't recreate Three.js meshes on every position update
+  const stablePointsMapRef = useRef<Map<number, PointData>>(new Map());
+
+  // Interpolation keyframes for smooth 60fps motion between SGP4 updates
+  const interpRef = useRef<{
+    prev: Map<number, { lat: number; lng: number; alt: number }>;
+    curr: Map<number, { lat: number; lng: number; alt: number }>;
+    time: number;
+    interval: number;
+  }>({ prev: new Map(), curr: new Map(), time: 0, interval: 250 });
+
+  // Main 60fps loop: smooth position interpolation + label occlusion
   useEffect(() => {
     const ray = new THREE.Ray();
     const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), GLOBE_RADIUS);
@@ -98,14 +103,51 @@ export default function GlobeView() {
     const satVec = new THREE.Vector3();
     let raf: number;
 
+    function interpLerp(
+      prev: Map<number, { lat: number; lng: number; alt: number }>,
+      curr: Map<number, { lat: number; lng: number; alt: number }>,
+      id: number,
+      t: number,
+    ): { lat: number; lng: number; alt: number } | null {
+      const pa = prev.get(id);
+      const pb = curr.get(id);
+      if (!pa || !pb) return pb ?? pa ?? null;
+      let dLng = pb.lng - pa.lng;
+      if (dLng > 180) dLng -= 360;
+      if (dLng < -180) dLng += 360;
+      return {
+        lat: pa.lat + (pb.lat - pa.lat) * t,
+        lng: pa.lng + dLng * t,
+        alt: pa.alt + (pb.alt - pa.alt) * t,
+      };
+    }
+
     function tick() {
       raf = requestAnimationFrame(tick);
-
-      // Skip entirely when labels are off — no work to do
-      if (!useSatelliteStore.getState().showLabels) return;
-
       const globe = globeRef.current;
       if (!globe) return;
+
+      // --- Smooth position interpolation for satellite 3D models ---
+      const { prev, curr, time, interval } = interpRef.current;
+      const hasKeyframes = curr.size > 0 && prev.size > 0;
+      const now = performance.now();
+      const t = hasKeyframes ? Math.min((now - time) / interval, 1.5) : 0;
+
+      if (hasKeyframes) {
+        stablePointsMapRef.current.forEach((point) => {
+          const interp = interpLerp(prev, curr, point.id, t);
+          if (!interp) return;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const container = (point as any).__threeObj;
+          if (container) {
+            polar2Cartesian(interp.lat, interp.lng, interp.alt, satVec);
+            container.position.copy(satVec);
+          }
+        });
+      }
+
+      // --- Label positioning + occlusion check ---
+      if (!useSatelliteStore.getState().showLabels) return;
 
       let camera: THREE.PerspectiveCamera;
       let scene: THREE.Scene;
@@ -131,18 +173,22 @@ export default function GlobeView() {
         });
       }
 
-      const posMap = labelPosRef.current;
       const camPos = camera.position;
 
       cache.forEach((obj, id) => {
-        const pos = posMap.get(id);
+        // Use interpolated position for labels too (keeps labels attached to models)
+        const interp = hasKeyframes ? interpLerp(prev, curr, id, t) : null;
+        const pos = interp ?? labelPosRef.current.get(id);
         if (!pos) { obj.visible = false; return; }
 
-        polar2Cartesian(pos.lat, pos.lng, pos.alt, satVec);
+        // Move the label to interpolated position (with vertical offset)
+        polar2Cartesian(pos.lat, pos.lng, pos.alt + 0.015, satVec);
+        obj.position.copy(satVec);
+
+        // Occlusion: hide labels behind the globe
         ray.origin.copy(camPos);
         ray.direction.copy(satVec).sub(camPos).normalize();
         const hit = ray.intersectSphere(sphere, hitPoint);
-
         obj.visible = !(hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5);
       });
     }
@@ -153,18 +199,6 @@ export default function GlobeView() {
 
   // Counter that increments every 30s to force orbit path refresh
   const [orbitEpoch, setOrbitEpoch] = useState(0);
-
-  // Cache satellite TLE references for propagation (avoid re-creating array every tick)
-  const satTleRef = useRef<{ tle: TLEData; id: number }[]>([]);
-  useEffect(() => {
-    satTleRef.current = satellites.map((s) => ({ tle: s.tle, id: s.id }));
-  }, [satellites]);
-
-  // Cache mass satellite TLE references
-  const massTleRef = useRef<{ tle: TLEData; id: number }[]>([]);
-  useEffect(() => {
-    massTleRef.current = massSatellites.map((s) => ({ tle: s.tle, id: s.id }));
-  }, [massSatellites]);
 
   // Resize observer
   useEffect(() => {
@@ -250,41 +284,7 @@ export default function GlobeView() {
     return () => clearInterval(interval);
   }, []);
 
-  // Position propagation loop — every 2 seconds for normal satellites
-  useEffect(() => {
-    if (satellites.length === 0) return;
-
-    const tick = () => {
-      const now = new Date();
-      const newPositions = propagateAll(satTleRef.current, now);
-      updatePositions(newPositions);
-    };
-
-    tick();
-    const interval = setInterval(tick, 2000);
-    return () => clearInterval(interval);
-  }, [satellites, updatePositions]);
-
-  // Chunked propagation loop — every 5 seconds for mass satellites (Starlink)
-  useEffect(() => {
-    if (massSatellites.length === 0) return;
-
-    let cancelChunk: (() => void) | null = null;
-
-    const tick = () => {
-      const now = new Date();
-      cancelChunk = propagateChunked(massTleRef.current, now, (newPositions) => {
-        updateMassPositions(newPositions);
-      });
-    };
-
-    tick();
-    const interval = setInterval(tick, 5000);
-    return () => {
-      clearInterval(interval);
-      cancelChunk?.();
-    };
-  }, [massSatellites, updateMassPositions]);
+  // Propagation loops are in hooks/usePropagation.ts (called from page.tsx)
 
   // Orbit trail cache — avoids recomputing on re-renders within the same epoch.
   // Cleared on each epoch tick (30s) since trails are time-dependent.
@@ -317,26 +317,72 @@ export default function GlobeView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [satellites, orbitEpoch, selectedSatId]);
 
-  // Points data (normal satellites only)
+  // Points data (normal satellites only) — uses stable object references so
+  // three-globe reuses existing Three.js meshes instead of recreating them.
   const pointsData: PointData[] = useMemo(() => {
-    return satellites
-      .filter((s) => positions.has(s.id))
-      .map((s) => {
-        const pos = positions.get(s.id)!;
-        const color = GROUP_COLORS[s.group as SatelliteGroup] || '#00d4ff';
-        return {
-          id: s.id,
-          name: s.name,
-          lat: pos.lat,
-          lng: pos.lng,
-          alt: pos.alt / EARTH_RADIUS_KM,
-          velocity: pos.velocity,
-          selected: s.id === selectedSatId,
-          group: s.group,
-          color,
+    const stable = stablePointsMapRef.current;
+    const result: PointData[] = [];
+    const activeIds = new Set<number>();
+
+    for (const s of satellites) {
+      const pos = positions.get(s.id);
+      if (!pos) continue;
+      activeIds.add(s.id);
+
+      const isSelected = s.id === selectedSatId;
+      const color = GROUP_COLORS[s.group as SatelliteGroup] || '#00d4ff';
+      let point = stable.get(s.id);
+
+      if (point) {
+        // Mutate position on existing object — preserves __threeObj reference
+        point.lat = pos.lat;
+        point.lng = pos.lng;
+        point.alt = pos.alt / EARTH_RADIUS_KM;
+        point.velocity = pos.velocity;
+        // When selection changes, create a fresh object so three-globe recreates the model
+        if (point.selected !== isSelected) {
+          point = {
+            id: s.id, name: s.name,
+            lat: pos.lat, lng: pos.lng, alt: pos.alt / EARTH_RADIUS_KM,
+            velocity: pos.velocity, selected: isSelected,
+            group: s.group, color,
+          };
+          stable.set(s.id, point);
+        }
+      } else {
+        point = {
+          id: s.id, name: s.name,
+          lat: pos.lat, lng: pos.lng, alt: pos.alt / EARTH_RADIUS_KM,
+          velocity: pos.velocity, selected: isSelected,
+          group: s.group, color,
         };
-      });
+        stable.set(s.id, point);
+      }
+      result.push(point);
+    }
+
+    // Remove stale entries for satellites no longer loaded
+    for (const id of stable.keys()) {
+      if (!activeIds.has(id)) stable.delete(id);
+    }
+
+    return result;
   }, [satellites, positions, selectedSatId]);
+
+  // Update interpolation keyframes whenever positions change
+  useEffect(() => {
+    const newCurr = new Map<number, { lat: number; lng: number; alt: number }>();
+    positions.forEach((pos, id) => {
+      newCurr.set(id, { lat: pos.lat, lng: pos.lng, alt: pos.alt / EARTH_RADIUS_KM });
+    });
+    const old = interpRef.current;
+    interpRef.current = {
+      prev: old.curr.size > 0 ? old.curr : newCurr,
+      curr: newCurr,
+      time: performance.now(),
+      interval: 250,
+    };
+  }, [positions]);
 
   // Combined paths: orbit trajectories + scan beams (normal satellites only, not mass)
   const allPaths: CombinedPath[] = useMemo(() => {

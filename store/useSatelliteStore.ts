@@ -89,6 +89,10 @@ interface SatelliteStore {
   setSatnogsInfo: (info: Map<number, SatNogsInfo>) => void;
   setSatnogsTransmitters: (tx: Map<number, SatNogsTransmitter[]>) => void;
 
+  // Map mode
+  mapMode: 'globe' | 'flat';
+  toggleMapMode: () => void;
+
   // Data sources toggles (persisted)
   sourceCelestrak: boolean;
   sourceSatnogs: boolean;
@@ -197,6 +201,10 @@ export const useSatelliteStore = create<SatelliteStore>()(
   setSatnogsInfo: (info) => set({ satnogsInfo: info, satnogsLoaded: true }),
   setSatnogsTransmitters: (tx) => set({ satnogsTransmitters: tx }),
 
+  // Map mode
+  mapMode: 'globe',
+  toggleMapMode: () => set((s) => ({ mapMode: s.mapMode === 'globe' ? 'flat' : 'globe' })),
+
   // Data sources toggles
   sourceCelestrak: true,
   sourceSatnogs: true,
@@ -216,6 +224,7 @@ export const useSatelliteStore = create<SatelliteStore>()(
         beamSpeed: state.beamSpeed,
         activeGroups: state.activeGroups,
         sidebarWidth: state.sidebarWidth,
+        mapMode: state.mapMode,
         sourceCelestrak: state.sourceCelestrak,
         sourceSatnogs: state.sourceSatnogs,
       }),

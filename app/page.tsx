@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
 import GlobeView from '@/components/GlobeView';
 import SatelliteList from '@/components/SatelliteList';
@@ -12,6 +13,9 @@ import { MASS_GROUPS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { Satellite } from '@/types/satellite';
 import type { SatNogsInfo, SatNogsTransmitter } from '@/types/satnogs';
+import { usePropagation } from '@/hooks/usePropagation';
+
+const FlatMapView = dynamic(() => import('@/components/FlatMapView'), { ssr: false });
 
 export default function Home() {
   const setSatellites = useSatelliteStore((s) => s.setSatellites);
@@ -22,6 +26,10 @@ export default function Home() {
   const satnogsLoaded = useSatelliteStore((s) => s.satnogsLoaded);
   const sourceCelestrak = useSatelliteStore((s) => s.sourceCelestrak);
   const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
+  const mapMode = useSatelliteStore((s) => s.mapMode);
+
+  // Run SGP4 propagation (shared between globe and flat map views)
+  usePropagation();
 
   // Fetch CelesTrak TLE data
   useEffect(() => {
@@ -158,7 +166,7 @@ export default function Home() {
       <Header />
       <main className="flex flex-1 overflow-hidden">
         <div className="flex-1 relative min-w-0">
-          <GlobeView />
+          {mapMode === 'globe' ? <GlobeView /> : <FlatMapView />}
           {/* Mobile bottom FAB bar */}
           <div className="md:hidden absolute bottom-3 left-3 right-3 z-20 flex gap-2">
             <button
