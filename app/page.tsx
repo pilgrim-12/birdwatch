@@ -14,6 +14,7 @@ import type { SatelliteGroup } from '@/lib/constants';
 import type { Satellite } from '@/types/satellite';
 import type { SatNogsInfo, SatNogsTransmitter } from '@/types/satnogs';
 import { usePropagation } from '@/hooks/usePropagation';
+import VisitorTracker from '@/components/VisitorTracker';
 
 const FlatMapView = dynamic(() => import('@/components/FlatMapView'), { ssr: false });
 
@@ -200,6 +201,7 @@ export default function Home() {
       </main>
       <OrbitView />
       <AntennaGuide />
+      <VisitorTracker />
     </>
   );
 }

@@ -34,19 +34,32 @@ function parseOS(ua: string | null): string {
   return 'Other';
 }
 
-/** Format timestamp to relative or short date */
+/** Format timestamp to readable date+time */
 function formatTime(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
+
+  const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  if (diffMin < 1) return `${time} (just now)`;
+  if (diffMin < 60) return `${time} (${diffMin}m ago)`;
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (diffHr < 24) return `${time} (${diffHr}h ago)`;
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${date} ${time}`;
+}
+
+/** Format duration in seconds to human readable */
+function formatDuration(seconds: number | null): string {
+  if (seconds === null || seconds === 0) return '—';
+  if (seconds < 60) return `${seconds}s`;
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  if (min < 60) return `${min}m ${sec}s`;
+  const hr = Math.floor(min / 60);
+  return `${hr}h ${min % 60}m`;
 }
 
 export default function AdminPage() {
@@ -289,6 +302,8 @@ export default function AdminPage() {
                   <th className="px-4 py-2 font-medium">Time</th>
                   <th className="px-4 py-2 font-medium">IP</th>
                   <th className="px-4 py-2 font-medium">Location</th>
+                  <th className="px-4 py-2 font-medium">Duration</th>
+                  <th className="px-4 py-2 font-medium">Visits</th>
                   <th className="px-4 py-2 font-medium">Page</th>
                   <th className="px-4 py-2 font-medium">Browser</th>
                   <th className="px-4 py-2 font-medium">OS</th>
@@ -302,6 +317,8 @@ export default function AdminPage() {
                     <td className="px-4 py-2 text-gray-300">
                       {v.city && v.country ? `${v.city}, ${v.country}` : v.country || '—'}
                     </td>
+                    <td className="px-4 py-2 text-gray-400">{formatDuration(v.duration)}</td>
+                    <td className="px-4 py-2 text-gray-400">{v.visit_count || 1}</td>
                     <td className="px-4 py-2 text-gray-400">{v.path || '/'}</td>
                     <td className="px-4 py-2 text-gray-400">{parseBrowser(v.user_agent)}</td>
                     <td className="px-4 py-2 text-gray-400">{parseOS(v.user_agent)}</td>
@@ -309,7 +326,7 @@ export default function AdminPage() {
                 ))}
                 {visitors.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-600">
+                    <td colSpan={8} className="px-4 py-8 text-center text-gray-600">
                       No visitors yet. Data will appear after the first visit.
                     </td>
                   </tr>
