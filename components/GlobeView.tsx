@@ -175,6 +175,8 @@ export default function GlobeView() {
 
       const camPos = camera.position;
 
+      const camDist = camPos.length(); // camera distance from globe center
+
       cache.forEach((obj, id) => {
         // Use interpolated position for labels too (keeps labels attached to models)
         const interp = hasKeyframes ? interpLerp(prev, curr, id, t) : null;
@@ -189,7 +191,21 @@ export default function GlobeView() {
         ray.origin.copy(camPos);
         ray.direction.copy(satVec).sub(camPos).normalize();
         const hit = ray.intersectSphere(sphere, hitPoint);
-        obj.visible = !(hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5);
+        const occluded = hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5;
+        obj.visible = !occluded;
+
+        // Scale label based on camera distance to satellite
+        if (!occluded) {
+          const distToSat = camPos.distanceTo(satVec);
+          // Reference: at distance ~2 earth-radii → scale 1.0
+          // Close (dist ~1.2) → scale ~1.6, far (dist ~8) → scale ~0.3
+          const scale = Math.max(0.25, Math.min(2.0, 2.0 / distToSat));
+          const el = obj.element as HTMLElement | undefined;
+          if (el) {
+            const baseTranslateY = el.style.fontWeight === '600' ? '-18px' : '-14px';
+            el.style.transform = `translateY(${baseTranslateY}) scale(${scale.toFixed(2)})`;
+          }
+        }
       });
     }
 
