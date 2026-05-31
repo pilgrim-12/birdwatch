@@ -161,13 +161,10 @@ export default function GlobeView() {
       if (domCache.size === 0 || labelScanCountRef.current >= 60) {
         labelScanCountRef.current = 0;
         domCache.clear();
-        const container = containerRef.current;
-        if (container) {
-          container.querySelectorAll<HTMLElement>('[data-sat-id]').forEach((el) => {
-            const id = Number(el.getAttribute('data-sat-id'));
-            if (!isNaN(id)) domCache.set(id, el);
-          });
-        }
+        document.querySelectorAll<HTMLElement>('[data-sat-id]').forEach((el) => {
+          const id = Number(el.getAttribute('data-sat-id'));
+          if (!isNaN(id)) domCache.set(id, el);
+        });
       }
 
       const camPos = camera.position;
