@@ -1,24 +1,11 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import type { Visitor, VisitorStats } from '@/types/analytics';
 
-/** Clamp view so map edges don't go past viewport edges */
-function clampView(v: { zoom: number; ox: number; oy: number }, w: number, h: number) {
-  const mapW = w * v.zoom;
-  const mapH = h * v.zoom;
-  v.ox = Math.min(0, Math.max(w - mapW, v.ox));
-  v.oy = Math.min(0, Math.max(h - mapH, v.oy));
-}
-
-/** Equirectangular projection: lat/lng → canvas pixel (with zoom/pan) */
-function latLngToXY(lat: number, lng: number, w: number, h: number, zoom: number, ox: number, oy: number) {
-  return {
-    x: ((lng + 180) / 360) * w * zoom + ox,
-    y: ((90 - lat) / 180) * h * zoom + oy,
-  };
-}
+const AdminMap = dynamic(() => import('@/components/AdminMap'), { ssr: false });
 
 /** Parse User-Agent to short browser name */
 function parseBrowser(ua: string | null): string {
@@ -76,24 +63,11 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [adminKey, setAdminKey] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const earthImgRef = useRef<HTMLImageElement | null>(null);
-  const viewRef = useRef({ zoom: 1, ox: 0, oy: 0 });
-  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startOx: 0, startOy: 0, moved: false });
-  const needsRedrawRef = useRef(true);
 
   // Get admin key from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setAdminKey(params.get('key'));
-  }, []);
-
-  // Load earth texture
-  useEffect(() => {
-    const img = new Image();
-    img.src = '/earth-night-4k.jpg';
-    img.onload = () => { earthImgRef.current = img; };
   }, []);
 
   // Fetch visitor data
@@ -115,324 +89,6 @@ export default function AdminPage() {
         setLoading(false);
       });
   }, [adminKey]);
-
-  // Draw visitor map
-  const drawMap = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const w = canvas.width;
-    const h = canvas.height;
-    const { zoom, ox, oy } = viewRef.current;
-
-    // Clear
-    ctx.clearRect(0, 0, w, h);
-
-    // Background
-    if (earthImgRef.current) {
-      ctx.drawImage(earthImgRef.current, ox, oy, w * zoom, h * zoom);
-      // Darken overlay
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.fillRect(0, 0, w, h);
-    } else {
-      ctx.fillStyle = '#0a1628';
-      ctx.fillRect(0, 0, w, h);
-    }
-
-    // Grid
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 1;
-    for (let lng = -150; lng <= 180; lng += 30) {
-      const x = ((lng + 180) / 360) * w * zoom + ox;
-      if (x < 0 || x > w) continue;
-      ctx.beginPath(); ctx.moveTo(x, Math.max(0, oy)); ctx.lineTo(x, Math.min(h, oy + h * zoom)); ctx.stroke();
-    }
-    for (let lat = -60; lat <= 90; lat += 30) {
-      const y = ((90 - lat) / 180) * h * zoom + oy;
-      if (y < 0 || y > h) continue;
-      ctx.beginPath(); ctx.moveTo(Math.max(0, ox), y); ctx.lineTo(Math.min(w, ox + w * zoom), y); ctx.stroke();
-    }
-
-    // Visitor dots
-    const visitorsWithCoords = visitors.filter((v) => v.lat != null && v.lng != null);
-
-    // Heatmap: group by approximate location
-    const buckets = new Map<string, { lat: number; lng: number; count: number }>();
-    for (const v of visitorsWithCoords) {
-      const key = `${Math.round(v.lat! * 2) / 2},${Math.round(v.lng! * 2) / 2}`;
-      const existing = buckets.get(key);
-      if (existing) {
-        existing.count++;
-      } else {
-        buckets.set(key, { lat: v.lat!, lng: v.lng!, count: 1 });
-      }
-    }
-
-    // Draw glow + dot for each bucket
-    for (const { lat, lng, count } of buckets.values()) {
-      const { x, y } = latLngToXY(lat, lng, w, h, zoom, ox, oy);
-      // Skip if outside viewport
-      if (x < -50 || x > w + 50 || y < -50 || y > h + 50) continue;
-      const radius = Math.min(3 + count * 1.5, 15);
-
-      // Glow
-      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 3);
-      gradient.addColorStop(0, 'rgba(0, 212, 255, 0.4)');
-      gradient.addColorStop(1, 'rgba(0, 212, 255, 0)');
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(x, y, radius * 3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Dot
-      ctx.fillStyle = '#00d4ff';
-      ctx.globalAlpha = 0.9;
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-
-      // Count label if > 1
-      if (count > 1) {
-        ctx.font = `bold ${Math.max(10, radius)}px system-ui, sans-serif`;
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(String(count), x, y);
-      }
-    }
-
-    // Total visitors label
-    ctx.font = '12px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(`${visitorsWithCoords.length} visitors with location`, 8, 8);
-
-    // Zoom indicator
-    if (zoom > 1.05) {
-      const label = `${zoom.toFixed(1)}x`;
-      ctx.font = 'bold 11px system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      const tw = ctx.measureText(label).width;
-      ctx.fillRect(w - tw - 16, 8, tw + 12, 20);
-      ctx.fillStyle = '#ffffff';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(label, w - tw - 10, 18);
-    }
-  }, [visitors]);
-
-  // Size canvas and set up RAF redraw loop
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const sizeCanvas = () => {
-      const rect = container.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
-      viewRef.current = { zoom: 1, ox: 0, oy: 0 };
-      needsRedrawRef.current = true;
-    };
-
-    sizeCanvas();
-
-    let raf: number;
-    const loop = () => {
-      raf = requestAnimationFrame(loop);
-      if (needsRedrawRef.current) {
-        needsRedrawRef.current = false;
-        drawMap();
-      }
-    };
-    loop();
-
-    window.addEventListener('resize', sizeCanvas);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', sizeCanvas);
-    };
-  }, [drawMap]);
-
-  // Mouse wheel zoom
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handler = (e: WheelEvent) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      const mx = (e.clientX - rect.left) * dpr;
-      const my = (e.clientY - rect.top) * dpr;
-
-      const v = viewRef.current;
-      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-      const newZoom = Math.max(1, Math.min(20, v.zoom * factor));
-
-      // Keep point under mouse fixed
-      v.ox = mx - (mx - v.ox) * (newZoom / v.zoom);
-      v.oy = my - (my - v.oy) * (newZoom / v.zoom);
-      v.zoom = newZoom;
-
-      clampView(v, canvas.width, canvas.height);
-      needsRedrawRef.current = true;
-    };
-
-    canvas.addEventListener('wheel', handler, { passive: false });
-    return () => canvas.removeEventListener('wheel', handler);
-  }, [visitors]);
-
-  // Mouse drag for panning
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      const d = dragRef.current;
-      d.dragging = true;
-      d.startX = e.clientX;
-      d.startY = e.clientY;
-      d.startOx = viewRef.current.ox;
-      d.startOy = viewRef.current.oy;
-      d.moved = false;
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const d = dragRef.current;
-      if (!d.dragging) return;
-      const dpr = window.devicePixelRatio || 1;
-      const dx = (e.clientX - d.startX) * dpr;
-      const dy = (e.clientY - d.startY) * dpr;
-      if (Math.abs(dx) > 3 * dpr || Math.abs(dy) > 3 * dpr) d.moved = true;
-
-      if (d.moved) {
-        const v = viewRef.current;
-        v.ox = d.startOx + dx;
-        v.oy = d.startOy + dy;
-        clampView(v, canvas.width, canvas.height);
-        needsRedrawRef.current = true;
-      }
-    };
-
-    const handleMouseUp = () => {
-      dragRef.current.dragging = false;
-    };
-
-    canvas.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [visitors]);
-
-  // Double-click to reset zoom
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const handler = () => {
-      viewRef.current = { zoom: 1, ox: 0, oy: 0 };
-      needsRedrawRef.current = true;
-    };
-    canvas.addEventListener('dblclick', handler);
-    return () => canvas.removeEventListener('dblclick', handler);
-  }, [visitors]);
-
-  // Touch: pinch-zoom and drag
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    let lastTouchDist = 0;
-    let lastTouchCenter = { x: 0, y: 0 };
-    let touchStartOx = 0;
-    let touchStartOy = 0;
-    let singleTouchStart = { x: 0, y: 0 };
-    let touchMoved = false;
-
-    const getTouchDist = (t1: Touch, t2: Touch) =>
-      Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-    const getTouchCenter = (t1: Touch, t2: Touch) => ({
-      x: (t1.clientX + t2.clientX) / 2,
-      y: (t1.clientY + t2.clientY) / 2,
-    });
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        lastTouchDist = getTouchDist(e.touches[0], e.touches[1]);
-        lastTouchCenter = getTouchCenter(e.touches[0], e.touches[1]);
-        touchStartOx = viewRef.current.ox;
-        touchStartOy = viewRef.current.oy;
-      } else if (e.touches.length === 1) {
-        singleTouchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        touchStartOx = viewRef.current.ox;
-        touchStartOy = viewRef.current.oy;
-        touchMoved = false;
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      const dpr = window.devicePixelRatio || 1;
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        const dist = getTouchDist(e.touches[0], e.touches[1]);
-        const center = getTouchCenter(e.touches[0], e.touches[1]);
-        const rect = canvas.getBoundingClientRect();
-        const mx = (center.x - rect.left) * dpr;
-        const my = (center.y - rect.top) * dpr;
-
-        const v = viewRef.current;
-        const scale = dist / lastTouchDist;
-        const newZoom = Math.max(1, Math.min(20, v.zoom * scale));
-
-        v.ox = mx - (mx - v.ox) * (newZoom / v.zoom);
-        v.oy = my - (my - v.oy) * (newZoom / v.zoom);
-        v.zoom = newZoom;
-
-        const dcx = (center.x - lastTouchCenter.x) * dpr;
-        const dcy = (center.y - lastTouchCenter.y) * dpr;
-        v.ox += dcx;
-        v.oy += dcy;
-
-        clampView(v, canvas.width, canvas.height);
-        lastTouchDist = dist;
-        lastTouchCenter = center;
-        needsRedrawRef.current = true;
-      } else if (e.touches.length === 1 && viewRef.current.zoom > 1) {
-        e.preventDefault();
-        const dx = (e.touches[0].clientX - singleTouchStart.x) * dpr;
-        const dy = (e.touches[0].clientY - singleTouchStart.y) * dpr;
-        if (Math.abs(dx) > 3 * dpr || Math.abs(dy) > 3 * dpr) touchMoved = true;
-
-        if (touchMoved) {
-          const v = viewRef.current;
-          v.ox = touchStartOx + dx;
-          v.oy = touchStartOy + dy;
-          clampView(v, canvas.width, canvas.height);
-          needsRedrawRef.current = true;
-        }
-      }
-    };
-
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-    return () => {
-      canvas.removeEventListener('touchstart', handleTouchStart);
-      canvas.removeEventListener('touchmove', handleTouchMove);
-    };
-  }, [visitors]);
 
   // No key provided
   if (adminKey === null) {
@@ -495,8 +151,8 @@ export default function AdminPage() {
         {/* Map + Top Countries side by side */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {/* Map */}
-          <div ref={containerRef} className="md:col-span-3 bg-gray-900 rounded-xl border border-gray-800 overflow-hidden h-[300px] md:h-[400px]">
-            <canvas ref={canvasRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+          <div className="md:col-span-3 bg-gray-900 rounded-xl border border-gray-800 overflow-hidden h-[300px] md:h-[400px]">
+            <AdminMap visitors={visitors} />
           </div>
 
           {/* Top Countries */}
