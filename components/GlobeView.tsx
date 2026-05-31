@@ -78,9 +78,8 @@ export default function GlobeView() {
   // Ref for current label positions — updated below after htmlLabelsData is computed
   const labelPosRef = useRef<Map<number, { lat: number; lng: number; alt: number }>>(new Map());
 
-  // DOM label element cache — rebuilt periodically via querySelectorAll
-  const labelDomCacheRef = useRef<Map<number, HTMLElement>>(new Map());
-  const labelScanCountRef = useRef(0);
+  // Label element refs — populated directly from htmlElement callback
+  const labelElsRef = useRef<Map<number, HTMLElement>>(new Map());
 
   // Stable map of PointData — reuses same object references so three-globe
   // doesn't recreate Three.js meshes on every position update
@@ -145,7 +144,7 @@ export default function GlobeView() {
         });
       }
 
-      // --- Label occlusion + distance scaling (via DOM) ---
+      // --- Label occlusion + distance scaling ---
       if (!useSatelliteStore.getState().showLabels) return;
 
       let camera: THREE.PerspectiveCamera;
@@ -155,23 +154,11 @@ export default function GlobeView() {
         return;
       }
 
-      // Rebuild DOM label cache every 60 frames (~1s)
-      const domCache = labelDomCacheRef.current;
-      labelScanCountRef.current++;
-      if (domCache.size === 0 || labelScanCountRef.current >= 60) {
-        labelScanCountRef.current = 0;
-        domCache.clear();
-        document.querySelectorAll<HTMLElement>('[data-sat-id]').forEach((el) => {
-          const id = Number(el.getAttribute('data-sat-id'));
-          if (!isNaN(id)) domCache.set(id, el);
-        });
-      }
-
       const camPos = camera.position;
 
-      domCache.forEach((el, id) => {
+      labelElsRef.current.forEach((el, id) => {
         const pos = labelPosRef.current.get(id);
-        if (!pos) { el.style.visibility = 'hidden'; return; }
+        if (!pos) { el.style.opacity = '0'; return; }
 
         polar2Cartesian(pos.lat, pos.lng, pos.alt + 0.015, satVec);
 
@@ -182,9 +169,9 @@ export default function GlobeView() {
         const occluded = hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5;
 
         if (occluded) {
-          el.style.visibility = 'hidden';
+          el.style.opacity = '0';
         } else {
-          el.style.visibility = 'visible';
+          el.style.opacity = '1';
           // Scale font by distance to camera
           const distToSat = camPos.distanceTo(satVec);
           const baseFontSize = el.style.fontWeight === '600' ? 11 : 9;
@@ -628,8 +615,9 @@ export default function GlobeView() {
             el.textContent = data.name;
             el.setAttribute('data-sat-id', String(data.id));
             el.style.cssText = data.selected
-              ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;`
-              : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none;transform:translateY(-14px);`;
+              ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;transition:opacity 0.15s;`
+              : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none;transform:translateY(-14px);transition:opacity 0.15s;`;
+            labelElsRef.current.set(data.id, el);
             return el;
           }}
           htmlTransitionDuration={0}
