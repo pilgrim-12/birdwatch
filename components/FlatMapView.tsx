@@ -571,20 +571,32 @@ export default function FlatMapView() {
         }
       }
 
-      // --- Observer marker ---
+      // --- Observer marker (pulsating rings like 3D globe) ---
       if (state.observer) {
         const { x, y } = latLngToXY(state.observer.lat, state.observer.lng, w, h, zoom, ox, oy);
-        ctx.strokeStyle = '#ff9800';
-        ctx.lineWidth = 2;
+        const t = performance.now();
+        const maxRadius = 25;
+        const period = 1000; // ms per ring cycle
+
+        // Draw 3 expanding rings at different phases
+        for (let i = 0; i < 3; i++) {
+          const phase = ((t + i * (period / 3)) % period) / period; // 0→1
+          const radius = phase * maxRadius;
+          const alpha = 1 - phase;
+          ctx.strokeStyle = '#ff9800';
+          ctx.globalAlpha = alpha * 0.7;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // Center dot
+        ctx.fillStyle = '#ff9800';
         ctx.beginPath();
-        ctx.moveTo(x - 8, y);
-        ctx.lineTo(x + 8, y);
-        ctx.moveTo(x, y - 8);
-        ctx.lineTo(x, y + 8);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(x, y, 5, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       // --- Zoom indicator (show when zoomed in) ---
