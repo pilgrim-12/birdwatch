@@ -78,10 +78,9 @@ export default function GlobeView() {
   // Ref for current label positions — updated below after htmlLabelsData is computed
   const labelPosRef = useRef<Map<number, { lat: number; lng: number; alt: number }>>(new Map());
 
-  // Cache CSS2DObject refs keyed by sat id — avoids scene.traverse() every frame
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const css2dCacheRef = useRef<Map<number, any>>(new Map());
-  const css2dScanCountRef = useRef(0);
+  // DOM label element cache — rebuilt periodically via querySelectorAll
+  const labelDomCacheRef = useRef<Map<number, HTMLElement>>(new Map());
+  const labelScanCountRef = useRef(0);
 
   // Stable map of PointData — reuses same object references so three-globe
   // doesn't recreate Three.js meshes on every position update
@@ -146,58 +145,54 @@ export default function GlobeView() {
         });
       }
 
-      // --- Label positioning + occlusion check ---
+      // --- Label occlusion + distance scaling (via DOM) ---
       if (!useSatelliteStore.getState().showLabels) return;
 
       let camera: THREE.PerspectiveCamera;
-      let scene: THREE.Scene;
       try {
         camera = globe.camera() as THREE.PerspectiveCamera;
-        scene = globe.scene() as THREE.Scene;
       } catch {
         return;
       }
 
-      // Rebuild CSS2DObject cache every 120 frames (~2s) or when empty
-      const cache = css2dCacheRef.current;
-      css2dScanCountRef.current++;
-      if (cache.size === 0 || css2dScanCountRef.current >= 120) {
-        css2dScanCountRef.current = 0;
-        cache.clear();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        scene.traverse((obj: any) => {
-          if (!obj.isCSS2DObject) return;
-          const el = obj.element as HTMLElement | undefined;
-          const idStr = el?.getAttribute?.('data-sat-id');
-          if (idStr) cache.set(Number(idStr), obj);
-        });
+      // Rebuild DOM label cache every 60 frames (~1s)
+      const domCache = labelDomCacheRef.current;
+      labelScanCountRef.current++;
+      if (domCache.size === 0 || labelScanCountRef.current >= 60) {
+        labelScanCountRef.current = 0;
+        domCache.clear();
+        const container = containerRef.current;
+        if (container) {
+          container.querySelectorAll<HTMLElement>('[data-sat-id]').forEach((el) => {
+            const id = Number(el.getAttribute('data-sat-id'));
+            if (!isNaN(id)) domCache.set(id, el);
+          });
+        }
       }
 
       const camPos = camera.position;
 
-      cache.forEach((obj, id) => {
-        const interp = hasKeyframes ? interpLerp(prev, curr, id, t) : null;
-        const pos = interp ?? labelPosRef.current.get(id);
-        if (!pos) { obj.visible = false; return; }
+      domCache.forEach((el, id) => {
+        const pos = labelPosRef.current.get(id);
+        if (!pos) { el.style.visibility = 'hidden'; return; }
 
         polar2Cartesian(pos.lat, pos.lng, pos.alt + 0.015, satVec);
-        obj.position.copy(satVec);
 
         // Occlusion: hide labels behind the globe
         ray.origin.copy(camPos);
-        ray.direction.copy(satVec).sub(camPos).normalize();
+        ray.direction.subVectors(satVec, camPos).normalize();
         const hit = ray.intersectSphere(sphere, hitPoint);
-        obj.visible = !(hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5);
+        const occluded = hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5;
 
-        // Scale font by distance to camera
-        if (obj.visible) {
-          const el = obj.element as HTMLElement | undefined;
-          if (el) {
-            const distToSat = camPos.distanceTo(satVec);
-            const baseFontSize = el.style.fontWeight === '600' ? 11 : 9;
-            const scale = Math.max(0.4, Math.min(2.0, 200 / distToSat));
-            el.style.fontSize = `${Math.round(baseFontSize * scale)}px`;
-          }
+        if (occluded) {
+          el.style.visibility = 'hidden';
+        } else {
+          el.style.visibility = 'visible';
+          // Scale font by distance to camera
+          const distToSat = camPos.distanceTo(satVec);
+          const baseFontSize = el.style.fontWeight === '600' ? 11 : 9;
+          const scale = Math.max(0.4, Math.min(2.0, 200 / distToSat));
+          el.style.fontSize = `${Math.round(baseFontSize * scale)}px`;
         }
       });
     }
