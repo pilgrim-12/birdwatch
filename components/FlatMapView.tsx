@@ -48,6 +48,15 @@ function screenToLatLng(
   };
 }
 
+/** Haversine great-circle distance (returns radians) */
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function FlatMapView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,6 +102,7 @@ export default function FlatMapView() {
   const showLabels = useSatelliteStore((s) => s.showLabels);
   const showBeams = useSatelliteStore((s) => s.showBeams);
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
+  const showLookLine = useSatelliteStore((s) => s.showLookLine);
 
   // Resize observer
   useEffect(() => {
@@ -571,6 +581,53 @@ export default function FlatMapView() {
         }
       }
 
+      // --- CPA look-line: observer → closest point on selected orbit ---
+      if (state.showLookLine && state.observer && state.selectedSatId !== null) {
+        const selOrbit = orbitPaths.find((o) => o.id === state.selectedSatId);
+        if (selOrbit && selOrbit.points.length > 0) {
+          let minDist = Infinity;
+          let closest = selOrbit.points[0];
+          for (const pt of selOrbit.points) {
+            const d = haversineDistance(state.observer.lat, state.observer.lng, pt.lat, pt.lng);
+            if (d < minDist) { minDist = d; closest = pt; }
+          }
+
+          const obsXY = latLngToXY(state.observer.lat, state.observer.lng, w, h, zoom, ox, oy);
+          const cpaXY = latLngToXY(closest.lat, closest.lng, w, h, zoom, ox, oy);
+
+          // Dashed orange line
+          ctx.strokeStyle = '#ff9800';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.moveTo(obsXY.x, obsXY.y);
+          ctx.lineTo(cpaXY.x, cpaXY.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // CPA point marker
+          ctx.fillStyle = '#ff9800';
+          ctx.beginPath();
+          ctx.arc(cpaXY.x, cpaXY.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Distance label
+          const distKm = Math.round(minDist * 6371);
+          const midX = (obsXY.x + cpaXY.x) / 2;
+          const midY = (obsXY.y + cpaXY.y) / 2;
+          ctx.font = 'bold 10px system-ui, sans-serif';
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          const label = `${distKm} km`;
+          const tw = ctx.measureText(label).width;
+          ctx.fillRect(midX - tw / 2 - 4, midY - 7, tw + 8, 14);
+          ctx.fillStyle = '#ff9800';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, midX, midY);
+          ctx.textAlign = 'left';
+        }
+      }
+
       // --- Observer marker (pulsating rings like 3D globe) ---
       if (state.observer) {
         const { x, y } = latLngToXY(state.observer.lat, state.observer.lng, w, h, zoom, ox, oy);
@@ -614,7 +671,7 @@ export default function FlatMapView() {
 
     draw();
     return () => cancelAnimationFrame(raf);
-  }, [dimensions, imgLoaded, satellites, positions, massPositions, selectedSatId, observer, showTrajectories, showLabels, showBeams, beamOpacity, orbitPaths, nightMode]);
+  }, [dimensions, imgLoaded, satellites, positions, massPositions, selectedSatId, observer, showTrajectories, showLabels, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative z-0 bg-[#0a1628]">
