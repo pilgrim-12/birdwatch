@@ -532,21 +532,38 @@ export default function FlatMapView() {
         if (!sat) return;
         const color = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
         const isSelected = id === state.selectedSatId;
+        const isStation = sat.group === 'stations';
         const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
 
         // Skip dots outside viewport (with margin)
         if (x < -12 || x > w + 12 || y < -12 || y > h + 12) return;
 
         ctx.fillStyle = isSelected ? '#ffffff' : color;
-        ctx.beginPath();
-        ctx.arc(x, y, isSelected ? 6 : 3.5, 0, Math.PI * 2);
-        ctx.fill();
+
+        if (isStation) {
+          // Station: diamond shape, larger
+          const r = isSelected ? 8 : 5;
+          ctx.beginPath();
+          ctx.moveTo(x, y - r);
+          ctx.lineTo(x + r, y);
+          ctx.lineTo(x, y + r);
+          ctx.lineTo(x - r, y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = isSelected ? color : 'rgba(255,255,255,0.5)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(x, y, isSelected ? 6 : 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         if (isSelected) {
           ctx.strokeStyle = color;
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.arc(x, y, 10, 0, Math.PI * 2);
+          ctx.arc(x, y, isStation ? 14 : 10, 0, Math.PI * 2);
           ctx.stroke();
         }
       });

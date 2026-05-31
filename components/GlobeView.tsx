@@ -517,6 +517,51 @@ export default function GlobeView() {
     return group;
   }, [getMaterial]);
 
+  /** Space station model: long truss with 4 panel pairs + central modules */
+  const createStationModel = useCallback((color: string | number, selected: boolean) => {
+    const group = new THREE.Group();
+    const s = selected ? 2.0 : 1.0; // scale factor
+    const bodyMat = getMaterial(color);
+    const pMat = selected ? selectedPanelMatRef.current : panelMatRef.current;
+    const radiatorMat = getMaterial(0xcccccc);
+
+    // Central module cluster (3 connected modules)
+    const mainModule = new THREE.Mesh(new THREE.CylinderGeometry(0.5 * s, 0.5 * s, 1.8 * s, 8), bodyMat);
+    mainModule.rotation.z = Math.PI / 2;
+    group.add(mainModule);
+
+    const moduleL = new THREE.Mesh(new THREE.CylinderGeometry(0.35 * s, 0.35 * s, 1.2 * s, 8), bodyMat);
+    moduleL.rotation.z = Math.PI / 2;
+    moduleL.position.y = 0.6 * s;
+    group.add(moduleL);
+
+    const moduleR = new THREE.Mesh(new THREE.CylinderGeometry(0.35 * s, 0.35 * s, 1.2 * s, 8), bodyMat);
+    moduleR.rotation.z = Math.PI / 2;
+    moduleR.position.y = -0.6 * s;
+    group.add(moduleR);
+
+    // Truss (long horizontal beam)
+    const truss = new THREE.Mesh(new THREE.BoxGeometry(8.0 * s, 0.15 * s, 0.15 * s), radiatorMat);
+    group.add(truss);
+
+    // 4 pairs of solar panels along the truss
+    const panelPositions = [-3.2, -1.6, 1.6, 3.2];
+    for (const px of panelPositions) {
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(0.15 * s, 0.05 * s, 2.0 * s), pMat);
+      panel.position.set(px * s, 0.1 * s, 0);
+      group.add(panel);
+    }
+
+    // Radiator panels (smaller, white, between panel pairs)
+    for (const rx of [-2.4, 2.4]) {
+      const radiator = new THREE.Mesh(new THREE.BoxGeometry(0.8 * s, 0.03 * s, 0.6 * s), radiatorMat);
+      radiator.position.set(rx * s, -0.15 * s, 0);
+      group.add(radiator);
+    }
+
+    return group;
+  }, [getMaterial]);
+
   const starlinkMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const dummyObj = useRef(new THREE.Object3D());
 
@@ -601,7 +646,9 @@ export default function GlobeView() {
           objectLabel="name"
           objectThreeObject={(d: object) => {
             const point = d as PointData;
-            return createSatelliteModel(point.selected ? 0xffffff : point.color, point.selected);
+            const c = point.selected ? 0xffffff : point.color;
+            if (point.group === 'stations') return createStationModel(c, point.selected);
+            return createSatelliteModel(c, point.selected);
           }}
           onObjectClick={handlePointClick}
           // HTML tooltip label for selected satellite
