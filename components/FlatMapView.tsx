@@ -583,11 +583,18 @@ export default function FlatMapView() {
 
       // --- CPA look-line: observer → closest point on selected orbit ---
       if (state.showLookLine && state.observer && state.selectedSatId !== null) {
-        const selOrbit = orbitPaths.find((o) => o.id === state.selectedSatId);
-        if (selOrbit && selOrbit.points.length > 0) {
+        // Try normal orbit paths first, then compute on-the-fly for mass satellites
+        let cpaPoints = orbitPaths.find((o) => o.id === state.selectedSatId)?.points;
+        if (!cpaPoints) {
+          const massSat = state.massSatellites.find((s) => s.id === state.selectedSatId);
+          if (massSat) {
+            cpaPoints = computeOrbitPath(massSat.tle, new Date(), 60);
+          }
+        }
+        if (cpaPoints && cpaPoints.length > 0) {
           let minDist = Infinity;
-          let closest = selOrbit.points[0];
-          for (const pt of selOrbit.points) {
+          let closest = cpaPoints[0];
+          for (const pt of cpaPoints) {
             const d = haversineDistance(state.observer.lat, state.observer.lng, pt.lat, pt.lng);
             if (d < minDist) { minDist = d; closest = pt; }
           }
