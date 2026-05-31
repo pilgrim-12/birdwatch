@@ -175,15 +175,11 @@ export default function GlobeView() {
 
       const camPos = camera.position;
 
-      const camDist = camPos.length(); // camera distance from globe center
-
       cache.forEach((obj, id) => {
-        // Use interpolated position for labels too (keeps labels attached to models)
         const interp = hasKeyframes ? interpLerp(prev, curr, id, t) : null;
         const pos = interp ?? labelPosRef.current.get(id);
         if (!pos) { obj.visible = false; return; }
 
-        // Move the label to interpolated position (with vertical offset)
         polar2Cartesian(pos.lat, pos.lng, pos.alt + 0.015, satVec);
         obj.position.copy(satVec);
 
@@ -191,19 +187,16 @@ export default function GlobeView() {
         ray.origin.copy(camPos);
         ray.direction.copy(satVec).sub(camPos).normalize();
         const hit = ray.intersectSphere(sphere, hitPoint);
-        const occluded = hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5;
-        obj.visible = !occluded;
+        obj.visible = !(hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5);
 
-        // Scale label based on camera distance to satellite
-        if (!occluded) {
-          const distToSat = camPos.distanceTo(satVec);
-          // Reference: at distance ~2 earth-radii → scale 1.0
-          // Close (dist ~1.2) → scale ~1.6, far (dist ~8) → scale ~0.3
-          const scale = Math.max(0.25, Math.min(2.0, 2.0 / distToSat));
+        // Scale font by distance to camera
+        if (obj.visible) {
           const el = obj.element as HTMLElement | undefined;
           if (el) {
-            const baseTranslateY = el.style.fontWeight === '600' ? '-18px' : '-14px';
-            el.style.transform = `translateY(${baseTranslateY}) scale(${scale.toFixed(2)})`;
+            const distToSat = camPos.distanceTo(satVec);
+            const baseFontSize = el.style.fontWeight === '600' ? 11 : 9;
+            const scale = Math.max(0.4, Math.min(2.0, 200 / distToSat));
+            el.style.fontSize = `${Math.round(baseFontSize * scale)}px`;
           }
         }
       });
