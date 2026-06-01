@@ -82,7 +82,7 @@ export const GROUP_COLORS: Record<SatelliteGroup, string> = {
   beidou: '#ff7043', // deep orange
   iridium: '#26a69a', // teal
   military: '#8d6e63', // brown
-  starlink: '#78909c', // blue-grey
+  starlink: '#90caf9', // light blue
   oneweb: '#7e57c2', // deep purple
   globalstar: '#29b6f6', // light blue
   orbcomm: '#9ccc65', // light green

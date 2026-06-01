@@ -645,11 +645,11 @@ export default function GlobeView() {
   const dummyObj = useRef(new THREE.Object3D());
 
   const createMassMesh = useCallback(() => {
-    const geo = new THREE.BoxGeometry(0.8, 0.15, 0.4); // flat satellite shape for performance
+    const geo = new THREE.BoxGeometry(1.0, 0.2, 0.5); // flat satellite shape for performance
     const mat = new THREE.MeshBasicMaterial({
       color: GROUP_COLORS.starlink,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.9,
     });
     const mesh = new THREE.InstancedMesh(geo, mat, 11000);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

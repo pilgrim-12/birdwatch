@@ -515,8 +515,8 @@ export default function FlatMapView() {
       // --- Mass satellite dots ---
       const massColor = GROUP_COLORS.starlink;
       ctx.fillStyle = massColor;
-      ctx.globalAlpha = 0.6;
-      const dotSize = zoom > 5 ? 3 : 2;
+      ctx.globalAlpha = 0.85;
+      const dotSize = zoom > 5 ? 4 : 3;
       state.massPositions.forEach((pos) => {
         const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
         // Skip dots outside viewport
