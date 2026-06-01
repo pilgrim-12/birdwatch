@@ -27,7 +27,7 @@ interface PointData {
 
 interface CombinedPath {
   pathId: string;
-  type: 'orbit' | 'beam' | 'look-line';
+  type: 'orbit' | 'beam' | 'look-line' | 'ground-line';
   points: { lat: number; lng: number; alt: number }[];
   selected: boolean;
   color: string;
@@ -58,6 +58,7 @@ export default function GlobeView() {
   const showLabels = useSatelliteStore((s) => s.showLabels);
   const showBeams = useSatelliteStore((s) => s.showBeams);
   const showLookLine = useSatelliteStore((s) => s.showLookLine);
+  const showGroundLine = useSatelliteStore((s) => s.showGroundLine);
   const nightMode = useSatelliteStore((s) => s.nightMode);
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
   const beamWidth = useSatelliteStore((s) => s.beamWidth);
@@ -372,6 +373,50 @@ export default function GlobeView() {
     };
   }, [positions]);
 
+  // CPA info: closest point on selected orbit to observer + distance
+  const cpaInfo = useMemo(() => {
+    if (!showLookLine || !observer || selectedSatId === null) return null;
+    const selectedOrbit = orbitPathsRaw.find((o) => o.id === selectedSatId);
+    if (!selectedOrbit || selectedOrbit.points.length === 0) return null;
+
+    let minDist = Infinity;
+    let closest = selectedOrbit.points[0];
+    for (const pt of selectedOrbit.points) {
+      const d = haversineDistance(observer.lat, observer.lng, pt.lat, pt.lng);
+      if (d < minDist) { minDist = d; closest = pt; }
+    }
+    const distKm = Math.round(minDist * EARTH_RADIUS_KM);
+    return {
+      closest,
+      distKm,
+      midLat: (observer.lat + closest.lat) / 2,
+      midLng: (observer.lng + closest.lng) / 2,
+      midAlt: closest.alt / 2,
+    };
+  }, [showLookLine, observer, selectedSatId, orbitPathsRaw]);
+
+  // Ground-line info: observer → selected satellite current position + slant range
+  const groundLineInfo = useMemo(() => {
+    if (!showGroundLine || !observer || selectedSatId === null) return null;
+    const pos = positions.get(selectedSatId) ?? massPositions.get(selectedSatId);
+    if (!pos) return null;
+
+    const satAlt = pos.alt / EARTH_RADIUS_KM;
+    const angDist = haversineDistance(observer.lat, observer.lng, pos.lat, pos.lng);
+    const R = EARTH_RADIUS_KM;
+    const rSat = R + pos.alt;
+    const slantKm = Math.round(Math.sqrt(R * R + rSat * rSat - 2 * R * rSat * Math.cos(angDist)));
+    return {
+      lat: pos.lat,
+      lng: pos.lng,
+      alt: satAlt,
+      slantKm,
+      midLat: (observer.lat + pos.lat) / 2,
+      midLng: (observer.lng + pos.lng) / 2,
+      midAlt: satAlt / 2,
+    };
+  }, [showGroundLine, observer, selectedSatId, positions, massPositions]);
+
   // Combined paths: orbit trajectories + scan beams (normal satellites only, not mass)
   const allPaths: CombinedPath[] = useMemo(() => {
     const paths: CombinedPath[] = [];
@@ -406,45 +451,79 @@ export default function GlobeView() {
       }
     }
 
-    // Look-line: perpendicular from observer to closest point on selected satellite's orbit
-    if (showLookLine && observer && selectedSatId !== null) {
-      const selectedOrbit = orbitPathsRaw.find((o) => o.id === selectedSatId);
-      if (selectedOrbit && selectedOrbit.points.length > 0) {
-        let minDist = Infinity;
-        let closest = selectedOrbit.points[0];
-        for (const pt of selectedOrbit.points) {
-          const d = haversineDistance(observer.lat, observer.lng, pt.lat, pt.lng);
-          if (d < minDist) { minDist = d; closest = pt; }
-        }
-        paths.push({
-          pathId: 'look-line',
-          type: 'look-line',
-          points: [
-            { lat: observer.lat, lng: observer.lng, alt: 0 },
-            { lat: closest.lat, lng: closest.lng, alt: closest.alt },
-          ],
-          selected: true,
-          color: '#ff9800',
-        });
-      }
+    // Look-line: observer → closest point on selected orbit
+    if (cpaInfo && observer) {
+      paths.push({
+        pathId: 'look-line',
+        type: 'look-line',
+        points: [
+          { lat: observer.lat, lng: observer.lng, alt: 0 },
+          { lat: cpaInfo.closest.lat, lng: cpaInfo.closest.lng, alt: cpaInfo.closest.alt },
+        ],
+        selected: true,
+        color: '#ff9800',
+      });
+    }
+
+    // Ground-line: observer → selected satellite current position
+    if (groundLineInfo && observer) {
+      paths.push({
+        pathId: 'ground-line',
+        type: 'ground-line',
+        points: [
+          { lat: observer.lat, lng: observer.lng, alt: 0 },
+          { lat: groundLineInfo.lat, lng: groundLineInfo.lng, alt: groundLineInfo.alt },
+        ],
+        selected: true,
+        color: '#4fc3f7',
+      });
     }
 
     return paths;
-  }, [showTrajectories, showBeams, showLookLine, orbitPathsRaw, selectedSatId, pointsData, observer]);
+  }, [showTrajectories, showBeams, orbitPathsRaw, selectedSatId, pointsData, observer, cpaInfo, groundLineInfo]);
 
-  // HTML labels for satellites on the globe
+  // HTML labels for satellites on the globe (+ CPA / ground-line distance labels)
   const htmlLabelsData = useMemo(() => {
-    if (!showLabels) return [];
-    return pointsData.map((p) => ({
-      id: p.id,
-      lat: p.lat,
-      lng: p.lng,
-      alt: p.alt + 0.015,
-      name: p.name,
-      color: p.color,
-      selected: p.id === selectedSatId,
-    }));
-  }, [showLabels, selectedSatId, pointsData]);
+    const labels = showLabels
+      ? pointsData.map((p) => ({
+          id: p.id,
+          lat: p.lat,
+          lng: p.lng,
+          alt: p.alt + 0.015,
+          name: p.name,
+          color: p.color,
+          selected: p.id === selectedSatId,
+        }))
+      : [];
+
+    // CPA distance label at midpoint of look-line
+    if (cpaInfo) {
+      labels.push({
+        id: -1,
+        lat: cpaInfo.midLat,
+        lng: cpaInfo.midLng,
+        alt: cpaInfo.midAlt + 0.01,
+        name: `${cpaInfo.distKm} km`,
+        color: '#ff9800',
+        selected: false,
+      });
+    }
+
+    // Ground-line distance label at midpoint
+    if (groundLineInfo) {
+      labels.push({
+        id: -2,
+        lat: groundLineInfo.midLat,
+        lng: groundLineInfo.midLng,
+        alt: groundLineInfo.midAlt + 0.01,
+        name: `${groundLineInfo.slantKm} km`,
+        color: '#4fc3f7',
+        selected: false,
+      });
+    }
+
+    return labels;
+  }, [showLabels, selectedSatId, pointsData, cpaInfo, groundLineInfo]);
 
   // Sync label positions ref for occlusion check
   useEffect(() => {
@@ -661,9 +740,14 @@ export default function GlobeView() {
             const el = document.createElement('div');
             el.textContent = data.name;
             el.setAttribute('data-sat-id', String(data.id));
-            el.style.cssText = data.selected
-              ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;transition:opacity 0.15s;`
-              : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none;transform:translateY(-14px);transition:opacity 0.15s;`;
+            // Distance labels (CPA id=-1, ground-line id=-2)
+            if (data.id < 0) {
+              el.style.cssText = `color:#fff;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;border:1px solid ${data.color};transition:opacity 0.15s;`;
+            } else {
+              el.style.cssText = data.selected
+                ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;transition:opacity 0.15s;`
+                : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none;transform:translateY(-14px);transition:opacity 0.15s;`;
+            }
             labelElsRef.current.set(data.id, el);
             return el;
           }}
@@ -678,7 +762,7 @@ export default function GlobeView() {
           pathColor={(d: object) => {
             const path = d as CombinedPath;
             const hex = path.color;
-            if (path.type === 'look-line') return `${hex}FF`;
+            if (path.type === 'look-line' || path.type === 'ground-line') return `${hex}FF`;
             if (path.type === 'beam') {
               const selectedAlpha = Math.round((beamOpacity / 100) * 255).toString(16).padStart(2, '0');
               const normalAlpha = Math.round((beamOpacity / 100) * 180).toString(16).padStart(2, '0');
@@ -688,25 +772,25 @@ export default function GlobeView() {
           }}
           pathStroke={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'look-line') return 1.5;
+            if (path.type === 'look-line' || path.type === 'ground-line') return 1.5;
             if (path.type === 'beam') return path.selected ? beamWidth * 1.5 : beamWidth * 0.5;
             return path.selected ? 2 : 0.8;
           }}
           pathDashLength={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'look-line') return 0;
+            if (path.type === 'look-line' || path.type === 'ground-line') return 0;
             if (path.type === 'beam') return 0.3;
             return path.selected ? 0 : 1;
           }}
           pathDashGap={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'look-line') return 0;
+            if (path.type === 'look-line' || path.type === 'ground-line') return 0;
             if (path.type === 'beam') return 0.7;
             return path.selected ? 0 : 0.5;
           }}
           pathDashAnimateTime={(d: object) => {
             const path = d as CombinedPath;
-            if (path.type === 'look-line') return 0;
+            if (path.type === 'look-line' || path.type === 'ground-line') return 0;
             if (path.type === 'beam') {
               const speedMap = [0, 4000, 2000, 800];
               return speedMap[beamSpeed] ?? 2000;

@@ -639,12 +639,57 @@ export default function FlatMapView() {
           const distKm = Math.round(minDist * 6371);
           const midX = (obsXY.x + cpaXY.x) / 2;
           const midY = (obsXY.y + cpaXY.y) / 2;
-          ctx.font = 'bold 10px system-ui, sans-serif';
-          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.font = 'bold 12px system-ui, sans-serif';
           const label = `${distKm} km`;
           const tw = ctx.measureText(label).width;
-          ctx.fillRect(midX - tw / 2 - 4, midY - 7, tw + 8, 14);
-          ctx.fillStyle = '#ff9800';
+          ctx.fillStyle = 'rgba(0,0,0,0.85)';
+          ctx.fillRect(midX - tw / 2 - 6, midY - 9, tw + 12, 18);
+          ctx.strokeStyle = '#ff9800';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(midX - tw / 2 - 6, midY - 9, tw + 12, 18);
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, midX, midY);
+          ctx.textAlign = 'left';
+        }
+      }
+
+      // --- Ground-to-satellite line: observer → selected satellite current position ---
+      if (state.showGroundLine && state.observer && state.selectedSatId !== null) {
+        const satPos = state.positions.get(state.selectedSatId) ?? state.massPositions.get(state.selectedSatId);
+        if (satPos) {
+          const obsXY = latLngToXY(state.observer.lat, state.observer.lng, w, h, zoom, ox, oy);
+          const satXY = latLngToXY(satPos.lat, satPos.lng, w, h, zoom, ox, oy);
+
+          // Dashed cyan line
+          ctx.strokeStyle = '#4fc3f7';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([8, 4]);
+          ctx.beginPath();
+          ctx.moveTo(obsXY.x, obsXY.y);
+          ctx.lineTo(satXY.x, satXY.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Slant range distance (3D straight-line distance)
+          const angDist = haversineDistance(state.observer.lat, state.observer.lng, satPos.lat, satPos.lng);
+          const R = 6371;
+          const rObs = R;
+          const rSat = R + satPos.alt;
+          const slantKm = Math.round(Math.sqrt(rObs * rObs + rSat * rSat - 2 * rObs * rSat * Math.cos(angDist)));
+
+          const midX = (obsXY.x + satXY.x) / 2;
+          const midY = (obsXY.y + satXY.y) / 2;
+          ctx.font = 'bold 12px system-ui, sans-serif';
+          const label = `${slantKm} km`;
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = 'rgba(0,0,0,0.85)';
+          ctx.fillRect(midX - tw / 2 - 6, midY - 9, tw + 12, 18);
+          ctx.strokeStyle = '#4fc3f7';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(midX - tw / 2 - 6, midY - 9, tw + 12, 18);
+          ctx.fillStyle = '#ffffff';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(label, midX, midY);
