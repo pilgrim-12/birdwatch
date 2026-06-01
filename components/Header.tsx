@@ -116,7 +116,7 @@ export default function Header() {
               About
             </button>
             {aboutOpen && (
-              <div className="absolute left-0 top-full mt-1 w-[320px] bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 p-3 space-y-2">
+              <div className="absolute left-0 top-full mt-1 w-[370px] bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5 text-blue-400 shrink-0">
                     <polygon points="12,23 1,3 23,3" fill="currentColor" />
@@ -124,19 +124,32 @@ export default function Header() {
                     <path d="M11,13 L12,17 L13,13 Z" fill="#111827" />
                   </svg>
                   <span className="text-sm font-semibold text-white">BirdWatch</span>
+                  <span className="text-[10px] text-gray-500 ml-auto">Real-Time Satellite Tracker</span>
                 </div>
                 <p className="text-[11px] text-gray-300 leading-relaxed">
-                  Real-time satellite tracker on a 3D globe. Built for amateur radio operators and space enthusiasts.
-                  Track 30+ satellite constellations with live orbital positions, pass predictions, and radio frequency data.
+                  Real-time satellite tracking platform with interactive 3D globe and 2D flat map visualization.
+                  Designed for amateur radio operators, space enthusiasts, and satellite communication professionals.
                 </p>
-                <div className="text-[11px] text-gray-400 pt-1 border-t border-gray-700/50 space-y-1">
+                <div className="text-[10px] text-gray-400 space-y-1.5 pt-1 border-t border-gray-700/50">
+                  <p className="text-gray-500 uppercase tracking-wider font-medium">Features</p>
+                  <ul className="space-y-0.5 ml-2">
+                    <li><span className="text-gray-500 mr-1">&bull;</span>3D Globe &amp; 2D Map views with day/night textures</li>
+                    <li><span className="text-gray-500 mr-1">&bull;</span>30+ satellite constellations &mdash; Starlink, ISS, NOAA, Iridium, and more</li>
+                    <li><span className="text-gray-500 mr-1">&bull;</span>Live orbital positions via SGP4 propagation</li>
+                    <li><span className="text-gray-500 mr-1">&bull;</span>Pass predictions with elevation, azimuth &amp; visibility</li>
+                    <li><span className="text-gray-500 mr-1">&bull;</span>CPA (Closest Point of Approach) &amp; LOS (Line of Sight) analysis</li>
+                    <li><span className="text-gray-500 mr-1">&bull;</span>Radio frequency data from SatNOGS database</li>
+                    <li><span className="text-gray-500 mr-1">&bull;</span>Antenna pointing guide for ground station operators</li>
+                  </ul>
+                </div>
+                <div className="text-[10px] text-gray-400 pt-1 border-t border-gray-700/50 space-y-1">
+                  <p><span className="text-gray-500">Data sources:</span> CelesTrak TLE &bull; SatNOGS DB</p>
                   <p>
-                    Questions or suggestions? Contact{' '}
+                    Contact{' '}
                     <a href="mailto:yurachernov12@gmail.com" className="text-cyan-400 hover:underline">
                       yurachernov12@gmail.com
                     </a>
                   </p>
-                  <p className="text-gray-500">Data: CelesTrak TLE + SatNOGS DB</p>
                 </div>
               </div>
             )}
