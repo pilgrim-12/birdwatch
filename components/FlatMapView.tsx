@@ -93,6 +93,7 @@ export default function FlatMapView() {
   // Store selectors (stable references via Zustand)
   const satellites = useSatelliteStore((s) => s.satellites);
   const positions = useSatelliteStore((s) => s.positions);
+  const massSatellites = useSatelliteStore((s) => s.massSatellites);
   const massPositions = useSatelliteStore((s) => s.massPositions);
   const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
   const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
@@ -129,14 +130,29 @@ export default function FlatMapView() {
   }, []);
 
   const orbitPaths = useMemo(() => {
-    return satellites.map((sat) => ({
+    const results = satellites.map((sat) => ({
       id: sat.id,
       group: sat.group,
       color: GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff',
       points: computeOrbitPath(sat.tle, new Date(), sat.id === selectedSatId ? 90 : 60),
     }));
+
+    // Include selected mass satellite orbit (Starlink / OneWeb / Active)
+    if (selectedSatId !== null && !results.some((r) => r.id === selectedSatId)) {
+      const massSat = massSatellites.find((s) => s.id === selectedSatId);
+      if (massSat) {
+        results.push({
+          id: massSat.id,
+          group: massSat.group,
+          color: GROUP_COLORS[massSat.group as SatelliteGroup] || '#00d4ff',
+          points: computeOrbitPath(massSat.tle, new Date(), 90),
+        });
+      }
+    }
+
+    return results;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [satellites, orbitEpoch, selectedSatId]);
+  }, [satellites, massSatellites, orbitEpoch, selectedSatId]);
 
   // Satellite click (called from mouseUp when not dragging)
   const selectSatelliteRef = useRef(selectSatellite);

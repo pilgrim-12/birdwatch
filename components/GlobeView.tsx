@@ -66,6 +66,7 @@ export default function GlobeView() {
   const cameraFollow = useSatelliteStore((s) => s.cameraFollow);
 
   // Mass group (Starlink) state
+  const massSatellites = useSatelliteStore((s) => s.massSatellites);
   const massPositions = useSatelliteStore((s) => s.massPositions);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -287,7 +288,7 @@ export default function GlobeView() {
     }
     const cache = orbitCacheRef.current.data;
 
-    return satellites.map((sat) => {
+    const results = satellites.map((sat) => {
       const cacheKey = sat.tle.line1 + sat.tle.line2;
       // Use fewer steps for non-selected satellites (60 vs 90)
       const steps = sat.id === selectedSatId ? 90 : 60;
@@ -303,8 +304,24 @@ export default function GlobeView() {
         points,
       };
     });
+
+    // Include selected mass satellite orbit (Starlink / OneWeb / Active)
+    if (selectedSatId !== null && !results.some((r) => r.id === selectedSatId)) {
+      const massSat = massSatellites.find((s) => s.id === selectedSatId);
+      if (massSat) {
+        const points = computeOrbitPath(massSat.tle, new Date(), 90);
+        results.push({
+          id: massSat.id,
+          group: massSat.group,
+          color: GROUP_COLORS[massSat.group as SatelliteGroup] || '#00d4ff',
+          points,
+        });
+      }
+    }
+
+    return results;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [satellites, orbitEpoch, selectedSatId]);
+  }, [satellites, massSatellites, orbitEpoch, selectedSatId]);
 
   // Points data (normal satellites only) — uses stable object references so
   // three-globe reuses existing Three.js meshes instead of recreating them.
@@ -694,9 +711,25 @@ export default function GlobeView() {
 
   const handleGlobeClick = useCallback(
     ({ lat, lng }: { lat: number; lng: number }) => {
-      setObserver({ lat, lng, alt: 0 });
+      // Check if click is near a mass satellite — select it instead of setting observer
+      let bestId: number | null = null;
+      let bestDist = 3; // degrees tolerance
+      massPositions.forEach((pos, id) => {
+        const dLat = pos.lat - lat;
+        const dLng = pos.lng - lng;
+        const d = Math.sqrt(dLat * dLat + dLng * dLng);
+        if (d < bestDist) {
+          bestDist = d;
+          bestId = id;
+        }
+      });
+      if (bestId !== null) {
+        selectSatellite(bestId);
+      } else {
+        setObserver({ lat, lng, alt: 0 });
+      }
     },
-    [setObserver],
+    [setObserver, selectSatellite, massPositions],
   );
 
   return (
