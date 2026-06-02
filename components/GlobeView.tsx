@@ -7,8 +7,9 @@ import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { computeOrbitPath } from '@/lib/orbit';
 import { EARTH_RADIUS_KM, GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
-import { polar2Cartesian, sunPosition3D, GLOBE_RADIUS } from '@/lib/globe-math';
+import { polar2Cartesian, sunPosition3D, moonPosition3D, GLOBE_RADIUS } from '@/lib/globe-math';
 import { getSunLatLng } from '@/lib/sun';
+import { getMoonLatLng } from '@/lib/moon';
 import { useCameraMode } from '@/hooks/useCameraMode';
 import { CameraControls } from './CameraControls';
 
@@ -104,6 +105,11 @@ export default function GlobeView() {
   const initSun = getSunLatLng(new Date());
   const sunPosRef = useRef(sunPosition3D(initSun.lat, initSun.lng));
 
+  // Moon visual ref — initialize with real moon position
+  const moonMeshRef = useRef<THREE.Mesh | null>(null);
+  const initMoon = getMoonLatLng(new Date());
+  const moonPosRef = useRef(moonPosition3D(initMoon.lat, initMoon.lng));
+
   // Setup sun-based lighting: replace default lights with sun-positioned DirectionalLight
   useEffect(() => {
     const timer = setInterval(() => {
@@ -150,19 +156,34 @@ export default function GlobeView() {
       sunMesh.position.copy(sunPos);
       scene.add(sunMesh);
       sunMeshRef.current = sunMesh;
+
+      // Add moon visual sphere
+      const moonGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.06, 16, 16);
+      const moonMat = new THREE.MeshBasicMaterial({ color: 0xd4d4d4 });
+      const moonMesh = new THREE.Mesh(moonGeo, moonMat);
+      moonMesh.position.copy(moonPosRef.current);
+      scene.add(moonMesh);
+      moonMeshRef.current = moonMesh;
     }, 300);
 
     return () => clearInterval(timer);
   }, []);
 
-  // Update sun position every 60s
+  // Update sun & moon positions every 60s
   useEffect(() => {
     const interval = setInterval(() => {
-      const { lat, lng } = getSunLatLng(new Date());
+      const now = new Date();
+      // Sun
+      const { lat, lng } = getSunLatLng(now);
       const pos = sunPosition3D(lat, lng);
       sunPosRef.current.copy(pos);
       if (sunLightRef.current) sunLightRef.current.position.copy(pos);
       if (sunMeshRef.current) sunMeshRef.current.position.copy(pos);
+      // Moon
+      const moonLL = getMoonLatLng(now);
+      const moonPos = moonPosition3D(moonLL.lat, moonLL.lng);
+      moonPosRef.current.copy(moonPos);
+      if (moonMeshRef.current) moonMeshRef.current.position.copy(moonPos);
     }, 60_000);
     return () => clearInterval(interval);
   }, []);

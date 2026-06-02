@@ -18,3 +18,8 @@ export function polar2Cartesian(lat: number, lng: number, relAlt: number, out?: 
 export function sunPosition3D(lat: number, lng: number): THREE.Vector3 {
   return polar2Cartesian(lat, lng, 8); // 8× Earth radius — visible within camera frustum
 }
+
+/** Moon position in three-globe's 3D coordinate system */
+export function moonPosition3D(lat: number, lng: number): THREE.Vector3 {
+  return polar2Cartesian(lat, lng, 3); // 3× Earth radius — closer than sun
+}
