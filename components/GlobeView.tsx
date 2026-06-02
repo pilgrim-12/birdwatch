@@ -95,10 +95,11 @@ export default function GlobeView() {
     interval: number;
   }>({ prev: new Map(), curr: new Map(), time: 0, interval: 250 });
 
-  // Sun lighting + visual refs
+  // Sun lighting + visual refs — initialize with real sun position
   const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
   const sunMeshRef = useRef<THREE.Mesh | null>(null);
-  const sunPosRef = useRef(new THREE.Vector3());
+  const initSun = getSunLatLng(new Date());
+  const sunPosRef = useRef(sunPosition3D(initSun.lat, initSun.lng));
 
   // Setup sun-based lighting: replace default lights with sun-positioned DirectionalLight
   useEffect(() => {
@@ -111,34 +112,42 @@ export default function GlobeView() {
       if (!scene) return;
       clearInterval(timer);
 
-      // Remove default lights from react-globe.gl
-      const defaultLights = scene.children.filter(
-        (c: THREE.Object3D) => c instanceof THREE.DirectionalLight || c instanceof THREE.AmbientLight,
-      );
-      for (const l of defaultLights) scene.remove(l);
+      const sunPos = sunPosRef.current;
 
-      // Add ambient light (dimmer for day/night contrast)
-      const ambient = new THREE.AmbientLight(0x404050, Math.PI * 0.5);
-      scene.add(ambient);
-
-      // Add sun DirectionalLight
-      const sunLight = new THREE.DirectionalLight(0xffffff, Math.PI * 0.8);
-      scene.add(sunLight);
+      // Replace default lights via globe.gl lights() API
+      const ambient = new THREE.AmbientLight(0x556070, Math.PI * 0.6);
+      const sunLight = new THREE.DirectionalLight(0xffffff, Math.PI * 0.9);
+      sunLight.position.copy(sunPos);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (globe as any).lights([ambient, sunLight]);
+      } catch {
+        // Fallback: manually replace in scene
+        const old = scene.children.filter(
+          (c: THREE.Object3D) => c instanceof THREE.DirectionalLight || c instanceof THREE.AmbientLight,
+        );
+        for (const l of old) scene.remove(l);
+        scene.add(ambient);
+        scene.add(sunLight);
+      }
       sunLightRef.current = sunLight;
 
-      // Add small sun visual sphere
-      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.5, 16, 16);
+      // Extend camera far plane so the sun sphere is visible
+      try {
+        const cam = globe.camera() as THREE.PerspectiveCamera;
+        if (cam.far < 20000) {
+          cam.far = 20000;
+          cam.updateProjectionMatrix();
+        }
+      } catch { /* camera not ready */ }
+
+      // Add sun visual sphere
+      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.6, 16, 16);
       const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff5e0 });
       const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+      sunMesh.position.copy(sunPos);
       scene.add(sunMesh);
       sunMeshRef.current = sunMesh;
-
-      // Initial position
-      const { lat, lng } = getSunLatLng(new Date());
-      const pos = sunPosition3D(lat, lng);
-      sunLight.position.copy(pos);
-      sunMesh.position.copy(pos);
-      sunPosRef.current.copy(pos);
     }, 300);
 
     return () => clearInterval(timer);
