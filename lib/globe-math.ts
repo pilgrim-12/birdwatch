@@ -13,3 +13,8 @@ export function polar2Cartesian(lat: number, lng: number, relAlt: number, out?: 
   if (out) { out.set(x, y, z); return out; }
   return new THREE.Vector3(x, y, z);
 }
+
+/** Sun position in three-globe's 3D coordinate system (far from globe for directional light) */
+export function sunPosition3D(lat: number, lng: number): THREE.Vector3 {
+  return polar2Cartesian(lat, lng, 50); // 50× Earth radius — effectively "infinitely" far
+}

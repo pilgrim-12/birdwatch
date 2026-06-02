@@ -7,7 +7,8 @@ import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { computeOrbitPath } from '@/lib/orbit';
 import { EARTH_RADIUS_KM, GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
-import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
+import { polar2Cartesian, sunPosition3D, GLOBE_RADIUS } from '@/lib/globe-math';
+import { getSunLatLng } from '@/lib/sun';
 import { useCameraMode } from '@/hooks/useCameraMode';
 import { CameraControls } from './CameraControls';
 
@@ -94,12 +95,75 @@ export default function GlobeView() {
     interval: number;
   }>({ prev: new Map(), curr: new Map(), time: 0, interval: 250 });
 
-  // Main 60fps loop: smooth position interpolation + label occlusion
+  // Sun lighting + visual refs
+  const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const sunMeshRef = useRef<THREE.Mesh | null>(null);
+  const sunPosRef = useRef(new THREE.Vector3());
+
+  // Setup sun-based lighting: replace default lights with sun-positioned DirectionalLight
+  useEffect(() => {
+    const globe = globeRef.current;
+    if (!globe) return;
+
+    const timer = setInterval(() => {
+      let scene: THREE.Scene;
+      try { scene = globe.scene(); } catch { return; }
+      if (!scene) return;
+      clearInterval(timer);
+
+      // Remove default lights from react-globe.gl
+      const defaultLights = scene.children.filter(
+        (c: THREE.Object3D) => c instanceof THREE.DirectionalLight || c instanceof THREE.AmbientLight,
+      );
+      for (const l of defaultLights) scene.remove(l);
+
+      // Add ambient light (dimmer for day/night contrast)
+      const ambient = new THREE.AmbientLight(0x404050, Math.PI * 0.5);
+      scene.add(ambient);
+
+      // Add sun DirectionalLight
+      const sunLight = new THREE.DirectionalLight(0xffffff, Math.PI * 0.8);
+      scene.add(sunLight);
+      sunLightRef.current = sunLight;
+
+      // Add small sun visual sphere
+      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.5, 16, 16);
+      const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff5e0 });
+      const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+      scene.add(sunMesh);
+      sunMeshRef.current = sunMesh;
+
+      // Initial position
+      const { lat, lng } = getSunLatLng(new Date());
+      const pos = sunPosition3D(lat, lng);
+      sunLight.position.copy(pos);
+      sunMesh.position.copy(pos);
+      sunPosRef.current.copy(pos);
+    }, 300);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Update sun position every 60s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const { lat, lng } = getSunLatLng(new Date());
+      const pos = sunPosition3D(lat, lng);
+      sunPosRef.current.copy(pos);
+      if (sunLightRef.current) sunLightRef.current.position.copy(pos);
+      if (sunMeshRef.current) sunMeshRef.current.position.copy(pos);
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Main 60fps loop: smooth position interpolation + label occlusion + panel orientation
   useEffect(() => {
     const ray = new THREE.Ray();
     const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), GLOBE_RADIUS);
     const hitPoint = new THREE.Vector3();
     const satVec = new THREE.Vector3();
+    const defaultUp = new THREE.Vector3(0, 1, 0);
+    const toSun = new THREE.Vector3();
     let raf: number;
 
     function interpLerp(
@@ -141,6 +205,10 @@ export default function GlobeView() {
           if (container) {
             polar2Cartesian(interp.lat, interp.lng, interp.alt, satVec);
             container.position.copy(satVec);
+
+            // Orient solar panels toward the sun
+            toSun.copy(sunPosRef.current).sub(satVec).normalize();
+            container.quaternion.setFromUnitVectors(defaultUp, toSun);
           }
         });
       }
@@ -686,11 +754,17 @@ export default function GlobeView() {
 
       let idx = 0;
       const dummy = dummyObj.current;
+      const up = new THREE.Vector3(0, 1, 0);
+      const dir = new THREE.Vector3();
+      const sunPos = sunPosRef.current;
 
       massPositions.forEach((pos) => {
         const relAlt = pos.alt / EARTH_RADIUS_KM;
         const vec = polar2Cartesian(pos.lat, pos.lng, relAlt);
         dummy.position.copy(vec);
+        // Orient panels toward sun
+        dir.copy(sunPos).sub(vec).normalize();
+        dummy.quaternion.setFromUnitVectors(up, dir);
         dummy.updateMatrix();
         mesh.setMatrixAt(idx, dummy.matrix);
         idx++;
