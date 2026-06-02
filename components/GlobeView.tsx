@@ -103,10 +103,9 @@ export default function GlobeView() {
 
   // Setup sun-based lighting: replace default lights with sun-positioned DirectionalLight
   useEffect(() => {
-    const globe = globeRef.current;
-    if (!globe) return;
-
     const timer = setInterval(() => {
+      const globe = globeRef.current;
+      if (!globe) return; // Keep retrying until Globe mounts
       let scene: THREE.Scene;
       try { scene = globe.scene(); } catch { return; }
       if (!scene) return;
@@ -141,9 +140,9 @@ export default function GlobeView() {
         }
       } catch { /* camera not ready */ }
 
-      // Add sun visual sphere (bright green for debug visibility)
-      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 2, 16, 16);
-      const sunMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      // Add sun visual sphere
+      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.15, 16, 16);
+      const sunMat = new THREE.MeshBasicMaterial({ color: 0xffee88 });
       const sunMesh = new THREE.Mesh(sunGeo, sunMat);
       sunMesh.position.copy(sunPos);
       scene.add(sunMesh);
