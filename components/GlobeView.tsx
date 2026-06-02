@@ -141,9 +141,9 @@ export default function GlobeView() {
         }
       } catch { /* camera not ready */ }
 
-      // Add sun visual sphere
-      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.6, 16, 16);
-      const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff5e0 });
+      // Add sun visual sphere (bright green for debug visibility)
+      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 2, 16, 16);
+      const sunMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
       const sunMesh = new THREE.Mesh(sunGeo, sunMat);
       sunMesh.position.copy(sunPos);
       scene.add(sunMesh);
