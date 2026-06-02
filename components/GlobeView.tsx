@@ -204,22 +204,21 @@ export default function GlobeView() {
       const now = performance.now();
       const t = hasKeyframes ? Math.min((now - time) / interval, 1.5) : 0;
 
-      // Debug: log once to diagnose panel orientation
+      // Debug: log once AFTER data is available to diagnose panel orientation
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (!((tick as any)._logged)) { (tick as any)._logged = true;
-        const pts = stablePointsMapRef.current;
-        console.log('[SUN-DEBUG] hasKeyframes:', hasKeyframes, 'stablePoints.size:', pts.size, 'curr.size:', curr.size, 'prev.size:', prev.size);
-        const firstPoint = pts.values().next().value;
+      if (!((tick as any)._logged) && hasKeyframes && stablePointsMapRef.current.size > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (tick as any)._logged = true;
+        const firstPoint = stablePointsMapRef.current.values().next().value;
         if (firstPoint) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const fp = firstPoint as any;
           const allKeys = Object.keys(fp).filter(k => k.startsWith('__'));
-          console.log('[SUN-DEBUG] point __ keys:', allKeys);
-          console.log('[SUN-DEBUG] __threeObjObject:', fp.__threeObjObject);
-          // Try all __ keys to find the 3D object
+          console.warn('[SUN-DEBUG] point __ keys:', allKeys);
           for (const k of allKeys) {
-            console.log(`[SUN-DEBUG] ${k}:`, fp[k]);
+            console.warn(`[SUN-DEBUG] ${k}:`, fp[k], 'children:', fp[k]?.children?.length);
           }
+          console.warn('[SUN-DEBUG] sunPos:', sunPosRef.current.toArray());
         }
       }
 
