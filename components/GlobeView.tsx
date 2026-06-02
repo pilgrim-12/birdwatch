@@ -205,8 +205,8 @@ export default function GlobeView() {
       const t = hasKeyframes ? Math.min((now - time) / interval, 1.5) : 0;
 
       // Debug: log once to diagnose panel orientation
-      if (!((tick as any)._logged)) {
-        (tick as any)._logged = true;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!((tick as any)._logged)) { (tick as any)._logged = true;
         const pts = stablePointsMapRef.current;
         console.log('[SUN-DEBUG] hasKeyframes:', hasKeyframes, 'stablePoints.size:', pts.size, 'curr.size:', curr.size, 'prev.size:', prev.size);
         const firstPoint = pts.values().next().value;
@@ -420,7 +420,6 @@ export default function GlobeView() {
     }
 
     return results;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [satellites, orbitEpoch, selectedSatId]);
 
   // Points data (normal satellites only) — uses stable object references so
