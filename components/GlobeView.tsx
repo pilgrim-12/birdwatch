@@ -66,7 +66,6 @@ export default function GlobeView() {
   const cameraFollow = useSatelliteStore((s) => s.cameraFollow);
 
   // Mass group (Starlink) state
-  const massSatellites = useSatelliteStore((s) => s.massSatellites);
   const massPositions = useSatelliteStore((s) => s.massPositions);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -306,8 +305,10 @@ export default function GlobeView() {
     });
 
     // Include selected mass satellite orbit (Starlink / OneWeb / Active)
+    // Read from store snapshot to avoid adding massSatellites to deps (would cause
+    // expensive orbit recomputation on every mass position update cycle)
     if (selectedSatId !== null && !results.some((r) => r.id === selectedSatId)) {
-      const massSat = massSatellites.find((s) => s.id === selectedSatId);
+      const massSat = useSatelliteStore.getState().massSatellites.find((s) => s.id === selectedSatId);
       if (massSat) {
         const points = computeOrbitPath(massSat.tle, new Date(), 90);
         results.push({
@@ -321,7 +322,7 @@ export default function GlobeView() {
 
     return results;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [satellites, massSatellites, orbitEpoch, selectedSatId]);
+  }, [satellites, orbitEpoch, selectedSatId]);
 
   // Points data (normal satellites only) — uses stable object references so
   // three-globe reuses existing Three.js meshes instead of recreating them.

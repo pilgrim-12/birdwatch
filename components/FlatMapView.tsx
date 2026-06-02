@@ -93,7 +93,6 @@ export default function FlatMapView() {
   // Store selectors (stable references via Zustand)
   const satellites = useSatelliteStore((s) => s.satellites);
   const positions = useSatelliteStore((s) => s.positions);
-  const massSatellites = useSatelliteStore((s) => s.massSatellites);
   const massPositions = useSatelliteStore((s) => s.massPositions);
   const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
   const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
@@ -138,8 +137,9 @@ export default function FlatMapView() {
     }));
 
     // Include selected mass satellite orbit (Starlink / OneWeb / Active)
+    // Read from store snapshot to avoid adding massSatellites to deps
     if (selectedSatId !== null && !results.some((r) => r.id === selectedSatId)) {
-      const massSat = massSatellites.find((s) => s.id === selectedSatId);
+      const massSat = useSatelliteStore.getState().massSatellites.find((s) => s.id === selectedSatId);
       if (massSat) {
         results.push({
           id: massSat.id,
@@ -152,7 +152,7 @@ export default function FlatMapView() {
 
     return results;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [satellites, massSatellites, orbitEpoch, selectedSatId]);
+  }, [satellites, orbitEpoch, selectedSatId]);
 
   // Satellite click (called from mouseUp when not dragging)
   const selectSatelliteRef = useRef(selectSatellite);
@@ -756,7 +756,10 @@ export default function FlatMapView() {
 
     draw();
     return () => cancelAnimationFrame(raf);
-  }, [dimensions, imgLoaded, satellites, positions, massPositions, selectedSatId, observer, showTrajectories, showLabels, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode]);
+    // Note: positions & massPositions intentionally excluded — the RAF loop reads
+    // live state via useSatelliteStore.getState() each frame, so reactive deps would
+    // only cause expensive teardown/re-setup of the animation loop every update cycle.
+  }, [dimensions, imgLoaded, satellites, selectedSatId, observer, showTrajectories, showLabels, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative z-0 bg-[#0a1628]">
