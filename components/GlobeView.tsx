@@ -209,14 +209,18 @@ export default function GlobeView() {
           const interp = interpLerp(prev, curr, point.id, t);
           if (!interp) return;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const container = (point as any).__threeObj;
-          if (container) {
+          const wrapper = (point as any).__threeObjObject;
+          if (wrapper) {
             polar2Cartesian(interp.lat, interp.lng, interp.alt, satVec);
-            container.position.copy(satVec);
+            wrapper.position.copy(satVec);
 
-            // Orient solar panels toward the sun
-            toSun.copy(sunPosRef.current).sub(satVec).normalize();
-            container.quaternion.setFromUnitVectors(defaultUp, toSun);
+            // Orient solar panels toward the sun (set on child model, not wrapper —
+            // three-globe resets wrapper rotation on each data update)
+            const model = wrapper.children[0];
+            if (model) {
+              toSun.copy(sunPosRef.current).sub(satVec).normalize();
+              model.quaternion.setFromUnitVectors(defaultUp, toSun);
+            }
           }
         });
       }
@@ -417,7 +421,7 @@ export default function GlobeView() {
       let point = stable.get(s.id);
 
       if (point) {
-        // Mutate position on existing object — preserves __threeObj reference
+        // Mutate position on existing object — preserves __threeObjObject reference
         point.lat = pos.lat;
         point.lng = pos.lng;
         point.alt = pos.alt / EARTH_RADIUS_KM;
