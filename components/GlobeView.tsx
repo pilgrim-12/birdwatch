@@ -95,6 +95,9 @@ export default function GlobeView() {
     interval: number;
   }>({ prev: new Map(), curr: new Map(), time: 0, interval: 250 });
 
+  // Direct references to satellite 3D models for sun orientation
+  const satModelMapRef = useRef<Map<number, THREE.Group>>(new Map());
+
   // Sun lighting + visual refs — initialize with real sun position
   const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
   const sunMeshRef = useRef<THREE.Mesh | null>(null);
@@ -171,77 +174,43 @@ export default function GlobeView() {
     const hitPoint = new THREE.Vector3();
     const satVec = new THREE.Vector3();
     const defaultUp = new THREE.Vector3(0, 1, 0);
+    const toEarth = new THREE.Vector3();
     const toSun = new THREE.Vector3();
+    const sunLocal = new THREE.Vector3();
+    const invQuat = new THREE.Quaternion();
     let raf: number;
-
-    function interpLerp(
-      prev: Map<number, { lat: number; lng: number; alt: number }>,
-      curr: Map<number, { lat: number; lng: number; alt: number }>,
-      id: number,
-      t: number,
-    ): { lat: number; lng: number; alt: number } | null {
-      const pa = prev.get(id);
-      const pb = curr.get(id);
-      if (!pa || !pb) return pb ?? pa ?? null;
-      let dLng = pb.lng - pa.lng;
-      if (dLng > 180) dLng -= 360;
-      if (dLng < -180) dLng += 360;
-      return {
-        lat: pa.lat + (pb.lat - pa.lat) * t,
-        lng: pa.lng + dLng * t,
-        alt: pa.alt + (pb.alt - pa.alt) * t,
-      };
-    }
 
     function tick() {
       raf = requestAnimationFrame(tick);
       const globe = globeRef.current;
       if (!globe) return;
 
-      // --- Smooth position interpolation for satellite 3D models ---
-      const { prev, curr, time, interval } = interpRef.current;
-      const hasKeyframes = curr.size > 0 && prev.size > 0;
-      const now = performance.now();
-      const t = hasKeyframes ? Math.min((now - time) / interval, 1.5) : 0;
+      // --- Orient satellite models: body toward Earth, panels toward sun ---
+      stablePointsMapRef.current.forEach((point) => {
+        const model = satModelMapRef.current.get(point.id);
+        if (!model || !model.parent) return; // not yet in scene
 
-      // Debug: log once AFTER data is available to diagnose panel orientation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (!((tick as any)._logged) && hasKeyframes && stablePointsMapRef.current.size > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (tick as any)._logged = true;
-        const firstPoint = stablePointsMapRef.current.values().next().value;
-        if (firstPoint) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const fp = firstPoint as any;
-          const allKeys = Object.keys(fp).filter(k => k.startsWith('__'));
-          console.warn('[SUN-DEBUG] point __ keys:', allKeys);
-          for (const k of allKeys) {
-            console.warn(`[SUN-DEBUG] ${k}:`, fp[k], 'children:', fp[k]?.children?.length);
+        // Get satellite world position from three-globe's wrapper
+        model.parent.getWorldPosition(satVec);
+
+        // 1. Orient entire model so antenna (+Y) points toward Earth center
+        toEarth.copy(satVec).negate().normalize();
+        model.quaternion.setFromUnitVectors(defaultUp, toEarth);
+
+        // 2. Rotate panels to track the sun
+        toSun.copy(sunPosRef.current).sub(satVec).normalize();
+        // Transform sun direction into model's local coordinate space
+        invQuat.copy(model.quaternion).invert();
+        sunLocal.copy(toSun).applyQuaternion(invQuat);
+        // Optimal panel tilt around local X-axis so panel normal (Y) faces sun
+        const panelAngle = Math.atan2(sunLocal.z, sunLocal.y);
+
+        for (const child of model.children) {
+          if (child.userData.isPanel) {
+            child.rotation.x = panelAngle;
           }
-          console.warn('[SUN-DEBUG] sunPos:', sunPosRef.current.toArray());
         }
-      }
-
-      if (hasKeyframes) {
-        stablePointsMapRef.current.forEach((point) => {
-          const interp = interpLerp(prev, curr, point.id, t);
-          if (!interp) return;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const wrapper = (point as any).__threeObjObject;
-          if (wrapper) {
-            polar2Cartesian(interp.lat, interp.lng, interp.alt, satVec);
-            wrapper.position.copy(satVec);
-
-            // Orient solar panels toward the sun (set on child model, not wrapper —
-            // three-globe resets wrapper rotation on each data update)
-            const model = wrapper.children[0];
-            if (model) {
-              toSun.copy(sunPosRef.current).sub(satVec).normalize();
-              model.quaternion.setFromUnitVectors(defaultUp, toSun);
-            }
-          }
-        });
-      }
+      });
 
       // --- Label occlusion + distance scaling ---
       if (!useSatelliteStore.getState().showLabels) return;
@@ -693,14 +662,16 @@ export default function GlobeView() {
     const body = new THREE.Mesh(bGeo, bodyMat);
     group.add(body);
 
-    // Solar panel — left
+    // Solar panel — left (tagged for sun-tracking rotation)
     const panelL = new THREE.Mesh(pGeo, pMat);
     panelL.position.x = selected ? -2.1 : -1.3;
+    panelL.userData.isPanel = true;
     group.add(panelL);
 
-    // Solar panel — right
+    // Solar panel — right (tagged for sun-tracking rotation)
     const panelR = new THREE.Mesh(pGeo, pMat);
     panelR.position.x = selected ? 2.1 : 1.3;
+    panelR.userData.isPanel = true;
     group.add(panelR);
 
     // Antenna dish on top
@@ -738,11 +709,12 @@ export default function GlobeView() {
     const truss = new THREE.Mesh(new THREE.BoxGeometry(8.0 * s, 0.15 * s, 0.15 * s), radiatorMat);
     group.add(truss);
 
-    // 4 pairs of solar panels along the truss
+    // 4 pairs of solar panels along the truss (tagged for sun-tracking rotation)
     const panelPositions = [-3.2, -1.6, 1.6, 3.2];
     for (const px of panelPositions) {
       const panel = new THREE.Mesh(new THREE.BoxGeometry(0.15 * s, 0.05 * s, 2.0 * s), pMat);
       panel.position.set(px * s, 0.1 * s, 0);
+      panel.userData.isPanel = true;
       group.add(panel);
     }
 
@@ -785,14 +757,13 @@ export default function GlobeView() {
       const dummy = dummyObj.current;
       const up = new THREE.Vector3(0, 1, 0);
       const dir = new THREE.Vector3();
-      const sunPos = sunPosRef.current;
 
       massPositions.forEach((pos) => {
         const relAlt = pos.alt / EARTH_RADIUS_KM;
         const vec = polar2Cartesian(pos.lat, pos.lng, relAlt);
         dummy.position.copy(vec);
-        // Orient panels toward sun
-        dir.copy(sunPos).sub(vec).normalize();
+        // Orient flat side (+Y) toward Earth center
+        dir.copy(vec).negate().normalize();
         dummy.quaternion.setFromUnitVectors(up, dir);
         dummy.updateMatrix();
         mesh.setMatrixAt(idx, dummy.matrix);
@@ -863,8 +834,11 @@ export default function GlobeView() {
           objectThreeObject={(d: object) => {
             const point = d as PointData;
             const c = point.selected ? 0xffffff : point.color;
-            if (point.group === 'stations') return createStationModel(c, point.selected);
-            return createSatelliteModel(c, point.selected);
+            const model = point.group === 'stations'
+              ? createStationModel(c, point.selected)
+              : createSatelliteModel(c, point.selected);
+            satModelMapRef.current.set(point.id, model);
+            return model;
           }}
           onObjectClick={handlePointClick}
           // HTML tooltip label for selected satellite
