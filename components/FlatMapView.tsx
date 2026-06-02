@@ -528,11 +528,15 @@ export default function FlatMapView() {
         });
       }
 
+      // --- Zoom-aware scale factor for dots, labels, markers ---
+      const zs = Math.min(Math.max(zoom, 1), 12); // clamp
+      const scale = 0.6 + zs * 0.4; // 1.0 at zoom=1, grows smoothly
+
       // --- Mass satellite dots ---
       const massColor = GROUP_COLORS.starlink;
       ctx.fillStyle = massColor;
       ctx.globalAlpha = 0.85;
-      const dotSize = zoom > 5 ? 4 : 3;
+      const dotSize = Math.round(2 * scale);
       state.massPositions.forEach((pos) => {
         const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
         // Skip dots outside viewport
@@ -552,13 +556,14 @@ export default function FlatMapView() {
         const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
 
         // Skip dots outside viewport (with margin)
-        if (x < -12 || x > w + 12 || y < -12 || y > h + 12) return;
+        const margin = 12 * scale;
+        if (x < -margin || x > w + margin || y < -margin || y > h + margin) return;
 
         ctx.fillStyle = isSelected ? '#ffffff' : color;
 
         if (isStation) {
           // Station: diamond shape, larger
-          const r = isSelected ? 8 : 5;
+          const r = (isSelected ? 8 : 5) * scale;
           ctx.beginPath();
           ctx.moveTo(x, y - r);
           ctx.lineTo(x + r, y);
@@ -567,26 +572,27 @@ export default function FlatMapView() {
           ctx.closePath();
           ctx.fill();
           ctx.strokeStyle = isSelected ? color : 'rgba(255,255,255,0.5)';
-          ctx.lineWidth = 1.5;
+          ctx.lineWidth = 1.5 * scale;
           ctx.stroke();
         } else {
           ctx.beginPath();
-          ctx.arc(x, y, isSelected ? 6 : 3.5, 0, Math.PI * 2);
+          ctx.arc(x, y, (isSelected ? 6 : 3.5) * scale, 0, Math.PI * 2);
           ctx.fill();
         }
 
         if (isSelected) {
           ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2 * scale;
           ctx.beginPath();
-          ctx.arc(x, y, isStation ? 14 : 10, 0, Math.PI * 2);
+          ctx.arc(x, y, (isStation ? 14 : 10) * scale, 0, Math.PI * 2);
           ctx.stroke();
         }
       });
 
       // --- Labels ---
       if (state.showLabels) {
-        ctx.font = '10px system-ui, sans-serif';
+        const fontSize = Math.round(10 * scale);
+        ctx.font = `${fontSize}px system-ui, sans-serif`;
         ctx.textBaseline = 'bottom';
         state.positions.forEach((pos, id) => {
           const sat = satGroupMap.get(id);
@@ -596,7 +602,7 @@ export default function FlatMapView() {
           if (x < -50 || x > w + 50 || y < -20 || y > h + 20) return;
           ctx.fillStyle = isSelected ? '#ffffff' : '#cccccc';
           ctx.globalAlpha = isSelected ? 1 : 0.7;
-          ctx.fillText(sat.name, x + 6, y - 2);
+          ctx.fillText(sat.name, x + 6 * scale, y - 2 * scale);
         });
         ctx.globalAlpha = 1;
       }
@@ -608,9 +614,10 @@ export default function FlatMapView() {
           useSatelliteStore.getState().massSatellites.find((s) => s.id === state.selectedSatId);
         if (pos && sat) {
           const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
-          ctx.font = 'bold 11px system-ui, sans-serif';
+          const fontSize = Math.round(11 * scale);
+          ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
           ctx.fillStyle = '#ffffff';
-          ctx.fillText(sat.name, x + 8, y - 4);
+          ctx.fillText(sat.name, x + 8 * scale, y - 4 * scale);
         }
       }
 
@@ -637,8 +644,8 @@ export default function FlatMapView() {
 
           // Dashed orange line
           ctx.strokeStyle = '#ff9800';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([6, 4]);
+          ctx.lineWidth = 2 * scale;
+          ctx.setLineDash([6 * scale, 4 * scale]);
           ctx.beginPath();
           ctx.moveTo(obsXY.x, obsXY.y);
           ctx.lineTo(cpaXY.x, cpaXY.y);
@@ -648,21 +655,24 @@ export default function FlatMapView() {
           // CPA point marker
           ctx.fillStyle = '#ff9800';
           ctx.beginPath();
-          ctx.arc(cpaXY.x, cpaXY.y, 4, 0, Math.PI * 2);
+          ctx.arc(cpaXY.x, cpaXY.y, 4 * scale, 0, Math.PI * 2);
           ctx.fill();
 
           // Distance label
           const distKm = Math.round(minDist * 6371);
           const midX = (obsXY.x + cpaXY.x) / 2;
           const midY = (obsXY.y + cpaXY.y) / 2;
-          ctx.font = 'bold 12px system-ui, sans-serif';
+          const cpaFs = Math.round(12 * scale);
+          ctx.font = `bold ${cpaFs}px system-ui, sans-serif`;
           const label = `${distKm} km`;
           const tw = ctx.measureText(label).width;
+          const pad = 6 * scale;
+          const lh = 9 * scale;
           ctx.fillStyle = 'rgba(0,0,0,0.85)';
-          ctx.fillRect(midX - tw / 2 - 6, midY - 9, tw + 12, 18);
+          ctx.fillRect(midX - tw / 2 - pad, midY - lh, tw + pad * 2, lh * 2);
           ctx.strokeStyle = '#ff9800';
           ctx.lineWidth = 1;
-          ctx.strokeRect(midX - tw / 2 - 6, midY - 9, tw + 12, 18);
+          ctx.strokeRect(midX - tw / 2 - pad, midY - lh, tw + pad * 2, lh * 2);
           ctx.fillStyle = '#ffffff';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -680,8 +690,8 @@ export default function FlatMapView() {
 
           // Dashed cyan line
           ctx.strokeStyle = '#4fc3f7';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([8, 4]);
+          ctx.lineWidth = 2 * scale;
+          ctx.setLineDash([8 * scale, 4 * scale]);
           ctx.beginPath();
           ctx.moveTo(obsXY.x, obsXY.y);
           ctx.lineTo(satXY.x, satXY.y);
@@ -697,14 +707,17 @@ export default function FlatMapView() {
 
           const midX = (obsXY.x + satXY.x) / 2;
           const midY = (obsXY.y + satXY.y) / 2;
-          ctx.font = 'bold 12px system-ui, sans-serif';
+          const losFs = Math.round(12 * scale);
+          ctx.font = `bold ${losFs}px system-ui, sans-serif`;
           const label = `${slantKm} km`;
           const tw = ctx.measureText(label).width;
+          const losPad = 6 * scale;
+          const losLh = 9 * scale;
           ctx.fillStyle = 'rgba(0,0,0,0.85)';
-          ctx.fillRect(midX - tw / 2 - 6, midY - 9, tw + 12, 18);
+          ctx.fillRect(midX - tw / 2 - losPad, midY - losLh, tw + losPad * 2, losLh * 2);
           ctx.strokeStyle = '#4fc3f7';
           ctx.lineWidth = 1;
-          ctx.strokeRect(midX - tw / 2 - 6, midY - 9, tw + 12, 18);
+          ctx.strokeRect(midX - tw / 2 - losPad, midY - losLh, tw + losPad * 2, losLh * 2);
           ctx.fillStyle = '#ffffff';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -717,7 +730,7 @@ export default function FlatMapView() {
       if (state.observer) {
         const { x, y } = latLngToXY(state.observer.lat, state.observer.lng, w, h, zoom, ox, oy);
         const t = performance.now();
-        const maxRadius = 25;
+        const maxRadius = 25 * scale;
         const period = 1000; // ms per ring cycle
 
         // Draw 3 expanding rings at different phases
@@ -727,7 +740,7 @@ export default function FlatMapView() {
           const alpha = 1 - phase;
           ctx.strokeStyle = '#ff9800';
           ctx.globalAlpha = alpha * 0.7;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2 * scale;
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
           ctx.stroke();
@@ -737,7 +750,7 @@ export default function FlatMapView() {
         // Center dot
         ctx.fillStyle = '#ff9800';
         ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.arc(x, y, 3 * scale, 0, Math.PI * 2);
         ctx.fill();
       }
 
