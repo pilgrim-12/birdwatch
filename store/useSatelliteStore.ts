@@ -10,9 +10,10 @@ export type CameraFollow = 'none' | 'track' | 'sat-pov';
 interface SatelliteStore {
   satellites: Satellite[];
   observer: ObserverLocation | null;
-  selectedSatId: number | null;
+  selectedSatIds: number[];
   positions: Map<number, SatellitePosition>;
   passes: SatellitePass[];
+  searchQuery: string;
   showTrajectories: boolean;
   showLabels: boolean;
   showBeams: boolean;
@@ -30,7 +31,10 @@ interface SatelliteStore {
 
   setSatellites: (satellites: Satellite[]) => void;
   setObserver: (observer: ObserverLocation | null) => void;
-  selectSatellite: (id: number | null) => void;
+  selectSatellite: (id: number | null) => void; // toggle: adds/removes from selection
+  deselectSatellite: (id: number) => void;
+  clearSelection: () => void;
+  setSearchQuery: (q: string) => void;
   updatePositions: (positions: Map<number, SatellitePosition>) => void;
   setPasses: (passes: SatellitePass[]) => void;
   toggleTrajectories: () => void;
@@ -107,9 +111,10 @@ export const useSatelliteStore = create<SatelliteStore>()(
     (set) => ({
   satellites: [],
   observer: null,
-  selectedSatId: null,
+  selectedSatIds: [],
   positions: new Map(),
   passes: [],
+  searchQuery: '',
   showTrajectories: false,
   showLabels: true,
   showBeams: true,
@@ -125,7 +130,18 @@ export const useSatelliteStore = create<SatelliteStore>()(
 
   setSatellites: (satellites) => set({ satellites }),
   setObserver: (observer) => set({ observer }),
-  selectSatellite: (id) => set({ selectedSatId: id }),
+  selectSatellite: (id) =>
+    set((s) => ({
+      selectedSatIds: id === null
+        ? []
+        : s.selectedSatIds.includes(id)
+          ? s.selectedSatIds.filter((x) => x !== id)
+          : [...s.selectedSatIds, id],
+    })),
+  deselectSatellite: (id) =>
+    set((s) => ({ selectedSatIds: s.selectedSatIds.filter((x) => x !== id) })),
+  clearSelection: () => set({ selectedSatIds: [] }),
+  setSearchQuery: (q) => set({ searchQuery: q }),
   updatePositions: (positions) => set({ positions }),
   setPasses: (passes) => set({ passes }),
   toggleTrajectories: () => set((s) => ({ showTrajectories: !s.showTrajectories })),

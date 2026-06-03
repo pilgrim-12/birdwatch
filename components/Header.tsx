@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { ALLOWED_GROUPS, GROUP_LABELS, GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
@@ -41,6 +41,49 @@ export default function Header() {
   const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
   const toggleSourceCelestrak = useSatelliteStore((s) => s.toggleSourceCelestrak);
   const toggleSourceSatnogs = useSatelliteStore((s) => s.toggleSourceSatnogs);
+
+  const satellites = useSatelliteStore((s) => s.satellites);
+  const massSatellites = useSatelliteStore((s) => s.massSatellites);
+  const searchQuery = useSatelliteStore((s) => s.searchQuery);
+  const setSearchQuery = useSatelliteStore((s) => s.setSearchQuery);
+  const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
+  const activeGroupsForSearch = useSatelliteStore((s) => s.activeGroups);
+  const toggleGroupForSearch = useSatelliteStore((s) => s.toggleGroup);
+
+  // Search state
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    const all = [...satellites, ...massSatellites];
+    return all.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 20);
+  }, [searchQuery, satellites, massSatellites]);
+
+  const handleSearchSelect = useCallback((satId: number, group: string) => {
+    selectSatellite(satId);
+    // Activate group if not active
+    if (!activeGroupsForSearch.includes(group as SatelliteGroup)) {
+      toggleGroupForSearch(group as SatelliteGroup);
+    }
+    setSearchQuery('');
+    setSearchFocused(false);
+    searchInputRef.current?.blur();
+  }, [selectSatellite, activeGroupsForSearch, toggleGroupForSearch, setSearchQuery]);
+
+  // Close search dropdown on outside click
+  useEffect(() => {
+    if (!searchFocused) return;
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [searchFocused]);
 
   // Desktop settings dropdown
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -169,6 +212,62 @@ export default function Header() {
                 </button>
               </span>
             )}
+
+            {/* Search input */}
+            <div className="relative" ref={searchRef}>
+              <div className="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                  <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clipRule="evenodd" />
+                </svg>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setSearchQuery('');
+                      setSearchFocused(false);
+                      searchInputRef.current?.blur();
+                    }
+                  }}
+                  placeholder="Search satellite..."
+                  className="w-40 pl-7 pr-6 py-1 rounded text-[11px] bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                      <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {searchFocused && searchResults.length > 0 && (
+                <div className="absolute left-0 top-full mt-1 w-72 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-[300px] overflow-y-auto">
+                  {searchResults.map((sat) => {
+                    const color = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
+                    return (
+                      <button
+                        key={sat.id}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSearchSelect(sat.id, sat.group)}
+                        className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-800 flex items-center gap-2 transition-colors"
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-gray-200 truncate flex-1">{sat.name}</span>
+                        <span className="text-gray-500 text-[10px] shrink-0">{GROUP_LABELS[sat.group as SatelliteGroup] || sat.group}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="w-px h-5 bg-gray-700" />
 
             <button
               onClick={toggleTrajectories}

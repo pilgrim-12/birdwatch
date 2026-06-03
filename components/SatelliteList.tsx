@@ -73,7 +73,7 @@ export default function SatelliteList() {
   const massSatellites = useSatelliteStore((s) => s.massSatellites);
   const positions = useSatelliteStore((s) => s.positions);
   const massPositions = useSatelliteStore((s) => s.massPositions);
-  const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
+  const selectedSatIds = useSatelliteStore((s) => s.selectedSatIds);
   const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
   const observer = useSatelliteStore((s) => s.observer);
   const passes = useSatelliteStore((s) => s.passes);
@@ -317,7 +317,7 @@ export default function SatelliteList() {
       >
         {visibleSatellites.map((sat, i) => {
           const pos = getPosition(sat.id);
-          const isSelected = sat.id === selectedSatId;
+          const isSelected = selectedSatIds.includes(sat.id);
           const groupColor = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
           const itemIndex = startIndex + i;
           const inactive = isInactive(sat.id);
@@ -344,7 +344,7 @@ export default function SatelliteList() {
                     : 'hover:bg-gray-800 border border-transparent'
                 }`}
                 onClick={() => {
-                  selectSatellite(isSelected ? null : sat.id);
+                  selectSatellite(sat.id);
                   setMobilePanelOpen(false);
                 }}
               >
@@ -421,7 +421,7 @@ export default function SatelliteList() {
               const doppler = dopplerMap.get(passKey);
               const profile = getRadioProfile(pass.satId);
               const inactive = profile?.status === 'inactive';
-              const isSelected = selectedSatId === pass.satId;
+              const isSelected = selectedSatIds.includes(pass.satId);
               const isWeak = pass.peakElevation < 10;
 
               return (
@@ -437,7 +437,7 @@ export default function SatelliteList() {
                           : 'bg-gray-800/50 hover:bg-gray-800'
                   }`}
                   onClick={() => {
-                    selectSatellite(isSelected ? null : pass.satId);
+                    selectSatellite(pass.satId);
                   }}
                 >
                   <div className="flex justify-between items-center gap-1">
@@ -769,7 +769,7 @@ export default function SatelliteList() {
                     const doppler = dopplerMap.get(passKey);
                     const profile = getRadioProfile(pass.satId);
                     const inactive = profile?.status === 'inactive';
-                    const isSelected = selectedSatId === pass.satId;
+                    const isSelected = selectedSatIds.includes(pass.satId);
                     const isWeak = pass.peakElevation < 10;
 
                     return (
@@ -785,7 +785,7 @@ export default function SatelliteList() {
                                 : 'bg-gray-800/50 hover:bg-gray-800'
                         }`}
                         onClick={() => {
-                          selectSatellite(isSelected ? null : pass.satId);
+                          selectSatellite(pass.satId);
                         }}
                       >
                         <div className="flex justify-between items-center gap-1">

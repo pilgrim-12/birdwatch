@@ -263,14 +263,16 @@ export function useCameraMode(globeRef: GlobeRef): void {
       }
 
       // Auto-stop if satellite deselected
-      if (store.selectedSatId === null) {
+      if (store.selectedSatIds.length === 0) {
         store.setCameraFollow('none');
         controls.update();
         return;
       }
 
-      const pos = store.positions.get(store.selectedSatId)
-        ?? store.massPositions.get(store.selectedSatId);
+      // Follow last selected satellite
+      const followId = store.selectedSatIds[store.selectedSatIds.length - 1];
+      const pos = store.positions.get(followId)
+        ?? store.massPositions.get(followId);
       if (!pos) { controls.update(); return; }
 
       const relAlt = pos.alt / EARTH_RADIUS_KM;

@@ -53,7 +53,8 @@ export default function GlobeView() {
   const satellites = useSatelliteStore((s) => s.satellites);
   const positions = useSatelliteStore((s) => s.positions);
   const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
-  const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
+  const selectedSatIds = useSatelliteStore((s) => s.selectedSatIds);
+  const selectedSatId = selectedSatIds.length > 0 ? selectedSatIds[selectedSatIds.length - 1] : null;
   const observer = useSatelliteStore((s) => s.observer);
   const setObserver = useSatelliteStore((s) => s.setObserver);
   const showTrajectories = useSatelliteStore((s) => s.showTrajectories);
@@ -378,7 +379,7 @@ export default function GlobeView() {
     const results = satellites.map((sat) => {
       const cacheKey = sat.tle.line1 + sat.tle.line2;
       // Use fewer steps for non-selected satellites (60 vs 90)
-      const steps = sat.id === selectedSatId ? 90 : 60;
+      const steps = selectedSatIds.includes(sat.id) ? 90 : 60;
       let points = cache.get(cacheKey);
       if (!points) {
         points = computeOrbitPath(sat.tle, new Date(), steps);
@@ -392,24 +393,27 @@ export default function GlobeView() {
       };
     });
 
-    // Include selected mass satellite orbit (Starlink / OneWeb / Active)
+    // Include selected mass satellite orbits (Starlink / OneWeb / Active)
     // Read from store snapshot to avoid adding massSatellites to deps (would cause
     // expensive orbit recomputation on every mass position update cycle)
-    if (selectedSatId !== null && !results.some((r) => r.id === selectedSatId)) {
-      const massSat = useSatelliteStore.getState().massSatellites.find((s) => s.id === selectedSatId);
-      if (massSat) {
-        const points = computeOrbitPath(massSat.tle, new Date(), 90);
-        results.push({
-          id: massSat.id,
-          group: massSat.group,
-          color: GROUP_COLORS[massSat.group as SatelliteGroup] || '#00d4ff',
-          points,
-        });
+    const resultIds = new Set(results.map((r) => r.id));
+    for (const selId of selectedSatIds) {
+      if (!resultIds.has(selId)) {
+        const massSat = useSatelliteStore.getState().massSatellites.find((s) => s.id === selId);
+        if (massSat) {
+          const points = computeOrbitPath(massSat.tle, new Date(), 90);
+          results.push({
+            id: massSat.id,
+            group: massSat.group,
+            color: GROUP_COLORS[massSat.group as SatelliteGroup] || '#00d4ff',
+            points,
+          });
+        }
       }
     }
 
     return results;
-  }, [satellites, orbitEpoch, selectedSatId]);
+  }, [satellites, orbitEpoch, selectedSatIds]);
 
   // Points data (normal satellites only) — uses stable object references so
   // three-globe reuses existing Three.js meshes instead of recreating them.
@@ -423,7 +427,7 @@ export default function GlobeView() {
       if (!pos) continue;
       activeIds.add(s.id);
 
-      const isSelected = s.id === selectedSatId;
+      const isSelected = selectedSatIds.includes(s.id);
       const color = GROUP_COLORS[s.group as SatelliteGroup] || '#00d4ff';
       let point = stable.get(s.id);
 
@@ -461,7 +465,7 @@ export default function GlobeView() {
     }
 
     return result;
-  }, [satellites, positions, selectedSatId]);
+  }, [satellites, positions, selectedSatIds]);
 
   // Update interpolation keyframes whenever positions change
   useEffect(() => {
@@ -528,7 +532,7 @@ export default function GlobeView() {
 
     // Orbit trajectories: all when toggle is on, or just selected satellite
     for (const raw of orbitPathsRaw) {
-      const isSelected = raw.id === selectedSatId;
+      const isSelected = selectedSatIds.includes(raw.id);
       if (showTrajectories || isSelected) {
         paths.push({
           pathId: `orbit-${raw.id}`,
@@ -585,7 +589,7 @@ export default function GlobeView() {
     }
 
     return paths;
-  }, [showTrajectories, showBeams, orbitPathsRaw, selectedSatId, pointsData, observer, cpaInfo, groundLineInfo]);
+  }, [showTrajectories, showBeams, orbitPathsRaw, selectedSatIds, pointsData, observer, cpaInfo, groundLineInfo]);
 
   // HTML labels for satellites on the globe (+ CPA / ground-line distance labels)
   const htmlLabelsData = useMemo(() => {
@@ -597,7 +601,7 @@ export default function GlobeView() {
           alt: p.alt + 0.015,
           name: p.name,
           color: p.color,
-          selected: p.id === selectedSatId,
+          selected: selectedSatIds.includes(p.id),
         }))
       : [];
 
@@ -628,7 +632,7 @@ export default function GlobeView() {
     }
 
     return labels;
-  }, [showLabels, selectedSatId, pointsData, cpaInfo, groundLineInfo]);
+  }, [showLabels, selectedSatIds, pointsData, cpaInfo, groundLineInfo]);
 
   // Sync label positions ref for occlusion check
   useEffect(() => {

@@ -12,24 +12,25 @@ interface CameraControlsProps {
 }
 
 export function CameraControls({ globeRef }: CameraControlsProps) {
-  const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
+  const selectedSatIds = useSatelliteStore((s) => s.selectedSatIds);
+  const selectedSatId = selectedSatIds.length > 0 ? selectedSatIds[selectedSatIds.length - 1] : null;
   const observer = useSatelliteStore((s) => s.observer);
   const cameraFollow = useSatelliteStore((s) => s.cameraFollow);
   const setCameraFollow = useSatelliteStore((s) => s.setCameraFollow);
   const positions = useSatelliteStore((s) => s.positions);
   const massPositions = useSatelliteStore((s) => s.massPositions);
 
-  const stateRef = useRef({ selectedSatId, observer, positions, massPositions, cameraFollow });
+  const stateRef = useRef({ selectedSatId, selectedSatIds, observer, positions, massPositions, cameraFollow });
   useEffect(() => {
-    stateRef.current = { selectedSatId, observer, positions, massPositions, cameraFollow };
+    stateRef.current = { selectedSatId, selectedSatIds, observer, positions, massPositions, cameraFollow };
   });
 
   // Stop follow when satellite deselected
   useEffect(() => {
-    if (selectedSatId === null && cameraFollow !== 'none') {
+    if (selectedSatIds.length === 0 && cameraFollow !== 'none') {
       setCameraFollow('none');
     }
-  }, [selectedSatId, cameraFollow, setCameraFollow]);
+  }, [selectedSatIds, cameraFollow, setCameraFollow]);
 
   const flyTo = (endPos: THREE.Vector3, endTarget: THREE.Vector3, duration = 800) => {
     const globe = globeRef.current;

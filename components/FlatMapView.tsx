@@ -92,9 +92,7 @@ export default function FlatMapView() {
 
   // Store selectors (stable references via Zustand)
   const satellites = useSatelliteStore((s) => s.satellites);
-  const positions = useSatelliteStore((s) => s.positions);
-  const massPositions = useSatelliteStore((s) => s.massPositions);
-  const selectedSatId = useSatelliteStore((s) => s.selectedSatId);
+  const selectedSatIds = useSatelliteStore((s) => s.selectedSatIds);
   const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
   const observer = useSatelliteStore((s) => s.observer);
   const setObserver = useSatelliteStore((s) => s.setObserver);
@@ -133,26 +131,29 @@ export default function FlatMapView() {
       id: sat.id,
       group: sat.group,
       color: GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff',
-      points: computeOrbitPath(sat.tle, new Date(), sat.id === selectedSatId ? 90 : 60),
+      points: computeOrbitPath(sat.tle, new Date(), selectedSatIds.includes(sat.id) ? 90 : 60),
     }));
 
-    // Include selected mass satellite orbit (Starlink / OneWeb / Active)
+    // Include selected mass satellite orbits (Starlink / OneWeb / Active)
     // Read from store snapshot to avoid adding massSatellites to deps
-    if (selectedSatId !== null && !results.some((r) => r.id === selectedSatId)) {
-      const massSat = useSatelliteStore.getState().massSatellites.find((s) => s.id === selectedSatId);
-      if (massSat) {
-        results.push({
-          id: massSat.id,
-          group: massSat.group,
-          color: GROUP_COLORS[massSat.group as SatelliteGroup] || '#00d4ff',
-          points: computeOrbitPath(massSat.tle, new Date(), 90),
-        });
+    const resultIds = new Set(results.map((r) => r.id));
+    for (const selId of selectedSatIds) {
+      if (!resultIds.has(selId)) {
+        const massSat = useSatelliteStore.getState().massSatellites.find((s) => s.id === selId);
+        if (massSat) {
+          results.push({
+            id: massSat.id,
+            group: massSat.group,
+            color: GROUP_COLORS[massSat.group as SatelliteGroup] || '#00d4ff',
+            points: computeOrbitPath(massSat.tle, new Date(), 90),
+          });
+        }
       }
     }
 
     return results;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [satellites, orbitEpoch, selectedSatId]);
+  }, [satellites, orbitEpoch, selectedSatIds]);
 
   // Satellite click (called from mouseUp when not dragging)
   const selectSatelliteRef = useRef(selectSatellite);
@@ -485,9 +486,9 @@ export default function FlatMapView() {
       }
 
       // --- Orbit ground tracks ---
-      if (state.showTrajectories || state.selectedSatId !== null) {
+      if (state.showTrajectories || state.selectedSatIds.length > 0) {
         for (const orbit of orbitPaths) {
-          const isSelected = orbit.id === state.selectedSatId;
+          const isSelected = state.selectedSatIds.includes(orbit.id);
           if (!state.showTrajectories && !isSelected) continue;
           ctx.strokeStyle = isSelected ? orbit.color : orbit.color + '70';
           ctx.lineWidth = isSelected ? 2 : 1;
@@ -551,7 +552,7 @@ export default function FlatMapView() {
         const sat = satGroupMap.get(id);
         if (!sat) return;
         const color = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
-        const isSelected = id === state.selectedSatId;
+        const isSelected = state.selectedSatIds.includes(id);
         const isStation = sat.group === 'stations';
         const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
 
@@ -597,7 +598,7 @@ export default function FlatMapView() {
         state.positions.forEach((pos, id) => {
           const sat = satGroupMap.get(id);
           if (!sat) return;
-          const isSelected = id === state.selectedSatId;
+          const isSelected = state.selectedSatIds.includes(id);
           const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
           if (x < -50 || x > w + 50 || y < -20 || y > h + 20) return;
           ctx.fillStyle = isSelected ? '#ffffff' : '#cccccc';
@@ -607,26 +608,29 @@ export default function FlatMapView() {
         ctx.globalAlpha = 1;
       }
 
-      // --- Selected satellite name (always show if selected) ---
-      if (state.selectedSatId !== null && !state.showLabels) {
-        const pos = state.positions.get(state.selectedSatId) ?? state.massPositions.get(state.selectedSatId);
-        const sat = satGroupMap.get(state.selectedSatId) ??
-          useSatelliteStore.getState().massSatellites.find((s) => s.id === state.selectedSatId);
-        if (pos && sat) {
-          const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
-          const fontSize = Math.round(11 * scale);
-          ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillText(sat.name, x + 8 * scale, y - 4 * scale);
+      // --- Selected satellite names (always show if selected) ---
+      if (state.selectedSatIds.length > 0 && !state.showLabels) {
+        const massSats = useSatelliteStore.getState().massSatellites;
+        for (const selId of state.selectedSatIds) {
+          const pos = state.positions.get(selId) ?? state.massPositions.get(selId);
+          const sat = satGroupMap.get(selId) ?? massSats.find((s) => s.id === selId);
+          if (pos && sat) {
+            const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
+            const fontSize = Math.round(11 * scale);
+            ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(sat.name, x + 8 * scale, y - 4 * scale);
+          }
         }
       }
 
       // --- CPA look-line: observer → closest point on selected orbit ---
-      if (state.showLookLine && state.observer && state.selectedSatId !== null) {
+      const primarySatId = state.selectedSatIds.length > 0 ? state.selectedSatIds[0] : null;
+      if (state.showLookLine && state.observer && primarySatId !== null) {
         // Try normal orbit paths first, then compute on-the-fly for mass satellites
-        let cpaPoints = orbitPaths.find((o) => o.id === state.selectedSatId)?.points;
+        let cpaPoints = orbitPaths.find((o) => o.id === primarySatId)?.points;
         if (!cpaPoints) {
-          const massSat = state.massSatellites.find((s) => s.id === state.selectedSatId);
+          const massSat = state.massSatellites.find((s) => s.id === primarySatId);
           if (massSat) {
             cpaPoints = computeOrbitPath(massSat.tle, new Date(), 60);
           }
@@ -682,8 +686,8 @@ export default function FlatMapView() {
       }
 
       // --- Ground-to-satellite line: observer → selected satellite current position ---
-      if (state.showGroundLine && state.observer && state.selectedSatId !== null) {
-        const satPos = state.positions.get(state.selectedSatId) ?? state.massPositions.get(state.selectedSatId);
+      if (state.showGroundLine && state.observer && primarySatId !== null) {
+        const satPos = state.positions.get(primarySatId) ?? state.massPositions.get(primarySatId);
         if (satPos) {
           const obsXY = latLngToXY(state.observer.lat, state.observer.lng, w, h, zoom, ox, oy);
           const satXY = latLngToXY(satPos.lat, satPos.lng, w, h, zoom, ox, oy);
@@ -772,7 +776,7 @@ export default function FlatMapView() {
     // Note: positions & massPositions intentionally excluded — the RAF loop reads
     // live state via useSatelliteStore.getState() each frame, so reactive deps would
     // only cause expensive teardown/re-setup of the animation loop every update cycle.
-  }, [dimensions, imgLoaded, satellites, selectedSatId, observer, showTrajectories, showLabels, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode]);
+  }, [dimensions, imgLoaded, satellites, selectedSatIds, observer, showTrajectories, showLabels, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative z-0 bg-[#0a1628]">
