@@ -123,9 +123,9 @@ export default function GlobeView() {
 
       const sunPos = sunPosRef.current;
 
-      // Replace default lights via globe.gl lights() API
-      const ambient = new THREE.AmbientLight(0x556070, Math.PI * 0.6);
-      const sunLight = new THREE.DirectionalLight(0xffffff, Math.PI * 0.9);
+      // Replace default lights — low ambient for visible day/night terminator
+      const ambient = new THREE.AmbientLight(0x334455, Math.PI * 0.12);
+      const sunLight = new THREE.DirectionalLight(0xfff8e8, Math.PI * 1.8);
       sunLight.position.copy(sunPos);
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -141,25 +141,36 @@ export default function GlobeView() {
       }
       sunLightRef.current = sunLight;
 
-      // Extend camera far plane so the sun sphere is visible
+      // Extend camera far plane so distant sun/moon spheres are visible
       try {
         const cam = globe.camera() as THREE.PerspectiveCamera;
-        if (cam.far < 20000) {
-          cam.far = 20000;
+        if (cam.far < 100000) {
+          cam.far = 100000;
           cam.updateProjectionMatrix();
         }
       } catch { /* camera not ready */ }
 
-      // Add sun visual sphere
-      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.15, 16, 16);
+      // Add sun visual sphere with glow
+      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.6, 32, 32);
       const sunMat = new THREE.MeshBasicMaterial({ color: 0xffee88 });
       const sunMesh = new THREE.Mesh(sunGeo, sunMat);
       sunMesh.position.copy(sunPos);
       scene.add(sunMesh);
       sunMeshRef.current = sunMesh;
 
+      // Sun glow (larger transparent sphere)
+      const glowGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.8, 32, 32);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0xffdd66,
+        transparent: true,
+        opacity: 0.08,
+        depthWrite: false,
+      });
+      const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+      sunMesh.add(glowMesh); // child of sun, moves with it
+
       // Add moon visual sphere
-      const moonGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.06, 16, 16);
+      const moonGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.12, 16, 16);
       const moonMat = new THREE.MeshBasicMaterial({ color: 0xd4d4d4 });
       const moonMesh = new THREE.Mesh(moonGeo, moonMat);
       moonMesh.position.copy(moonPosRef.current);
