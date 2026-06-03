@@ -126,8 +126,8 @@ export default function GlobeView() {
       const sunPos = sunPosRef.current;
 
       // Replace default lights — low ambient for visible day/night terminator
-      const ambient = new THREE.AmbientLight(0x334455, Math.PI * 0.12);
-      const sunLight = new THREE.DirectionalLight(0xfff8e8, Math.PI * 1.8);
+      const ambient = new THREE.AmbientLight(0x445566, Math.PI * 0.35);
+      const sunLight = new THREE.DirectionalLight(0xfff8e8, Math.PI * 1.5);
       sunLight.position.copy(sunPos);
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
