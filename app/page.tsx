@@ -36,7 +36,16 @@ export default function Home() {
   // Fetch CelesTrak TLE data
   useEffect(() => {
     if (!sourceCelestrak) {
-      setSatellites([]);
+      // Still load collection satellites even with CelesTrak disabled
+      const { collectionSatIds, collectionTLEs } = useSatelliteStore.getState();
+      const collectionSats: Satellite[] = collectionSatIds
+        .map((cid) => {
+          const data = collectionTLEs[cid];
+          if (!data) return null;
+          return { id: cid, name: data.name, tle: data.tle, group: 'collection' as string, position: null } as Satellite;
+        })
+        .filter((s): s is Satellite => s !== null);
+      setSatellites(collectionSats);
       setMassSatellites([]);
       return;
     }
@@ -75,6 +84,16 @@ export default function Home() {
             seen.add(id);
             allSats.push(...tlesToSatellites([tle], group));
           }
+        }
+
+        // Inject collection satellites (not already in a group)
+        const { collectionSatIds, collectionTLEs } = useSatelliteStore.getState();
+        for (const cid of collectionSatIds) {
+          if (seen.has(cid)) continue;
+          const data = collectionTLEs[cid];
+          if (!data) continue;
+          seen.add(cid);
+          allSats.push({ id: cid, name: data.name, tle: data.tle, group: 'collection', position: null });
         }
 
         setSatellites(allSats);

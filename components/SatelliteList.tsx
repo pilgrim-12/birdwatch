@@ -87,6 +87,9 @@ export default function SatelliteList() {
   const toggleSidebarCollapsed = useSatelliteStore((s) => s.toggleSidebarCollapsed);
   const satnogsInfo = useSatelliteStore((s) => s.satnogsInfo);
   const satnogsTransmitters = useSatelliteStore((s) => s.satnogsTransmitters);
+  const collectionSatIds = useSatelliteStore((s) => s.collectionSatIds);
+  const addToCollection = useSatelliteStore((s) => s.addToCollection);
+  const removeFromCollection = useSatelliteStore((s) => s.removeFromCollection);
 
   // Ticking clock — 10s during live passes for real-time elevation, 60s otherwise
   const [now, setNow] = useState(() => new Date());
@@ -103,6 +106,7 @@ export default function SatelliteList() {
 
   const [detailSatId, setDetailSatId] = useState<number | null>(null);
   const [computingPasses, setComputingPasses] = useState(false);
+  const [collectionCollapsed, setCollectionCollapsed] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -306,6 +310,13 @@ export default function SatelliteList() {
   const mobileTab = useSatelliteStore((s) => s.mobileTab);
   const setMobileTab = useSatelliteStore((s) => s.setMobileTab);
 
+  // Collection satellites from allSatellites
+  const collectionSats = useMemo(() => {
+    if (collectionSatIds.length === 0) return [];
+    const idSet = new Set(collectionSatIds);
+    return allSatellites.filter((s) => idSet.has(s.id));
+  }, [allSatellites, collectionSatIds]);
+
   // --- Shared sub-components ---
 
   const satelliteListContent = (
@@ -314,6 +325,74 @@ export default function SatelliteList() {
       className="flex-1 overflow-y-auto px-4"
       onScroll={handleScroll}
     >
+      {/* My Collection section */}
+      {collectionSatIds.length > 0 && (
+        <div className="mb-2">
+          <button
+            onClick={() => setCollectionCollapsed(!collectionCollapsed)}
+            className="w-full flex items-center gap-1.5 py-1.5 text-left"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-3 h-3 text-gray-500 transition-transform ${collectionCollapsed ? '' : 'rotate-90'}`}>
+              <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+            </svg>
+            <span className="text-yellow-400 text-xs">&#9733;</span>
+            <span className="text-xs font-medium text-gray-300">My Collection</span>
+            <span className="text-[10px] text-gray-500">({collectionSatIds.length})</span>
+          </button>
+          {!collectionCollapsed && (
+            <div className="space-y-0.5">
+              {collectionSats.map((sat) => {
+                const pos = getPosition(sat.id);
+                const isSelected = selectedSatIds.includes(sat.id);
+                const groupColor = sat.group === 'collection' ? '#ffd700' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#ffd700');
+
+                return (
+                  <div
+                    key={sat.id}
+                    className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors flex items-center gap-1 cursor-pointer ${
+                      isSelected
+                        ? 'bg-cyan-500/15 border border-cyan-500/30'
+                        : 'hover:bg-gray-800 border border-transparent'
+                    }`}
+                    onClick={() => {
+                      selectSatellite(sat.id);
+                      setMobilePanelOpen(false);
+                    }}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: groupColor }}
+                    />
+                    <span
+                      className={`font-medium truncate flex-1 ${
+                        isSelected ? 'text-cyan-300' : 'text-gray-200'
+                      }`}
+                    >
+                      {sat.name}
+                    </span>
+                    {pos && (
+                      <span className="text-gray-500 text-xs shrink-0">
+                        {pos.alt.toFixed(0)} km
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFromCollection(sat.id);
+                      }}
+                      className="w-5 h-5 rounded flex items-center justify-center text-yellow-400 hover:text-red-400 text-sm leading-none transition-colors shrink-0"
+                      title="Remove from collection"
+                    >
+                      &#9733;
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div
         style={useVirtualScroll ? { height: totalHeight, position: 'relative' } : undefined}
       >
@@ -374,9 +453,25 @@ export default function SatelliteList() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (collectionSatIds.includes(sat.id)) {
+                      removeFromCollection(sat.id);
+                    } else {
+                      addToCollection(sat);
+                    }
+                  }}
+                  className={`w-5 h-5 rounded flex items-center justify-center text-sm leading-none transition-colors shrink-0 ${
+                    collectionSatIds.includes(sat.id) ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-600 hover:text-yellow-400'
+                  }`}
+                  title={collectionSatIds.includes(sat.id) ? 'Remove from collection' : 'Add to collection'}
+                >
+                  {collectionSatIds.includes(sat.id) ? '\u2605' : '\u2606'}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setDetailSatId(detailSatId === sat.id ? null : sat.id);
                   }}
-                  className="ml-1 w-5 h-5 rounded flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-700 transition-colors shrink-0"
+                  className="w-5 h-5 rounded flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-700 transition-colors shrink-0"
                   title="Show details"
                 >
                   <svg

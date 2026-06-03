@@ -51,6 +51,9 @@ export default function Header() {
   const toggleGroupForSearch = useSatelliteStore((s) => s.toggleGroup);
 
   const setSatellites = useSatelliteStore((s) => s.setSatellites);
+  const collectionSatIds = useSatelliteStore((s) => s.collectionSatIds);
+  const addToCollection = useSatelliteStore((s) => s.addToCollection);
+  const removeFromCollection = useSatelliteStore((s) => s.removeFromCollection);
 
   // Search state
   const [searchFocused, setSearchFocused] = useState(false);
@@ -309,22 +312,61 @@ export default function Header() {
               {searchFocused && (searchResults.length > 0 || remoteLoading) && (
                 <div className="absolute left-0 top-full mt-1 w-72 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-[300px] overflow-y-auto">
                   {searchResults.map((sat) => {
-                    const color = sat.remote ? '#888' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff');
+                    const color = sat.remote ? '#888' : (sat.group === 'collection' ? '#ffd700' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff'));
+                    const inCollection = collectionSatIds.includes(sat.id);
                     return (
-                      <button
+                      <div
                         key={`${sat.id}-${sat.remote ? 'r' : 'l'}`}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => handleSearchSelect(sat.id, sat.group, sat.remote)}
                         className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-800 flex items-center gap-2 transition-colors"
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                        <span className="text-gray-200 truncate flex-1">{sat.name}</span>
+                        <button
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleSearchSelect(sat.id, sat.group, sat.remote)}
+                          className="text-gray-200 truncate flex-1 text-left"
+                        >
+                          {sat.name}
+                        </button>
                         {sat.remote ? (
                           <span className="text-[10px] text-yellow-500 shrink-0">CelesTrak</span>
                         ) : (
-                          <span className="text-gray-500 text-[10px] shrink-0">{GROUP_LABELS[sat.group as SatelliteGroup] || sat.group}</span>
+                          <span className="text-gray-500 text-[10px] shrink-0">{sat.group === 'collection' ? 'Collection' : (GROUP_LABELS[sat.group as SatelliteGroup] || sat.group)}</span>
                         )}
-                      </button>
+                        <button
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (inCollection) {
+                              removeFromCollection(sat.id);
+                            } else {
+                              // Need full satellite data for collection
+                              if (sat.remote) {
+                                try {
+                                  const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    const match = data.find((r: { id: number }) => r.id === sat.id);
+                                    if (match) {
+                                      const newSat = { id: match.id, name: match.name, tle: match.tle, group: 'collection', position: null };
+                                      addToCollection(newSat);
+                                      setSatellites([...satellites, newSat]);
+                                    }
+                                  }
+                                } catch { /* ignore */ }
+                              } else {
+                                const found = [...satellites, ...massSatellites].find((s) => s.id === sat.id);
+                                if (found) addToCollection(found);
+                              }
+                            }
+                          }}
+                          className={`shrink-0 text-sm leading-none transition-colors ${
+                            inCollection ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-600 hover:text-yellow-400'
+                          }`}
+                          title={inCollection ? 'Remove from collection' : 'Add to collection'}
+                        >
+                          {inCollection ? '\u2605' : '\u2606'}
+                        </button>
+                      </div>
                     );
                   })}
                   {remoteLoading && searchResults.length === 0 && (

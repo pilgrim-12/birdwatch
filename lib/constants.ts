@@ -12,6 +12,7 @@ export const ALLOWED_GROUPS = [
   'glo-ops',
   'galileo',
   'beidou',
+  'sbas',
   'iridium',
   'military',
   'starlink',
@@ -20,16 +21,29 @@ export const ALLOWED_GROUPS = [
   'orbcomm',
   'intelsat',
   'ses',
+  'eutelsat',
+  'telesat',
+  'kuiper',
+  'qianfan',
+  'hulianwang',
   'planet',
   'spire',
+  'radar',
+  'cubesat',
   'geo',
   'visual',
+  'last-30-days',
   'sarsat',
   'education',
   'engineering',
   'geodetic',
   'tdrss',
   'molniya',
+  'argos',
+  'dmc',
+  'satnogs',
+  'x-comm',
+  'other-comm',
   'active',
 ] as const;
 
@@ -47,6 +61,7 @@ export const GROUP_LABELS: Record<SatelliteGroup, string> = {
   'glo-ops': 'GLONASS',
   galileo: 'Galileo',
   beidou: 'Beidou',
+  sbas: 'SBAS',
   iridium: 'Iridium',
   military: 'Military',
   starlink: 'Starlink',
@@ -55,16 +70,29 @@ export const GROUP_LABELS: Record<SatelliteGroup, string> = {
   orbcomm: 'Orbcomm',
   intelsat: 'Intelsat',
   ses: 'SES',
+  eutelsat: 'Eutelsat',
+  telesat: 'Telesat',
+  kuiper: 'Kuiper',
+  qianfan: 'Qianfan',
+  hulianwang: 'GuoWang',
   planet: 'Planet',
   spire: 'Spire',
+  radar: 'Radar/SAR',
+  cubesat: 'CubeSats',
   geo: 'Geostationary',
   visual: 'Brightest',
+  'last-30-days': 'Last 30 Days',
   sarsat: 'Search & Rescue',
   education: 'Education',
   engineering: 'Engineering',
   geodetic: 'Geodetic',
   tdrss: 'TDRSS',
   molniya: 'Molniya',
+  argos: 'ARGOS',
+  dmc: 'DMC',
+  satnogs: 'SatNOGS',
+  'x-comm': 'Experimental Comm',
+  'other-comm': 'Other Comm',
   active: 'Active Satellites',
 };
 
@@ -80,6 +108,7 @@ export const GROUP_COLORS: Record<SatelliteGroup, string> = {
   'glo-ops': '#ef5350', // red-ish
   galileo: '#5c6bc0', // indigo
   beidou: '#ff7043', // deep orange
+  sbas: '#ba68c8', // medium purple
   iridium: '#26a69a', // teal
   military: '#8d6e63', // brown
   starlink: '#90caf9', // light blue
@@ -88,16 +117,29 @@ export const GROUP_COLORS: Record<SatelliteGroup, string> = {
   orbcomm: '#9ccc65', // light green
   intelsat: '#d4e157', // lime
   ses: '#ffd54f', // amber
+  eutelsat: '#ffab40', // orange-amber
+  telesat: '#b388ff', // lavender
+  kuiper: '#ff8a65', // salmon
+  qianfan: '#e040fb', // magenta
+  hulianwang: '#ea80fc', // light magenta
   planet: '#4db6ac', // teal-green
   spire: '#7986cb', // light indigo
+  radar: '#ff5252', // bright red
+  cubesat: '#69f0ae', // mint green
   geo: '#f06292', // light pink
   visual: '#fff176', // light yellow
+  'last-30-days': '#76ff03', // neon green
   sarsat: '#e57373', // light red
   education: '#81c784', // medium green
   engineering: '#90a4ae', // grey-blue
   geodetic: '#a1887f', // light brown
   tdrss: '#4dd0e1', // light cyan
   molniya: '#ce93d8', // light purple
+  argos: '#80cbc4', // teal-light
+  dmc: '#ffcc80', // peach
+  satnogs: '#aed581', // yellow-green
+  'x-comm': '#b0bec5', // blue-grey
+  'other-comm': '#bcaaa4', // warm grey
   active: '#00d4ff', // default cyan
 };
 
@@ -223,6 +265,16 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     country: 'China',
     frequency: 'B1 (1561 MHz), B2 (1207 MHz), B3 (1268 MHz)',
   },
+  sbas: {
+    description: 'Satellite-Based Augmentation Systems (WAAS, EGNOS, MSAS, GAGAN) improving GNSS accuracy for aviation.',
+    operator: 'FAA, ESA, JAXA, ISRO',
+    orbit: 'GEO (35,786 km)',
+    count: '~20',
+    since: '2003',
+    purpose: 'Navigation Augmentation',
+    country: 'International',
+    frequency: 'L1 (1575.42 MHz), L5 (1176.45 MHz)',
+  },
   iridium: {
     description: 'Global satellite phone and data network. Iridium NEXT constellation replaced original Iridium in 2017–2019.',
     operator: 'Iridium Communications',
@@ -303,6 +355,56 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     country: 'Luxembourg',
     frequency: 'C-band, Ku-band, Ka-band (O3b mPOWER)',
   },
+  eutelsat: {
+    description: 'Major European satellite operator providing TV broadcasting, broadband, and government services via GEO fleet.',
+    operator: 'Eutelsat S.A.',
+    orbit: 'GEO (35,786 km)',
+    count: '~35',
+    since: '1983',
+    purpose: 'Communication (TV/Data)',
+    country: 'France',
+    frequency: 'C-band, Ku-band, Ka-band',
+  },
+  telesat: {
+    description: 'Canadian satellite operator with GEO fleet and planned Lightspeed LEO constellation for global connectivity.',
+    operator: 'Telesat Canada',
+    orbit: 'GEO + LEO (planned)',
+    count: '~15',
+    since: '1972',
+    purpose: 'Communication (Data)',
+    country: 'Canada',
+    frequency: 'C-band, Ku-band, Ka-band',
+  },
+  kuiper: {
+    description: 'Amazon Project Kuiper LEO broadband constellation, competitor to Starlink for global internet access.',
+    operator: 'Amazon / Kuiper Systems',
+    orbit: 'LEO (590–630 km)',
+    count: '~30 (3,236 planned)',
+    since: '2024',
+    purpose: 'Broadband Internet',
+    country: 'USA',
+    frequency: 'Ka-band (17.7–20.2 / 27.5–30 GHz)',
+  },
+  qianfan: {
+    description: 'Chinese mega-constellation (千帆/Qianfan "Thousand Sails") by Shanghai SPACECOM for global broadband internet.',
+    operator: 'Shanghai SPACECOM Lab',
+    orbit: 'LEO (~1,200 km)',
+    count: '~600+ (14,000 planned)',
+    since: '2024',
+    purpose: 'Broadband Internet',
+    country: 'China',
+    frequency: 'Ku-band, Ka-band',
+  },
+  hulianwang: {
+    description: 'Chinese state-backed mega-constellation (国网/GuoWang) for broadband internet, China\'s Starlink equivalent.',
+    operator: 'China SatNet / SASAC',
+    orbit: 'LEO (~1,100 km)',
+    count: '~50+ (13,000 planned)',
+    since: '2024',
+    purpose: 'Broadband Internet',
+    country: 'China',
+    frequency: 'Ku-band, Ka-band',
+  },
   planet: {
     description: 'Earth imaging constellation of Dove/SuperDove 3U CubeSats capturing daily global imagery at 3–5m resolution.',
     operator: 'Planet Labs PBC',
@@ -323,6 +425,26 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     country: 'USA',
     frequency: 'GNSS-RO L-band, VHF (162 MHz AIS), 1090 MHz ADS-B',
   },
+  radar: {
+    description: 'Synthetic Aperture Radar (SAR) satellites for all-weather day/night Earth imaging. Includes ICEYE, Capella, and others.',
+    operator: 'ICEYE, Capella Space, Umbra, various',
+    orbit: 'Sun-sync LEO (500–600 km)',
+    count: '~50+',
+    since: '2018',
+    purpose: 'SAR Imaging',
+    country: 'Finland / USA / International',
+    frequency: 'X-band SAR (9.6 GHz), S-band TT&C',
+  },
+  cubesat: {
+    description: 'CubeSat-class satellites (1U–12U) from commercial, university, and government missions worldwide.',
+    operator: 'Various',
+    orbit: 'LEO (300–700 km)',
+    count: '~2,000+',
+    since: '2003',
+    purpose: 'Various (Tech Demo/Science/Comms)',
+    country: 'International',
+    frequency: 'VHF/UHF (145/435 MHz), S-band, X-band',
+  },
   geo: {
     description: 'All satellites in geostationary orbit — stationary above equator. Includes comms, weather, and military.',
     operator: 'Various',
@@ -332,6 +454,16 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Mixed (Comms/Weather/Military)',
     country: 'International',
     frequency: 'C/Ku/Ka-band (varies)',
+  },
+  'last-30-days': {
+    description: 'Satellites launched in the last 30 days. Updated daily to show the most recent additions to orbit.',
+    operator: 'Various',
+    orbit: 'Various',
+    count: '~50–200',
+    since: 'N/A (rolling)',
+    purpose: 'Recent Launches',
+    country: 'International',
+    frequency: 'Various',
   },
   visual: {
     description: 'Brightest satellites visible to the naked eye. Useful for planning visual observation sessions.',
@@ -403,6 +535,56 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     country: 'Russia',
     frequency: 'C-band, UHF military bands',
   },
+  argos: {
+    description: 'ARGOS Data Collection System satellites relaying environmental data from autonomous platforms worldwide.',
+    operator: 'CNES / NOAA / EUMETSAT / ISRO',
+    orbit: 'Sun-sync LEO (800–850 km)',
+    count: '~10',
+    since: '1978',
+    purpose: 'Data Collection',
+    country: 'France / USA',
+    frequency: '401.65 MHz (uplink), 465 MHz (downlink)',
+  },
+  dmc: {
+    description: 'Disaster Monitoring Constellation providing rapid-revisit Earth imagery for disaster response and management.',
+    operator: 'SSTL / DMCii',
+    orbit: 'Sun-sync LEO (660–700 km)',
+    count: '~8',
+    since: '2002',
+    purpose: 'Disaster Monitoring',
+    country: 'UK / International',
+    frequency: 'S-band, X-band',
+  },
+  satnogs: {
+    description: 'Satellites tracked by the SatNOGS open-source ground station network. Community-curated satellite database.',
+    operator: 'Libre Space Foundation',
+    orbit: 'LEO',
+    count: '~300+',
+    since: '2014',
+    purpose: 'Open-Source Tracking',
+    country: 'International',
+    frequency: 'VHF/UHF (various)',
+  },
+  'x-comm': {
+    description: 'Experimental communication satellites testing new technologies, frequencies, and protocols in orbit.',
+    operator: 'Various',
+    orbit: 'Various',
+    count: '~30',
+    since: 'Various',
+    purpose: 'Experimental Comms',
+    country: 'International',
+    frequency: 'Various experimental bands',
+  },
+  'other-comm': {
+    description: 'Communication satellites not classified in specific operator groups. Regional and niche operators.',
+    operator: 'Various regional operators',
+    orbit: 'GEO / LEO',
+    count: '~200+',
+    since: 'Various',
+    purpose: 'Communication',
+    country: 'International',
+    frequency: 'C/Ku/Ka-band (varies)',
+  },
   active: {
     description: 'All cataloged active satellites from the combined CelesTrak database.',
     operator: 'Various',
@@ -419,4 +601,4 @@ export const EARTH_RADIUS_KM = 6371;
 
 // Groups with more satellites than this threshold use InstancedMesh rendering
 export const MASS_GROUP_THRESHOLD = 500;
-export const MASS_GROUPS: SatelliteGroup[] = ['starlink', 'oneweb', 'active'];
+export const MASS_GROUPS: SatelliteGroup[] = ['starlink', 'oneweb', 'cubesat', 'qianfan', 'active'];

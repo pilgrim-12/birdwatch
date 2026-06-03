@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Satellite, ObserverLocation, SatellitePosition } from '@/types/satellite';
+import type { Satellite, ObserverLocation, SatellitePosition, TLEData } from '@/types/satellite';
 import type { SatellitePass } from '@/lib/passes';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { SatNogsInfo, SatNogsTransmitter } from '@/types/satnogs';
@@ -106,6 +106,12 @@ interface SatelliteStore {
   sourceSatnogs: boolean;
   toggleSourceCelestrak: () => void;
   toggleSourceSatnogs: () => void;
+
+  // Satellite collection (persisted)
+  collectionSatIds: number[];
+  collectionTLEs: Record<number, { name: string; tle: TLEData }>;
+  addToCollection: (sat: Satellite) => void;
+  removeFromCollection: (id: number) => void;
 }
 
 export const useSatelliteStore = create<SatelliteStore>()(
@@ -234,6 +240,26 @@ export const useSatelliteStore = create<SatelliteStore>()(
   sourceSatnogs: true,
   toggleSourceCelestrak: () => set((s) => ({ sourceCelestrak: !s.sourceCelestrak })),
   toggleSourceSatnogs: () => set((s) => ({ sourceSatnogs: !s.sourceSatnogs, satnogsLoaded: false })),
+
+  // Satellite collection
+  collectionSatIds: [],
+  collectionTLEs: {},
+  addToCollection: (sat) =>
+    set((s) => {
+      if (s.collectionSatIds.includes(sat.id)) return s;
+      return {
+        collectionSatIds: [...s.collectionSatIds, sat.id],
+        collectionTLEs: { ...s.collectionTLEs, [sat.id]: { name: sat.name, tle: sat.tle } },
+      };
+    }),
+  removeFromCollection: (id) =>
+    set((s) => {
+      const { [id]: _, ...rest } = s.collectionTLEs;
+      return {
+        collectionSatIds: s.collectionSatIds.filter((x) => x !== id),
+        collectionTLEs: rest,
+      };
+    }),
     }),
     {
       name: 'birdwatch-settings',
@@ -252,6 +278,8 @@ export const useSatelliteStore = create<SatelliteStore>()(
         mapMode: state.mapMode,
         sourceCelestrak: state.sourceCelestrak,
         sourceSatnogs: state.sourceSatnogs,
+        collectionSatIds: state.collectionSatIds,
+        collectionTLEs: state.collectionTLEs,
       }),
     },
   ),
