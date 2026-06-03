@@ -5,6 +5,7 @@ import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { computeOrbitPath } from '@/lib/orbit';
 import { GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
+import { computeFootprintCircle } from '@/lib/footprint';
 
 /** Clamp view so map edges don't go past viewport edges */
 function clampView(v: { zoom: number; ox: number; oy: number }, w: number, h: number) {
@@ -483,6 +484,55 @@ export default function FlatMapView() {
         ctx.moveTo(Math.max(0, ox), y);
         ctx.lineTo(Math.min(w, ox + w * zoom), y);
         ctx.stroke();
+      }
+
+      // --- Footprint circles for selected satellites ---
+      if (state.showFootprint && state.selectedSatIds.length > 0) {
+        const satGroupMap2 = new Map(satellites.map((s) => [s.id, s]));
+        for (const selId of state.selectedSatIds) {
+          const pos = state.positions.get(selId) ?? state.massPositions.get(selId);
+          if (!pos) continue;
+          const sat = satGroupMap2.get(selId)
+            ?? useSatelliteStore.getState().massSatellites.find((s) => s.id === selId);
+          const color = sat
+            ? (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff')
+            : '#00d4ff';
+
+          const ring = computeFootprintCircle(pos.lat, pos.lng, pos.alt, 72);
+
+          // Fill
+          ctx.fillStyle = color + '18';
+          ctx.beginPath();
+          let started = false;
+          for (const [pLng, pLat] of ring) {
+            const { x: px, y: py } = latLngToXY(pLat, pLng, w, h, zoom, ox, oy);
+            if (!started) { ctx.moveTo(px, py); started = true; }
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+
+          // Stroke
+          ctx.strokeStyle = color + '70';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          started = false;
+          for (let i = 0; i < ring.length; i++) {
+            const [pLng, pLat] = ring[i];
+            const { x: px, y: py } = latLngToXY(pLat, pLng, w, h, zoom, ox, oy);
+            // Break line at antimeridian wraps
+            if (i > 0 && Math.abs(ring[i][0] - ring[i - 1][0]) > 180) {
+              ctx.stroke();
+              ctx.beginPath();
+              started = false;
+            }
+            if (!started) { ctx.moveTo(px, py); started = true; }
+            else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
       }
 
       // --- Orbit ground tracks ---

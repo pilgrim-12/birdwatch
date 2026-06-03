@@ -8,6 +8,7 @@ import { computeOrbitPath } from '@/lib/orbit';
 import { EARTH_RADIUS_KM, GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import { polar2Cartesian, sunPosition3D, moonPosition3D, GLOBE_RADIUS } from '@/lib/globe-math';
+import { computeFootprintCircle } from '@/lib/footprint';
 import { getSunLatLng } from '@/lib/sun';
 import { getMoonLatLng } from '@/lib/moon';
 import { useCameraMode } from '@/hooks/useCameraMode';
@@ -62,6 +63,7 @@ export default function GlobeView() {
   const showBeams = useSatelliteStore((s) => s.showBeams);
   const showLookLine = useSatelliteStore((s) => s.showLookLine);
   const showGroundLine = useSatelliteStore((s) => s.showGroundLine);
+  const showFootprint = useSatelliteStore((s) => s.showFootprint);
   const nightMode = useSatelliteStore((s) => s.nightMode);
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
   const beamWidth = useSatelliteStore((s) => s.beamWidth);
@@ -654,6 +656,28 @@ export default function GlobeView() {
     labelPosRef.current = m;
   }, [htmlLabelsData]);
 
+  // Footprint polygons for selected satellites
+  interface FootprintDatum {
+    coords: [number, number][];
+    color: string;
+  }
+  const footprintData: FootprintDatum[] = useMemo(() => {
+    if (!showFootprint || selectedSatIds.length === 0) return [];
+    const result: FootprintDatum[] = [];
+    for (const id of selectedSatIds) {
+      const pos = positions.get(id) ?? massPositions.get(id);
+      if (!pos) continue;
+      const sat = satellites.find((s) => s.id === id)
+        ?? useSatelliteStore.getState().massSatellites.find((s) => s.id === id);
+      const color = sat
+        ? (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff')
+        : '#00d4ff';
+      const ring = computeFootprintCircle(pos.lat, pos.lng, pos.alt, 72);
+      result.push({ coords: ring, color });
+    }
+    return result;
+  }, [showFootprint, selectedSatIds, positions, massPositions, satellites]);
+
   // Observer ring
   const ringsData = useMemo(() => {
     if (!observer) return [];
@@ -945,6 +969,24 @@ export default function GlobeView() {
             return 0;
           }}
           pathTransitionDuration={0}
+          // Footprint polygons for selected satellites
+          polygonsData={footprintData}
+          polygonCapColor={(d: object) => {
+            const fp = d as FootprintDatum;
+            return fp.color + '25';
+          }}
+          polygonSideColor={() => 'rgba(0,0,0,0)'}
+          polygonStrokeColor={(d: object) => {
+            const fp = d as FootprintDatum;
+            return fp.color + '90';
+          }}
+          polygonAltitude={0.005}
+          polygonGeoJsonGeometry={(d: object) => {
+            const fp = d as FootprintDatum;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return { type: 'Polygon', coordinates: [fp.coords] } as any;
+          }}
+          polygonsTransitionDuration={0}
           // Mass group (Starlink) — rendered as InstancedMesh (single draw call)
           customLayerData={customLayerData}
           customThreeObject={createMassMesh}
