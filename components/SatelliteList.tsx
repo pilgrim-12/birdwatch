@@ -83,6 +83,8 @@ export default function SatelliteList() {
 
   const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
   const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);
+  const isSidebarCollapsed = useSatelliteStore((s) => s.isSidebarCollapsed);
+  const toggleSidebarCollapsed = useSatelliteStore((s) => s.toggleSidebarCollapsed);
   const satnogsInfo = useSatelliteStore((s) => s.satnogsInfo);
   const satnogsTransmitters = useSatelliteStore((s) => s.satnogsTransmitters);
 
@@ -665,17 +667,32 @@ export default function SatelliteList() {
 
   return (
     <>
+      {/* Desktop: collapsed sidebar toggle */}
+      {isSidebarCollapsed && (
+        <button
+          onClick={toggleSidebarCollapsed}
+          className="hidden md:flex shrink-0 w-8 items-center justify-center bg-gray-900 border-l border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer"
+          title="Expand sidebar"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-gray-400">
+            <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+          </svg>
+        </button>
+      )}
+
       {/* Desktop: resize handle between globe and sidebar */}
-      <div
-        onMouseDown={handleResizeStart}
-        className="hidden md:flex shrink-0 w-3 cursor-col-resize items-center justify-center bg-gray-800 hover:bg-gray-700 active:bg-cyan-900 transition-colors border-x border-gray-700"
-      >
-        <div className="flex flex-col gap-1">
-          <div className={`w-1 h-1 rounded-full ${isResizing ? 'bg-cyan-400' : 'bg-gray-500'}`} />
-          <div className={`w-1 h-1 rounded-full ${isResizing ? 'bg-cyan-400' : 'bg-gray-500'}`} />
-          <div className={`w-1 h-1 rounded-full ${isResizing ? 'bg-cyan-400' : 'bg-gray-500'}`} />
+      {!isSidebarCollapsed && (
+        <div
+          onMouseDown={handleResizeStart}
+          className="hidden md:flex shrink-0 w-3 cursor-col-resize items-center justify-center bg-gray-800 hover:bg-gray-700 active:bg-cyan-900 transition-colors border-x border-gray-700"
+        >
+          <div className="flex flex-col gap-1">
+            <div className={`w-1 h-1 rounded-full ${isResizing ? 'bg-cyan-400' : 'bg-gray-500'}`} />
+            <div className={`w-1 h-1 rounded-full ${isResizing ? 'bg-cyan-400' : 'bg-gray-500'}`} />
+            <div className={`w-1 h-1 rounded-full ${isResizing ? 'bg-cyan-400' : 'bg-gray-500'}`} />
+          </div>
         </div>
-      </div>
+      )}
 
       <aside
         ref={sidebarRef}
@@ -686,6 +703,7 @@ export default function SatelliteList() {
           ${isMobilePanelOpen ? 'translate-y-0' : 'translate-y-full'}
           md:relative md:transform-none md:translate-y-0 md:h-auto md:rounded-none md:z-auto
           md:w-80 shrink-0 bg-gray-900 border-l border-gray-800 overflow-hidden flex flex-col
+          ${isSidebarCollapsed ? 'md:hidden' : ''}
         `}
       >
       {/* Mobile: drag handle + tabs */}
@@ -733,9 +751,20 @@ export default function SatelliteList() {
       {/* Desktop: original layout — satellite list header + list + passes */}
       <div className="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
         <div className="p-4 pb-2 shrink-0">
-          <h2 className="text-lg font-semibold text-white">
-            Satellites ({allSatellites.length})
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">
+              Satellites ({allSatellites.length})
+            </h2>
+            <button
+              onClick={toggleSidebarCollapsed}
+              className="w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+              title="Collapse sidebar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
           {massSatellites.length > 0 && (
             <p className="text-xs text-gray-500 mt-1">
               incl. {massSatellites.length} Starlink (no orbits/beams)

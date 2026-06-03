@@ -50,28 +50,88 @@ export default function Header() {
   const activeGroupsForSearch = useSatelliteStore((s) => s.activeGroups);
   const toggleGroupForSearch = useSatelliteStore((s) => s.toggleGroup);
 
+  const setSatellites = useSatelliteStore((s) => s.setSatellites);
+
   // Search state
   const [searchFocused, setSearchFocused] = useState(false);
+  const [remoteResults, setRemoteResults] = useState<Array<{ id: number; name: string; group: string }>>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const searchResults = useMemo(() => {
+  // Local results: search among loaded satellites
+  const localResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
     const all = [...satellites, ...massSatellites];
     return all.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 20);
   }, [searchQuery, satellites, massSatellites]);
 
-  const handleSearchSelect = useCallback((satId: number, group: string) => {
-    selectSatellite(satId);
-    // Activate group if not active
-    if (!activeGroupsForSearch.includes(group as SatelliteGroup)) {
+  // Remote search: query CelesTrak API with debounce
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setRemoteResults([]);
+      setRemoteLoading(false);
+      return;
+    }
+    // Skip remote search if local results are sufficient
+    if (localResults.length >= 5) {
+      setRemoteResults([]);
+      return;
+    }
+    setRemoteLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = await res.json();
+          // Filter out satellites already in local results
+          const localIds = new Set(localResults.map((s) => s.id));
+          const filtered = data
+            .filter((r: { id: number }) => !localIds.has(r.id))
+            .map((r: { id: number; name: string }) => ({ ...r, group: 'celestrak' }));
+          setRemoteResults(filtered);
+        }
+      } catch { /* ignore */ }
+      setRemoteLoading(false);
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery, localResults]);
+
+  // Combined results: local first, then remote
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return [
+      ...localResults.map((s) => ({ id: s.id, name: s.name, group: s.group, remote: false })),
+      ...remoteResults.map((s) => ({ id: s.id, name: s.name, group: s.group, remote: true })),
+    ].slice(0, 25);
+  }, [searchQuery, localResults, remoteResults]);
+
+  const handleSearchSelect = useCallback(async (satId: number, group: string, remote: boolean) => {
+    if (remote) {
+      // Remote satellite — fetch its TLE and add to loaded satellites
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const match = data.find((r: { id: number }) => r.id === satId);
+          if (match) {
+            const newSat = { id: match.id, name: match.name, tle: match.tle, group: 'search', position: null };
+            setSatellites([...satellites, newSat]);
+          }
+        }
+      } catch { /* ignore */ }
+    } else if (!activeGroupsForSearch.includes(group as SatelliteGroup)) {
       toggleGroupForSearch(group as SatelliteGroup);
     }
+    selectSatellite(satId);
     setSearchQuery('');
     setSearchFocused(false);
     searchInputRef.current?.blur();
-  }, [selectSatellite, activeGroupsForSearch, toggleGroupForSearch, setSearchQuery]);
+  }, [selectSatellite, activeGroupsForSearch, toggleGroupForSearch, setSearchQuery, searchQuery, satellites, setSatellites]);
 
   // Close search dropdown on outside click
   useEffect(() => {
@@ -246,23 +306,30 @@ export default function Header() {
                   </button>
                 )}
               </div>
-              {searchFocused && searchResults.length > 0 && (
+              {searchFocused && (searchResults.length > 0 || remoteLoading) && (
                 <div className="absolute left-0 top-full mt-1 w-72 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-[300px] overflow-y-auto">
                   {searchResults.map((sat) => {
-                    const color = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
+                    const color = sat.remote ? '#888' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff');
                     return (
                       <button
-                        key={sat.id}
+                        key={`${sat.id}-${sat.remote ? 'r' : 'l'}`}
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => handleSearchSelect(sat.id, sat.group)}
+                        onClick={() => handleSearchSelect(sat.id, sat.group, sat.remote)}
                         className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-800 flex items-center gap-2 transition-colors"
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                         <span className="text-gray-200 truncate flex-1">{sat.name}</span>
-                        <span className="text-gray-500 text-[10px] shrink-0">{GROUP_LABELS[sat.group as SatelliteGroup] || sat.group}</span>
+                        {sat.remote ? (
+                          <span className="text-[10px] text-yellow-500 shrink-0">CelesTrak</span>
+                        ) : (
+                          <span className="text-gray-500 text-[10px] shrink-0">{GROUP_LABELS[sat.group as SatelliteGroup] || sat.group}</span>
+                        )}
                       </button>
                     );
                   })}
+                  {remoteLoading && searchResults.length === 0 && (
+                    <div className="px-3 py-2 text-[11px] text-gray-500">Searching CelesTrak...</div>
+                  )}
                 </div>
               )}
             </div>

@@ -74,9 +74,11 @@ interface SatelliteStore {
   isHeaderCollapsed: boolean;
   toggleHeaderCollapsed: () => void;
 
-  // Sidebar resize (desktop)
+  // Sidebar resize & collapse (desktop)
   sidebarWidth: number;
+  isSidebarCollapsed: boolean;
   setSidebarWidth: (width: number) => void;
+  toggleSidebarCollapsed: () => void;
 
   // Antenna Guide
   isAntennaGuideOpen: boolean;
@@ -195,9 +197,11 @@ export const useSatelliteStore = create<SatelliteStore>()(
   isHeaderCollapsed: false,
   toggleHeaderCollapsed: () => set((s) => ({ isHeaderCollapsed: !s.isHeaderCollapsed })),
 
-  // Sidebar resize (desktop)
+  // Sidebar resize & collapse (desktop)
   sidebarWidth: 320,
+  isSidebarCollapsed: false,
   setSidebarWidth: (width) => set({ sidebarWidth: Math.max(240, Math.min(600, width)) }),
+  toggleSidebarCollapsed: () => set((s) => ({ isSidebarCollapsed: !s.isSidebarCollapsed })),
 
   // Antenna Guide
   isAntennaGuideOpen: false,
