@@ -51,3 +51,30 @@ export function groupMatchesCountry(group: string, country: string): boolean {
   if (!info) return false;
   return parseCountryTokens(info.country).includes(country);
 }
+
+/** Get primary ISO code for a satellite group */
+export function getGroupPrimaryIsoCode(group: string): string | null {
+  const info = GROUP_INFO[group as SatelliteGroup];
+  if (!info) return null;
+  const codes = getCountryIsoCodes(info.country);
+  return codes.find((c) => c !== null) ?? null;
+}
+
+/** Preloaded flag Image cache for canvas rendering */
+const flagImageCache = new Map<string, HTMLImageElement>();
+let flagImagesLoading = false;
+
+/** Load all needed flag images for canvas rendering. Returns cached map. */
+export function loadFlagImages(): Map<string, HTMLImageElement> {
+  if (flagImagesLoading || flagImageCache.size > 0) return flagImageCache;
+  flagImagesLoading = true;
+  const codes = Object.values(COUNTRY_FLAG_MAP).filter((c): c is string => c !== null);
+  for (const code of codes) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = `https://flagcdn.com/w40/${code}.png`;
+    img.onload = () => flagImageCache.set(code, img);
+    // Pre-set so we know the code is being loaded
+  }
+  return flagImageCache;
+}

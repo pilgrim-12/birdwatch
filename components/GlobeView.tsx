@@ -5,8 +5,9 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { computeOrbitPath } from '@/lib/orbit';
-import { EARTH_RADIUS_KM, GROUP_COLORS } from '@/lib/constants';
+import { EARTH_RADIUS_KM, GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
+import { getCountryIsoCodes } from '@/lib/countryFlags';
 import { polar2Cartesian, sunPosition3D, moonPosition3D, GLOBE_RADIUS } from '@/lib/globe-math';
 import { computeFootprintCircle } from '@/lib/footprint';
 import { getSunLatLng } from '@/lib/sun';
@@ -60,6 +61,7 @@ export default function GlobeView() {
   const setObserver = useSatelliteStore((s) => s.setObserver);
   const showTrajectories = useSatelliteStore((s) => s.showTrajectories);
   const showLabels = useSatelliteStore((s) => s.showLabels);
+  const showFlags = useSatelliteStore((s) => s.showFlags);
   const showBeams = useSatelliteStore((s) => s.showBeams);
   const showLookLine = useSatelliteStore((s) => s.showLookLine);
   const showGroundLine = useSatelliteStore((s) => s.showGroundLine);
@@ -247,8 +249,9 @@ export default function GlobeView() {
         }
       });
 
-      // --- Label occlusion + distance scaling ---
-      if (!useSatelliteStore.getState().showLabels) return;
+      // --- Label/flag occlusion + distance scaling ---
+      const _state = useSatelliteStore.getState();
+      if (!_state.showLabels && !_state.showFlags) return;
 
       let camera: THREE.PerspectiveCamera;
       try {
@@ -606,7 +609,7 @@ export default function GlobeView() {
 
   // HTML labels for satellites on the globe (+ CPA / ground-line distance labels)
   const htmlLabelsData = useMemo(() => {
-    const labels = showLabels
+    const labels = (showLabels || showFlags)
       ? pointsData.map((p) => ({
           id: p.id,
           lat: p.lat,
@@ -614,7 +617,9 @@ export default function GlobeView() {
           alt: p.alt + 0.015,
           name: p.name,
           color: p.color,
+          group: p.group,
           selected: selectedSatIds.includes(p.id),
+          _flags: showFlags, _labels: showLabels, // force element re-creation on toggle
         }))
       : [];
 
@@ -627,7 +632,9 @@ export default function GlobeView() {
         alt: cpaInfo.midAlt + 0.01,
         name: `${cpaInfo.distKm} km`,
         color: '#ff9800',
+        group: '',
         selected: false,
+        _flags: showFlags, _labels: showLabels,
       });
     }
 
@@ -640,12 +647,14 @@ export default function GlobeView() {
         alt: groundLineInfo.midAlt + 0.01,
         name: `${groundLineInfo.slantKm} km`,
         color: '#4fc3f7',
+        group: '',
         selected: false,
+        _flags: showFlags, _labels: showLabels,
       });
     }
 
     return labels;
-  }, [showLabels, selectedSatIds, pointsData, cpaInfo, groundLineInfo]);
+  }, [showLabels, showFlags, selectedSatIds, pointsData, cpaInfo, groundLineInfo]);
 
   // Sync label positions ref for occlusion check
   useEffect(() => {
@@ -907,17 +916,36 @@ export default function GlobeView() {
           htmlLng="lng"
           htmlAltitude="alt"
           htmlElement={(d: object) => {
-            const data = d as { id: number; name: string; color: string; selected: boolean; lat: number; lng: number; alt: number };
+            const data = d as { id: number; name: string; color: string; group: string; selected: boolean; lat: number; lng: number; alt: number };
             const el = document.createElement('div');
-            el.textContent = data.name;
             el.setAttribute('data-sat-id', String(data.id));
             // Distance labels (CPA id=-1, ground-line id=-2)
             if (data.id < 0) {
+              el.textContent = data.name;
               el.style.cssText = `color:#fff;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;border:1px solid ${data.color};transition:opacity 0.15s;`;
             } else {
-              el.style.cssText = data.selected
-                ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;transition:opacity 0.15s;`
-                : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none;transform:translateY(-14px);transition:opacity 0.15s;`;
+              el.style.cssText = `display:flex;align-items:center;gap:3px;white-space:nowrap;pointer-events:none;transition:opacity 0.15s;` + (data.selected
+                ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;`
+                : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;transform:translateY(-14px);`);
+              // Flag icon
+              const { showFlags: sf, showLabels: sl } = useSatelliteStore.getState();
+              if (sf && data.group) {
+                const info = GROUP_INFO[data.group as SatelliteGroup];
+                if (info) {
+                  const codes = getCountryIsoCodes(info.country);
+                  const primaryCode = codes.find((c) => c !== null);
+                  if (primaryCode) {
+                    const flagEl = document.createElement('span');
+                    flagEl.className = `fi fi-${primaryCode}`;
+                    flagEl.style.cssText = 'width:14px;height:10px;display:inline-block;background-size:cover;flex-shrink:0;';
+                    el.appendChild(flagEl);
+                  }
+                }
+              }
+              // Name text
+              if (sl) {
+                el.appendChild(document.createTextNode(data.name));
+              }
             }
             labelElsRef.current.set(data.id, el);
             return el;

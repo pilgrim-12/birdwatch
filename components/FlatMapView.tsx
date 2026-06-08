@@ -5,6 +5,7 @@ import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { computeOrbitPath } from '@/lib/orbit';
 import { GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
+import { getGroupPrimaryIsoCode, loadFlagImages } from '@/lib/countryFlags';
 import { computeFootprintCircle } from '@/lib/footprint';
 
 /** Clamp view so map edges don't go past viewport edges */
@@ -99,7 +100,14 @@ export default function FlatMapView() {
   const setObserver = useSatelliteStore((s) => s.setObserver);
   const showTrajectories = useSatelliteStore((s) => s.showTrajectories);
   const showLabels = useSatelliteStore((s) => s.showLabels);
+  const showFlags = useSatelliteStore((s) => s.showFlags);
   const showBeams = useSatelliteStore((s) => s.showBeams);
+
+  // Preload flag images for canvas rendering when flags toggle is on
+  const flagImagesRef = useRef(new Map<string, HTMLImageElement>());
+  useEffect(() => {
+    if (showFlags) flagImagesRef.current = loadFlagImages();
+  }, [showFlags]);
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
   const showLookLine = useSatelliteStore((s) => s.showLookLine);
 
@@ -640,20 +648,39 @@ export default function FlatMapView() {
         }
       });
 
-      // --- Labels ---
-      if (state.showLabels) {
+      // --- Labels & Flags ---
+      if (state.showLabels || state.showFlags) {
         const fontSize = Math.round(10 * scale);
         ctx.font = `${fontSize}px system-ui, sans-serif`;
         ctx.textBaseline = 'bottom';
+        const flagW = Math.round(14 * scale);
+        const flagH = Math.round(10 * scale);
+        const flagCache = flagImagesRef.current;
         state.positions.forEach((pos, id) => {
           const sat = satGroupMap.get(id);
           if (!sat) return;
           const isSelected = state.selectedSatIds.includes(id);
           const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
           if (x < -50 || x > w + 50 || y < -20 || y > h + 20) return;
-          ctx.fillStyle = isSelected ? '#ffffff' : '#cccccc';
-          ctx.globalAlpha = isSelected ? 1 : 0.7;
-          ctx.fillText(sat.name, x + 6 * scale, y - 2 * scale);
+          let offsetX = x + 6 * scale;
+          // Draw flag
+          if (state.showFlags) {
+            const isoCode = getGroupPrimaryIsoCode(sat.group);
+            if (isoCode) {
+              const flagImg = flagCache.get(isoCode);
+              if (flagImg && flagImg.complete) {
+                ctx.globalAlpha = isSelected ? 1 : 0.7;
+                ctx.drawImage(flagImg, offsetX, y - flagH - 1 * scale, flagW, flagH);
+                offsetX += flagW + 3 * scale;
+              }
+            }
+          }
+          // Draw name
+          if (state.showLabels) {
+            ctx.fillStyle = isSelected ? '#ffffff' : '#cccccc';
+            ctx.globalAlpha = isSelected ? 1 : 0.7;
+            ctx.fillText(sat.name, offsetX, y - 2 * scale);
+          }
         });
         ctx.globalAlpha = 1;
       }
@@ -826,7 +853,7 @@ export default function FlatMapView() {
     // Note: positions & massPositions intentionally excluded — the RAF loop reads
     // live state via useSatelliteStore.getState() each frame, so reactive deps would
     // only cause expensive teardown/re-setup of the animation loop every update cycle.
-  }, [dimensions, imgLoaded, satellites, selectedSatIds, observer, showTrajectories, showLabels, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode]);
+  }, [dimensions, imgLoaded, satellites, selectedSatIds, observer, showTrajectories, showLabels, showFlags, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative z-0 bg-[#0a1628]">
