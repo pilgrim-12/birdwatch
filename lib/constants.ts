@@ -24,6 +24,7 @@ export const ALLOWED_GROUPS = [
   'eutelsat',
   'telesat',
   'kuiper',
+  'rassvet',
   'qianfan',
   'hulianwang',
   'planet',
@@ -73,6 +74,7 @@ export const GROUP_LABELS: Record<SatelliteGroup, string> = {
   eutelsat: 'Eutelsat',
   telesat: 'Telesat',
   kuiper: 'Kuiper',
+  rassvet: 'Rassvet',
   qianfan: 'Qianfan',
   hulianwang: 'GuoWang',
   planet: 'Planet',
@@ -120,6 +122,7 @@ export const GROUP_COLORS: Record<SatelliteGroup, string> = {
   eutelsat: '#ffab40', // orange-amber
   telesat: '#b388ff', // lavender
   kuiper: '#ff8a65', // salmon
+  rassvet: '#ef9a9a', // light red-pink
   qianfan: '#e040fb', // magenta
   hulianwang: '#ea80fc', // light magenta
   planet: '#4db6ac', // teal-green
@@ -384,6 +387,16 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Broadband Internet',
     country: 'USA',
     frequency: 'Ka-band (17.7–20.2 / 27.5–30 GHz)',
+  },
+  rassvet: {
+    description: 'Russian broadband internet constellation (Рассвет) by Bureau 1440 (Бюро 1440) for Russia and global coverage.',
+    operator: 'Bureau 1440',
+    orbit: 'LEO (~600 km)',
+    count: '~15',
+    since: '2024',
+    purpose: 'Broadband Internet',
+    country: 'Russia',
+    frequency: 'Ka-band, Ku-band',
   },
   qianfan: {
     description: 'Chinese mega-constellation (千帆/Qianfan "Thousand Sails") by Shanghai SPACECOM for global broadband internet.',

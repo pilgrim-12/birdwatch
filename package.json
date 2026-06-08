@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
+    "flag-icons": "^7.5.0",
     "leaflet": "^1.9.4",
     "next": "^15",
     "react": "^19",

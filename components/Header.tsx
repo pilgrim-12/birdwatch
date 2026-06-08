@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { ALLOWED_GROUPS, GROUP_LABELS, GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
+import { CountryFlag } from '@/components/CountryFlag';
+import { getUniqueCountries, groupMatchesCountry, COUNTRY_FLAG_MAP } from '@/lib/countryFlags';
 
 export default function Header() {
   const showTrajectories = useSatelliteStore((s) => s.showTrajectories);
@@ -29,6 +31,8 @@ export default function Header() {
   const setBeamSpeed = useSatelliteStore((s) => s.setBeamSpeed);
   const toggleGroup = useSatelliteStore((s) => s.toggleGroup);
   const setActiveGroups = useSatelliteStore((s) => s.setActiveGroups);
+  const countryFilter = useSatelliteStore((s) => s.countryFilter);
+  const setCountryFilter = useSatelliteStore((s) => s.setCountryFilter);
   const observer = useSatelliteStore((s) => s.observer);
   const setObserver = useSatelliteStore((s) => s.setObserver);
 
@@ -114,6 +118,13 @@ export default function Header() {
       ...remoteResults.map((s) => ({ id: s.id, name: s.name, group: s.group, remote: true })),
     ].slice(0, 25);
   }, [searchQuery, localResults, remoteResults]);
+
+  const availableCountries = useMemo(() => getUniqueCountries(), []);
+  const filteredGroups = useMemo(() => {
+    const base = ALLOWED_GROUPS.filter((g) => g !== 'active');
+    if (!countryFilter) return base;
+    return base.filter((g) => groupMatchesCountry(g, countryFilter));
+  }, [countryFilter]);
 
   const handleSearchSelect = useCallback(async (satId: number, group: string, remote: boolean) => {
     if (remote) {
@@ -555,11 +566,56 @@ export default function Header() {
                     </div>
                   </div>
 
+                  {/* Country Filter */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      Filter by Country
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        onClick={() => setCountryFilter(null)}
+                        className={`px-2 py-1 rounded text-[11px] transition-colors border ${
+                          countryFilter === null
+                            ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                            : 'bg-gray-800/50 text-gray-500 border-gray-700 hover:text-gray-300'
+                        }`}
+                      >
+                        All
+                      </button>
+                      {availableCountries.map((country) => {
+                        const isActive = countryFilter === country;
+                        const isoCode = COUNTRY_FLAG_MAP[country];
+                        return (
+                          <button
+                            key={country}
+                            onClick={() => setCountryFilter(isActive ? null : country)}
+                            className={`px-2 py-1 rounded text-[11px] transition-colors border flex items-center gap-1 ${
+                              isActive
+                                ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                                : 'bg-gray-800/50 text-gray-500 border-gray-700 hover:text-gray-300'
+                            }`}
+                          >
+                            {isoCode ? (
+                              <span className={`fi fi-${isoCode}`} style={{ width: 14, height: 10, display: 'inline-block', backgroundSize: 'cover' }} />
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                                <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                                <ellipse cx="8" cy="8" rx="3" ry="6.5" fill="none" stroke="currentColor" strokeWidth="1" />
+                                <line x1="1.5" y1="8" x2="14.5" y2="8" stroke="currentColor" strokeWidth="0.8" />
+                              </svg>
+                            )}
+                            {country}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {/* Groups */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-500 uppercase tracking-wider">
-                        Satellite Groups ({activeGroups.length})
+                        Satellite Groups ({activeGroups.length}{countryFilter ? ` / ${filteredGroups.length} shown` : ''})
                       </span>
                       <div className="flex gap-1">
                         <button
@@ -577,7 +633,7 @@ export default function Header() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {ALLOWED_GROUPS.filter((g) => g !== 'active').map((group) => {
+                      {filteredGroups.map((group) => {
                         const isActive = activeGroups.includes(group);
                         const color = GROUP_COLORS[group as SatelliteGroup];
                         const info = GROUP_INFO[group as SatelliteGroup];
@@ -597,6 +653,7 @@ export default function Header() {
                               className="w-2 h-2 rounded-full inline-block shrink-0"
                               style={{ backgroundColor: isActive ? color : '#6b7280' }}
                             />
+                            <CountryFlag group={group} />
                             {GROUP_LABELS[group as SatelliteGroup]}
                             <span className="text-[9px] text-gray-500">{info.count}</span>
                             <span
@@ -846,9 +903,54 @@ export default function Header() {
 
           {/* Groups section */}
           <div className="px-4 py-4 flex-1">
+            {/* Country Filter (mobile) */}
+            <div className="mb-4">
+              <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-2">
+                Filter by Country
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setCountryFilter(null)}
+                  className={`px-3 py-1.5 rounded text-xs transition-colors border ${
+                    countryFilter === null
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                      : 'bg-gray-800/50 text-gray-500 border-gray-700 active:bg-gray-800'
+                  }`}
+                >
+                  All
+                </button>
+                {availableCountries.map((country) => {
+                  const isActive = countryFilter === country;
+                  const isoCode = COUNTRY_FLAG_MAP[country];
+                  return (
+                    <button
+                      key={country}
+                      onClick={() => setCountryFilter(isActive ? null : country)}
+                      className={`px-3 py-1.5 rounded text-xs transition-colors border flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                          : 'bg-gray-800/50 text-gray-500 border-gray-700 active:bg-gray-800'
+                      }`}
+                    >
+                      {isoCode ? (
+                        <span className={`fi fi-${isoCode}`} style={{ width: 16, height: 12, display: 'inline-block', backgroundSize: 'cover' }} />
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                          <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                          <ellipse cx="8" cy="8" rx="3" ry="6.5" fill="none" stroke="currentColor" strokeWidth="1" />
+                          <line x1="1.5" y1="8" x2="14.5" y2="8" stroke="currentColor" strokeWidth="0.8" />
+                        </svg>
+                      )}
+                      {country}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs text-gray-500 uppercase tracking-wider">
-                Satellite Groups ({activeGroups.length})
+                Satellite Groups ({activeGroups.length}{countryFilter ? ` / ${filteredGroups.length} shown` : ''})
               </h3>
               <div className="flex gap-2">
                 <button
@@ -866,7 +968,7 @@ export default function Header() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {ALLOWED_GROUPS.filter((g) => g !== 'active').map((group) => {
+              {filteredGroups.map((group) => {
                 const isActive = activeGroups.includes(group);
                 const color = GROUP_COLORS[group as SatelliteGroup];
                 const info = GROUP_INFO[group as SatelliteGroup];
@@ -884,6 +986,7 @@ export default function Header() {
                       className="w-3 h-3 rounded-full shrink-0"
                       style={{ backgroundColor: isActive ? color : '#6b7280' }}
                     />
+                    <CountryFlag group={group} size="md" />
                     <span className="flex-1 text-left">
                       {GROUP_LABELS[group as SatelliteGroup]}
                       <span className="ml-1 text-[10px] text-gray-500">{info.count}</span>

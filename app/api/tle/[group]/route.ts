@@ -50,6 +50,29 @@ export async function GET(
         }
       }
       text = filtered.join('\n');
+    } else if (group === 'rassvet') {
+      // Rassvet satellites by Bureau 1440 — fetch by name search
+      const response = await fetch(
+        `${CELESTRAK_BASE_URL}?NAME=RASSVET&FORMAT=tle`,
+        { next: { revalidate: 3600 } },
+      );
+      if (!response.ok) {
+        return NextResponse.json(
+          { error: `CelesTrak returned ${response.status}` },
+          { status: 502 },
+        );
+      }
+      const raw = await response.text();
+      const lines = raw.split('\n');
+      const filtered: string[] = [];
+      for (let i = 0; i < lines.length - 2; i += 3) {
+        const name = lines[i].trim();
+        if (!name || name.includes('DEB') || name.includes('R/B')) continue;
+        const line1 = lines[i + 1];
+        if (!line1 || !line1.startsWith('1 ')) continue;
+        filtered.push(lines[i], lines[i + 1], lines[i + 2]);
+      }
+      text = filtered.join('\n');
     } else {
       // Map internal group names to CelesTrak group names where they differ
       const CELESTRAK_NAME_MAP: Record<string, string> = {

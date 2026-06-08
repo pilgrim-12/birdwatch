@@ -7,6 +7,7 @@ import type { SatellitePass } from '@/lib/passes';
 import { GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { SatellitePosition } from '@/types/satellite';
+import { CountryFlag } from '@/components/CountryFlag';
 import { RadioBadge } from '@/components/radio/RadioBadge';
 import { RadioDetail } from '@/components/radio/RadioDetail';
 import {
@@ -363,6 +364,7 @@ export default function SatelliteList() {
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: groupColor }}
                     />
+                    <CountryFlag group={sat.group} />
                     <span
                       className={`font-medium truncate flex-1 ${
                         isSelected ? 'text-cyan-300' : 'text-gray-200'
@@ -433,6 +435,7 @@ export default function SatelliteList() {
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{ backgroundColor: groupColor }}
                 />
+                <CountryFlag group={sat.group} />
                 <span
                   className={`font-medium truncate flex-1 ${
                     inactive

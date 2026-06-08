@@ -50,6 +50,8 @@ interface SatelliteStore {
   setBeamSpeed: (speed: number) => void;
   toggleGroup: (group: SatelliteGroup) => void;
   setActiveGroups: (groups: SatelliteGroup[]) => void;
+  countryFilter: string | null;
+  setCountryFilter: (country: string | null) => void;
   setMassSatellites: (satellites: Satellite[]) => void;
   updateMassPositions: (positions: Map<number, SatellitePosition>) => void;
 
@@ -172,6 +174,8 @@ export const useSatelliteStore = create<SatelliteStore>()(
         : [...s.activeGroups, group],
     })),
   setActiveGroups: (groups) => set({ activeGroups: groups }),
+  countryFilter: null,
+  setCountryFilter: (country) => set({ countryFilter: country }),
   setMassSatellites: (satellites) =>
     set(
       satellites.length === 0
@@ -279,6 +283,7 @@ export const useSatelliteStore = create<SatelliteStore>()(
         beamWidth: state.beamWidth,
         beamSpeed: state.beamSpeed,
         activeGroups: state.activeGroups,
+        countryFilter: state.countryFilter,
         sidebarWidth: state.sidebarWidth,
         mapMode: state.mapMode,
         sourceCelestrak: state.sourceCelestrak,
