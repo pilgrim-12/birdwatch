@@ -681,7 +681,11 @@ export default function GlobeView() {
       const color = sat
         ? (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff')
         : '#00d4ff';
-      const ring = computeFootprintCircle(pos.lat, pos.lng, pos.alt, 72);
+      const minElev = sat
+        ? (GROUP_INFO[sat.group as SatelliteGroup]?.minElevationDeg ?? 0)
+        : 0;
+      const ring = computeFootprintCircle(pos.lat, pos.lng, pos.alt, 72, minElev);
+      if (ring.length === 0) continue;
       result.push({ coords: ring, color });
     }
     return result;

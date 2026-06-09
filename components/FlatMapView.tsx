@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { computeOrbitPath } from '@/lib/orbit';
-import { GROUP_COLORS } from '@/lib/constants';
+import { GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import { getGroupPrimaryIsoCode, loadFlagImages } from '@/lib/countryFlags';
 import { computeFootprintCircle } from '@/lib/footprint';
@@ -505,8 +505,12 @@ export default function FlatMapView() {
           const color = sat
             ? (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff')
             : '#00d4ff';
+          const minElev = sat
+            ? (GROUP_INFO[sat.group as SatelliteGroup]?.minElevationDeg ?? 0)
+            : 0;
 
-          const ring = computeFootprintCircle(pos.lat, pos.lng, pos.alt, 72);
+          const ring = computeFootprintCircle(pos.lat, pos.lng, pos.alt, 72, minElev);
+          if (ring.length === 0) continue;
 
           // Fill
           ctx.fillStyle = color + '18';

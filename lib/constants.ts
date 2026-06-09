@@ -155,6 +155,8 @@ export interface GroupInfo {
   purpose: string;
   country: string;
   frequency: string;
+  /** Minimum ground elevation angle (degrees) for realistic coverage footprint */
+  minElevationDeg: number;
 }
 
 export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
@@ -167,6 +169,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Crewed Research',
     country: 'International',
     frequency: 'S-band, Ku-band, UHF (145.8/437.8 MHz)',
+    minElevationDeg: 5,
   },
   weather: {
     description: 'Meteorological satellites providing global weather imagery, atmospheric sounding, and storm tracking data.',
@@ -177,6 +180,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Meteorology',
     country: 'International',
     frequency: 'L-band (1694–1710 MHz), S-band, UHF (137 MHz APT)',
+    minElevationDeg: 5,
   },
   noaa: {
     description: 'US polar-orbiting weather satellites transmitting APT/HRPT imagery. Popular targets for amateur radio reception.',
@@ -187,6 +191,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Weather Imaging',
     country: 'USA',
     frequency: '137 MHz APT, 1698/1707 MHz HRPT',
+    minElevationDeg: 5,
   },
   amateur: {
     description: 'Satellites carrying amateur radio transponders, digipeaters, and beacons for ham radio operators worldwide.',
@@ -197,6 +202,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Amateur Radio',
     country: 'International',
     frequency: 'VHF/UHF (145/435 MHz), HF (10m/15m)',
+    minElevationDeg: 5,
   },
   science: {
     description: 'Scientific research missions studying Earth, space physics, astronomy, and fundamental science from orbit.',
@@ -207,6 +213,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Scientific Research',
     country: 'International',
     frequency: 'S-band, X-band, Ka-band (varies by mission)',
+    minElevationDeg: 5,
   },
   resource: {
     description: 'Earth observation satellites for land/ocean/atmosphere monitoring, agriculture, forestry, and resource management.',
@@ -217,6 +224,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Earth Observation',
     country: 'International',
     frequency: 'X-band (8 GHz), S-band downlink',
+    minElevationDeg: 10,
   },
   goes: {
     description: 'Geostationary Operational Environmental Satellites providing continuous weather imagery of the Western Hemisphere.',
@@ -227,6 +235,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Weather Monitoring',
     country: 'USA',
     frequency: 'L-band (1686.6 MHz HRIT/LRIT), S-band',
+    minElevationDeg: 5,
   },
   'gps-ops': {
     description: 'US Global Positioning System constellation providing precision navigation, timing, and positioning worldwide.',
@@ -237,6 +246,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Navigation (GNSS)',
     country: 'USA',
     frequency: 'L1 (1575.42 MHz), L2 (1227.6 MHz), L5 (1176.45 MHz)',
+    minElevationDeg: 5,
   },
   'glo-ops': {
     description: 'Russian global navigation satellite system, counterpart to GPS. Provides positioning for military and civilian use.',
@@ -247,6 +257,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Navigation (GNSS)',
     country: 'Russia',
     frequency: 'L1 (1602 MHz), L2 (1246 MHz), L3 (1202 MHz)',
+    minElevationDeg: 5,
   },
   galileo: {
     description: 'European Union global navigation satellite system providing high-accuracy positioning independent of GPS/GLONASS.',
@@ -257,6 +268,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Navigation (GNSS)',
     country: 'EU',
     frequency: 'E1 (1575.42 MHz), E5a/E5b (1176/1207 MHz), E6 (1278 MHz)',
+    minElevationDeg: 5,
   },
   beidou: {
     description: 'Chinese global navigation satellite system (BDS) with regional and global coverage for positioning and messaging.',
@@ -267,6 +279,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Navigation (GNSS)',
     country: 'China',
     frequency: 'B1 (1561 MHz), B2 (1207 MHz), B3 (1268 MHz)',
+    minElevationDeg: 5,
   },
   sbas: {
     description: 'Satellite-Based Augmentation Systems (WAAS, EGNOS, MSAS, GAGAN) improving GNSS accuracy for aviation.',
@@ -277,6 +290,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Navigation Augmentation',
     country: 'International',
     frequency: 'L1 (1575.42 MHz), L5 (1176.45 MHz)',
+    minElevationDeg: 5,
   },
   iridium: {
     description: 'Global satellite phone and data network. Iridium NEXT constellation replaced original Iridium in 2017–2019.',
@@ -287,6 +301,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Communication (Voice/Data)',
     country: 'USA',
     frequency: 'L-band (1616–1626.5 MHz), Ka-band crosslinks',
+    minElevationDeg: 8,
   },
   military: {
     description: 'Unclassified military satellites for communications, early warning, surveillance, and signals intelligence.',
@@ -297,6 +312,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Defense & Intelligence',
     country: 'International',
     frequency: 'UHF, SHF, EHF (classified/varies)',
+    minElevationDeg: 5,
   },
   starlink: {
     description: 'SpaceX mega-constellation for global broadband internet. Largest satellite constellation in history.',
@@ -307,6 +323,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Broadband Internet',
     country: 'USA',
     frequency: 'Ku-band (10.7–12.7 / 14–14.5 GHz), Ka-band, V-band (future)',
+    minElevationDeg: 25,
   },
   oneweb: {
     description: 'LEO broadband internet constellation providing global connectivity, including Arctic coverage.',
@@ -317,6 +334,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Broadband Internet',
     country: 'UK / France',
     frequency: 'Ku-band (10.7–12.75 / 14–14.5 GHz), Ka-band gateway',
+    minElevationDeg: 35,
   },
   globalstar: {
     description: 'Satellite phone and IoT data network with spot-beam architecture for voice and low-rate data.',
@@ -327,6 +345,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Communication (Voice/IoT)',
     country: 'USA',
     frequency: 'L-band (1610–1618 MHz), S-band (2483–2500 MHz), C-band feeder',
+    minElevationDeg: 10,
   },
   orbcomm: {
     description: 'Machine-to-machine (M2M) and IoT messaging constellation for asset tracking, fleet management, and SCADA.',
@@ -337,6 +356,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'IoT / M2M Data',
     country: 'USA',
     frequency: 'VHF (137–138 MHz uplink, 400 MHz downlink)',
+    minElevationDeg: 10,
   },
   intelsat: {
     description: 'One of the largest GEO satellite operators providing broadcast TV, telephony, and enterprise data worldwide.',
@@ -347,6 +367,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Communication (TV/Data)',
     country: 'USA / Luxembourg',
     frequency: 'C-band (3.4–4.2 / 5.9–6.4 GHz), Ku-band, Ka-band',
+    minElevationDeg: 5,
   },
   ses: {
     description: 'Major satellite operator with GEO fleet (SES) and MEO constellation (O3b mPOWER) for video and data.',
@@ -357,6 +378,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Communication (TV/Data)',
     country: 'Luxembourg',
     frequency: 'C-band, Ku-band, Ka-band (O3b mPOWER)',
+    minElevationDeg: 5,
   },
   eutelsat: {
     description: 'Major European satellite operator providing TV broadcasting, broadband, and government services via GEO fleet.',
@@ -367,6 +389,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Communication (TV/Data)',
     country: 'France',
     frequency: 'C-band, Ku-band, Ka-band',
+    minElevationDeg: 5,
   },
   telesat: {
     description: 'Canadian satellite operator with GEO fleet and planned Lightspeed LEO constellation for global connectivity.',
@@ -377,6 +400,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Communication (Data)',
     country: 'Canada',
     frequency: 'C-band, Ku-band, Ka-band',
+    minElevationDeg: 5,
   },
   kuiper: {
     description: 'Amazon Project Kuiper LEO broadband constellation, competitor to Starlink for global internet access.',
@@ -387,6 +411,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Broadband Internet',
     country: 'USA',
     frequency: 'Ka-band (17.7–20.2 / 27.5–30 GHz)',
+    minElevationDeg: 30,
   },
   rassvet: {
     description: 'Russian broadband internet constellation (Рассвет) by Bureau 1440 (Бюро 1440) for Russia and global coverage.',
@@ -397,6 +422,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Broadband Internet',
     country: 'Russia',
     frequency: 'Ka-band, Ku-band',
+    minElevationDeg: 25,
   },
   qianfan: {
     description: 'Chinese mega-constellation (千帆/Qianfan "Thousand Sails") by Shanghai SPACECOM for global broadband internet.',
@@ -407,6 +433,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Broadband Internet',
     country: 'China',
     frequency: 'Ku-band, Ka-band',
+    minElevationDeg: 25,
   },
   hulianwang: {
     description: 'Chinese state-backed mega-constellation (国网/GuoWang) for broadband internet, China\'s Starlink equivalent.',
@@ -417,6 +444,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Broadband Internet',
     country: 'China',
     frequency: 'Ku-band, Ka-band',
+    minElevationDeg: 25,
   },
   planet: {
     description: 'Earth imaging constellation of Dove/SuperDove 3U CubeSats capturing daily global imagery at 3–5m resolution.',
@@ -427,6 +455,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Earth Imaging',
     country: 'USA',
     frequency: 'X-band (8 GHz downlink), S-band TT&C',
+    minElevationDeg: 10,
   },
   spire: {
     description: 'CubeSat constellation for weather data (GNSS-RO), maritime tracking (AIS), and aircraft tracking (ADS-B).',
@@ -437,6 +466,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Weather / AIS / ADS-B',
     country: 'USA',
     frequency: 'GNSS-RO L-band, VHF (162 MHz AIS), 1090 MHz ADS-B',
+    minElevationDeg: 5,
   },
   radar: {
     description: 'Synthetic Aperture Radar (SAR) satellites for all-weather day/night Earth imaging. Includes ICEYE, Capella, and others.',
@@ -447,6 +477,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'SAR Imaging',
     country: 'Finland / USA / International',
     frequency: 'X-band SAR (9.6 GHz), S-band TT&C',
+    minElevationDeg: 15,
   },
   cubesat: {
     description: 'CubeSat-class satellites (1U–12U) from commercial, university, and government missions worldwide.',
@@ -457,6 +488,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Various (Tech Demo/Science/Comms)',
     country: 'International',
     frequency: 'VHF/UHF (145/435 MHz), S-band, X-band',
+    minElevationDeg: 10,
   },
   geo: {
     description: 'All satellites in geostationary orbit — stationary above equator. Includes comms, weather, and military.',
@@ -467,6 +499,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Mixed (Comms/Weather/Military)',
     country: 'International',
     frequency: 'C/Ku/Ka-band (varies)',
+    minElevationDeg: 5,
   },
   'last-30-days': {
     description: 'Satellites launched in the last 30 days. Updated daily to show the most recent additions to orbit.',
@@ -477,6 +510,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Recent Launches',
     country: 'International',
     frequency: 'Various',
+    minElevationDeg: 5,
   },
   visual: {
     description: 'Brightest satellites visible to the naked eye. Useful for planning visual observation sessions.',
@@ -487,6 +521,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Visual Observation',
     country: 'International',
     frequency: 'N/A (optical only)',
+    minElevationDeg: 5,
   },
   sarsat: {
     description: 'COSPAS-SARSAT search and rescue system. Detects emergency beacons (EPIRB, ELT, PLB) and relays distress alerts.',
@@ -497,6 +532,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Search & Rescue',
     country: 'International',
     frequency: '406 MHz (beacon), 1544 MHz (relay downlink)',
+    minElevationDeg: 5,
   },
   education: {
     description: 'CubeSats and small satellites built by universities and student teams for educational and research purposes.',
@@ -507,6 +543,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Education / STEM',
     country: 'International',
     frequency: 'VHF/UHF (145/435 MHz), S-band (varies)',
+    minElevationDeg: 10,
   },
   engineering: {
     description: 'Technology demonstration and experimental satellites testing new hardware, propulsion, and communication systems.',
@@ -517,6 +554,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Technology Demo',
     country: 'International',
     frequency: 'S-band, X-band (varies by mission)',
+    minElevationDeg: 10,
   },
   geodetic: {
     description: 'Passive laser retroreflector satellites used for precise geodesy, plate tectonics, and gravity field measurement.',
@@ -527,6 +565,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Geodesy / Geophysics',
     country: 'USA / Italy / Japan',
     frequency: 'N/A (passive laser retroreflectors)',
+    minElevationDeg: 10,
   },
   tdrss: {
     description: 'NASA Tracking and Data Relay Satellite System — relay network for ISS, Hubble, and LEO spacecraft communications.',
@@ -537,6 +576,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Data Relay',
     country: 'USA',
     frequency: 'S-band, Ku-band (13.7 GHz), Ka-band (26 GHz)',
+    minElevationDeg: 5,
   },
   molniya: {
     description: 'Russian communications satellites in highly elliptical Molniya orbits optimized for high-latitude coverage.',
@@ -547,6 +587,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Communication (HEO)',
     country: 'Russia',
     frequency: 'C-band, UHF military bands',
+    minElevationDeg: 5,
   },
   argos: {
     description: 'ARGOS Data Collection System satellites relaying environmental data from autonomous platforms worldwide.',
@@ -557,6 +598,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Data Collection',
     country: 'France / USA',
     frequency: '401.65 MHz (uplink), 465 MHz (downlink)',
+    minElevationDeg: 5,
   },
   dmc: {
     description: 'Disaster Monitoring Constellation providing rapid-revisit Earth imagery for disaster response and management.',
@@ -567,6 +609,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Disaster Monitoring',
     country: 'UK / International',
     frequency: 'S-band, X-band',
+    minElevationDeg: 10,
   },
   satnogs: {
     description: 'Satellites tracked by the SatNOGS open-source ground station network. Community-curated satellite database.',
@@ -577,6 +620,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Open-Source Tracking',
     country: 'International',
     frequency: 'VHF/UHF (various)',
+    minElevationDeg: 5,
   },
   'x-comm': {
     description: 'Experimental communication satellites testing new technologies, frequencies, and protocols in orbit.',
@@ -587,6 +631,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Experimental Comms',
     country: 'International',
     frequency: 'Various experimental bands',
+    minElevationDeg: 10,
   },
   'other-comm': {
     description: 'Communication satellites not classified in specific operator groups. Regional and niche operators.',
@@ -597,6 +642,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'Communication',
     country: 'International',
     frequency: 'C/Ku/Ka-band (varies)',
+    minElevationDeg: 5,
   },
   active: {
     description: 'All cataloged active satellites from the combined CelesTrak database.',
@@ -607,6 +653,7 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     purpose: 'All Active Payloads',
     country: 'International',
     frequency: 'All bands',
+    minElevationDeg: 5,
   },
 };
 
