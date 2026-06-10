@@ -2,66 +2,90 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
+import { useShallow } from 'zustand/react/shallow';
 import { ALLOWED_GROUPS, GROUP_LABELS, GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import { CountryFlag } from '@/components/CountryFlag';
 import { getUniqueCountries, groupMatchesCountry, COUNTRY_FLAG_MAP } from '@/lib/countryFlags';
 
 export default function Header() {
-  const showTrajectories = useSatelliteStore((s) => s.showTrajectories);
-  const showLabels = useSatelliteStore((s) => s.showLabels);
-  const showBeams = useSatelliteStore((s) => s.showBeams);
-  const nightMode = useSatelliteStore((s) => s.nightMode);
-  const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
-  const beamWidth = useSatelliteStore((s) => s.beamWidth);
-  const beamSpeed = useSatelliteStore((s) => s.beamSpeed);
-  const activeGroups = useSatelliteStore((s) => s.activeGroups);
-  const toggleTrajectories = useSatelliteStore((s) => s.toggleTrajectories);
-  const toggleLabels = useSatelliteStore((s) => s.toggleLabels);
-  const toggleBeams = useSatelliteStore((s) => s.toggleBeams);
-  const showLookLine = useSatelliteStore((s) => s.showLookLine);
-  const toggleLookLine = useSatelliteStore((s) => s.toggleLookLine);
-  const showGroundLine = useSatelliteStore((s) => s.showGroundLine);
-  const toggleGroundLine = useSatelliteStore((s) => s.toggleGroundLine);
-  const showFootprint = useSatelliteStore((s) => s.showFootprint);
-  const toggleFootprint = useSatelliteStore((s) => s.toggleFootprint);
-  const showFlags = useSatelliteStore((s) => s.showFlags);
-  const toggleFlags = useSatelliteStore((s) => s.toggleFlags);
-  const toggleNightMode = useSatelliteStore((s) => s.toggleNightMode);
-  const setBeamOpacity = useSatelliteStore((s) => s.setBeamOpacity);
-  const setBeamWidth = useSatelliteStore((s) => s.setBeamWidth);
-  const setBeamSpeed = useSatelliteStore((s) => s.setBeamSpeed);
-  const toggleGroup = useSatelliteStore((s) => s.toggleGroup);
-  const setActiveGroups = useSatelliteStore((s) => s.setActiveGroups);
-  const countryFilter = useSatelliteStore((s) => s.countryFilter);
-  const setCountryFilter = useSatelliteStore((s) => s.setCountryFilter);
-  const observer = useSatelliteStore((s) => s.observer);
-  const setObserver = useSatelliteStore((s) => s.setObserver);
+  // --- Grouped store selectors (reduce subscriptions from ~55 to 4) ---
+  const {
+    showTrajectories, showLabels, showBeams, nightMode,
+    beamOpacity, beamWidth, beamSpeed,
+    showLookLine, showGroundLine, showFootprint, showFlags,
+    activeGroups, countryFilter, observer,
+    mapMode, sourceCelestrak, sourceSatnogs,
+    isMobileMenuOpen, isOrbitViewOpen,
+    searchQuery, collectionSatIds,
+  } = useSatelliteStore(useShallow((s) => ({
+    showTrajectories: s.showTrajectories,
+    showLabels: s.showLabels,
+    showBeams: s.showBeams,
+    nightMode: s.nightMode,
+    beamOpacity: s.beamOpacity,
+    beamWidth: s.beamWidth,
+    beamSpeed: s.beamSpeed,
+    showLookLine: s.showLookLine,
+    showGroundLine: s.showGroundLine,
+    showFootprint: s.showFootprint,
+    showFlags: s.showFlags,
+    activeGroups: s.activeGroups,
+    countryFilter: s.countryFilter,
+    observer: s.observer,
+    mapMode: s.mapMode,
+    sourceCelestrak: s.sourceCelestrak,
+    sourceSatnogs: s.sourceSatnogs,
+    isMobileMenuOpen: s.isMobileMenuOpen,
+    isOrbitViewOpen: s.isOrbitViewOpen,
+    searchQuery: s.searchQuery,
+    collectionSatIds: s.collectionSatIds,
+  })));
 
-  const isMobileMenuOpen = useSatelliteStore((s) => s.isMobileMenuOpen);
-  const setMobileMenuOpen = useSatelliteStore((s) => s.setMobileMenuOpen);
-  const isOrbitViewOpen = useSatelliteStore((s) => s.isOrbitViewOpen);
-  const toggleOrbitView = useSatelliteStore((s) => s.toggleOrbitView);
-  const openAntennaGuide = useSatelliteStore((s) => s.openAntennaGuide);
-  const mapMode = useSatelliteStore((s) => s.mapMode);
-  const toggleMapMode = useSatelliteStore((s) => s.toggleMapMode);
-  const sourceCelestrak = useSatelliteStore((s) => s.sourceCelestrak);
-  const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
-  const toggleSourceCelestrak = useSatelliteStore((s) => s.toggleSourceCelestrak);
-  const toggleSourceSatnogs = useSatelliteStore((s) => s.toggleSourceSatnogs);
+  // Actions (stable refs, no re-render on state change)
+  const actions = useSatelliteStore(useShallow((s) => ({
+    toggleTrajectories: s.toggleTrajectories,
+    toggleLabels: s.toggleLabels,
+    toggleBeams: s.toggleBeams,
+    toggleLookLine: s.toggleLookLine,
+    toggleGroundLine: s.toggleGroundLine,
+    toggleFootprint: s.toggleFootprint,
+    toggleFlags: s.toggleFlags,
+    toggleNightMode: s.toggleNightMode,
+    toggleGroup: s.toggleGroup,
+    toggleOrbitView: s.toggleOrbitView,
+    toggleMapMode: s.toggleMapMode,
+    toggleSourceCelestrak: s.toggleSourceCelestrak,
+    toggleSourceSatnogs: s.toggleSourceSatnogs,
+    setBeamOpacity: s.setBeamOpacity,
+    setBeamWidth: s.setBeamWidth,
+    setBeamSpeed: s.setBeamSpeed,
+    setActiveGroups: s.setActiveGroups,
+    setCountryFilter: s.setCountryFilter,
+    setObserver: s.setObserver,
+    setMobileMenuOpen: s.setMobileMenuOpen,
+    setSearchQuery: s.setSearchQuery,
+    selectSatellite: s.selectSatellite,
+    setSatellites: s.setSatellites,
+    addToCollection: s.addToCollection,
+    removeFromCollection: s.removeFromCollection,
+    openAntennaGuide: s.openAntennaGuide,
+  })));
 
+  const {
+    toggleTrajectories, toggleLabels, toggleBeams,
+    toggleLookLine, toggleGroundLine, toggleFootprint, toggleFlags,
+    toggleNightMode, toggleGroup, toggleOrbitView, toggleMapMode,
+    toggleSourceCelestrak, toggleSourceSatnogs,
+    setBeamOpacity, setBeamWidth, setBeamSpeed,
+    setActiveGroups, setCountryFilter, setObserver,
+    setMobileMenuOpen, setSearchQuery, selectSatellite,
+    setSatellites, addToCollection, removeFromCollection, openAntennaGuide,
+  } = actions;
+
+  // Data arrays (separate selector to avoid re-render from unrelated state)
   const satellites = useSatelliteStore((s) => s.satellites);
   const massSatellites = useSatelliteStore((s) => s.massSatellites);
-  const searchQuery = useSatelliteStore((s) => s.searchQuery);
-  const setSearchQuery = useSatelliteStore((s) => s.setSearchQuery);
-  const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
-  const activeGroupsForSearch = useSatelliteStore((s) => s.activeGroups);
-  const toggleGroupForSearch = useSatelliteStore((s) => s.toggleGroup);
-
-  const setSatellites = useSatelliteStore((s) => s.setSatellites);
-  const collectionSatIds = useSatelliteStore((s) => s.collectionSatIds);
-  const addToCollection = useSatelliteStore((s) => s.addToCollection);
-  const removeFromCollection = useSatelliteStore((s) => s.removeFromCollection);
 
   // Search state
   const [searchFocused, setSearchFocused] = useState(false);
@@ -142,14 +166,14 @@ export default function Header() {
           }
         }
       } catch { /* ignore */ }
-    } else if (!activeGroupsForSearch.includes(group as SatelliteGroup)) {
-      toggleGroupForSearch(group as SatelliteGroup);
+    } else if (!activeGroups.includes(group as SatelliteGroup)) {
+      toggleGroup(group as SatelliteGroup);
     }
     selectSatellite(satId);
     setSearchQuery('');
     setSearchFocused(false);
     searchInputRef.current?.blur();
-  }, [selectSatellite, activeGroupsForSearch, toggleGroupForSearch, setSearchQuery, searchQuery, satellites, setSatellites]);
+  }, [selectSatellite, activeGroups, toggleGroup, setSearchQuery, searchQuery, satellites, setSatellites]);
 
   // Close search dropdown on outside click
   useEffect(() => {
