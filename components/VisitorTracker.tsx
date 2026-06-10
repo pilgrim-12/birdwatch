@@ -56,14 +56,17 @@ export default function VisitorTracker() {
       );
     };
 
-    window.addEventListener('beforeunload', handleUnload);
-    document.addEventListener('visibilitychange', () => {
+    const handleVisibility = () => {
       if (document.visibilityState === 'hidden') handleUnload();
-    });
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       clearInterval(heartbeatTimer);
       window.removeEventListener('beforeunload', handleUnload);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
