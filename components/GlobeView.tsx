@@ -8,11 +8,11 @@ import { computeOrbitPath } from '@/lib/orbit';
 import { EARTH_RADIUS_KM, GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import { getCountryIsoCodes } from '@/lib/countryFlags';
-import { polar2Cartesian, sunPosition3D, moonPosition3D, GLOBE_RADIUS } from '@/lib/globe-math';
+import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
 import { computeFootprintCircle } from '@/lib/footprint';
-import { getSunLatLng } from '@/lib/sun';
-import { getMoonLatLng } from '@/lib/moon';
 import { useCameraMode } from '@/hooks/useCameraMode';
+import { useGlobeLighting } from '@/hooks/useGlobeLighting';
+import { useGlobeAnimation } from '@/hooks/useGlobeAnimation';
 import { CameraControls } from './CameraControls';
 
 const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
@@ -104,192 +104,11 @@ export default function GlobeView() {
   // Direct references to satellite 3D models for sun orientation
   const satModelMapRef = useRef<Map<number, THREE.Group>>(new Map());
 
-  // Sun lighting + visual refs — initialize with real sun position
-  const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
-  const sunMeshRef = useRef<THREE.Mesh | null>(null);
-  const initSun = getSunLatLng(new Date());
-  const sunPosRef = useRef(sunPosition3D(initSun.lat, initSun.lng));
+  // Sun/moon lighting and visual spheres
+  const { sunPosRef } = useGlobeLighting(globeRef);
 
-  // Moon visual ref — initialize with real moon position
-  const moonMeshRef = useRef<THREE.Mesh | null>(null);
-  const initMoon = getMoonLatLng(new Date());
-  const moonPosRef = useRef(moonPosition3D(initMoon.lat, initMoon.lng));
-
-  // Setup sun-based lighting: replace default lights with sun-positioned DirectionalLight
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const globe = globeRef.current;
-      if (!globe) return; // Keep retrying until Globe mounts
-      let scene: THREE.Scene;
-      try { scene = globe.scene(); } catch { return; }
-      if (!scene) return;
-      clearInterval(timer);
-
-      const sunPos = sunPosRef.current;
-
-      // Replace default lights — low ambient for visible day/night terminator
-      const ambient = new THREE.AmbientLight(0x667788, Math.PI * 0.6);
-      const sunLight = new THREE.DirectionalLight(0xfff8e8, Math.PI * 1.2);
-      sunLight.position.copy(sunPos);
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (globe as any).lights([ambient, sunLight]);
-      } catch {
-        // Fallback: manually replace in scene
-        const old = scene.children.filter(
-          (c: THREE.Object3D) => c instanceof THREE.DirectionalLight || c instanceof THREE.AmbientLight,
-        );
-        for (const l of old) scene.remove(l);
-        scene.add(ambient);
-        scene.add(sunLight);
-      }
-      sunLightRef.current = sunLight;
-
-      // Extend camera far plane so distant sun/moon spheres are visible
-      try {
-        const cam = globe.camera() as THREE.PerspectiveCamera;
-        if (cam.far < 100000) {
-          cam.far = 100000;
-          cam.updateProjectionMatrix();
-        }
-      } catch { /* camera not ready */ }
-
-      // Add sun visual sphere with glow
-      const sunGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.6, 32, 32);
-      const sunMat = new THREE.MeshBasicMaterial({ color: 0xffee88 });
-      const sunMesh = new THREE.Mesh(sunGeo, sunMat);
-      sunMesh.position.copy(sunPos);
-      scene.add(sunMesh);
-      sunMeshRef.current = sunMesh;
-
-      // Sun glow (larger transparent sphere)
-      const glowGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.8, 32, 32);
-      const glowMat = new THREE.MeshBasicMaterial({
-        color: 0xffdd66,
-        transparent: true,
-        opacity: 0.08,
-        depthWrite: false,
-      });
-      const glowMesh = new THREE.Mesh(glowGeo, glowMat);
-      sunMesh.add(glowMesh); // child of sun, moves with it
-
-      // Add moon visual sphere
-      const moonGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 0.12, 16, 16);
-      const moonMat = new THREE.MeshBasicMaterial({ color: 0xd4d4d4 });
-      const moonMesh = new THREE.Mesh(moonGeo, moonMat);
-      moonMesh.position.copy(moonPosRef.current);
-      scene.add(moonMesh);
-      moonMeshRef.current = moonMesh;
-    }, 300);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // Update sun & moon positions every 60s
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      // Sun
-      const { lat, lng } = getSunLatLng(now);
-      const pos = sunPosition3D(lat, lng);
-      sunPosRef.current.copy(pos);
-      if (sunLightRef.current) sunLightRef.current.position.copy(pos);
-      if (sunMeshRef.current) sunMeshRef.current.position.copy(pos);
-      // Moon
-      const moonLL = getMoonLatLng(now);
-      const moonPos = moonPosition3D(moonLL.lat, moonLL.lng);
-      moonPosRef.current.copy(moonPos);
-      if (moonMeshRef.current) moonMeshRef.current.position.copy(moonPos);
-    }, 60_000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Main 60fps loop: smooth position interpolation + label occlusion + panel orientation
-  useEffect(() => {
-    const ray = new THREE.Ray();
-    const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), GLOBE_RADIUS);
-    const hitPoint = new THREE.Vector3();
-    const satVec = new THREE.Vector3();
-    const defaultUp = new THREE.Vector3(0, 1, 0);
-    const toEarth = new THREE.Vector3();
-    const toSun = new THREE.Vector3();
-    const sunLocal = new THREE.Vector3();
-    const invQuat = new THREE.Quaternion();
-    let raf: number;
-
-    function tick() {
-      raf = requestAnimationFrame(tick);
-      const globe = globeRef.current;
-      if (!globe) return;
-
-      // --- Orient satellite models: body toward Earth, panels toward sun ---
-      stablePointsMapRef.current.forEach((point) => {
-        const model = satModelMapRef.current.get(point.id);
-        if (!model || !model.parent) return; // not yet in scene
-
-        // Get satellite world position from three-globe's wrapper
-        model.parent.getWorldPosition(satVec);
-
-        // 1. Orient entire model so antenna (+Y) points toward Earth center
-        toEarth.copy(satVec).negate().normalize();
-        model.quaternion.setFromUnitVectors(defaultUp, toEarth);
-
-        // 2. Rotate panels to track the sun
-        toSun.copy(sunPosRef.current).sub(satVec).normalize();
-        // Transform sun direction into model's local coordinate space
-        invQuat.copy(model.quaternion).invert();
-        sunLocal.copy(toSun).applyQuaternion(invQuat);
-        // Optimal panel tilt around local X-axis so panel normal (Y) faces sun
-        const panelAngle = Math.atan2(sunLocal.z, sunLocal.y);
-
-        for (const child of model.children) {
-          if (child.userData.isPanel) {
-            child.rotation.x = panelAngle;
-          }
-        }
-      });
-
-      // --- Label/flag occlusion + distance scaling ---
-      const _state = useSatelliteStore.getState();
-      if (!_state.showLabels && !_state.showFlags) return;
-
-      let camera: THREE.PerspectiveCamera;
-      try {
-        camera = globe.camera() as THREE.PerspectiveCamera;
-      } catch {
-        return;
-      }
-
-      const camPos = camera.position;
-
-      labelElsRef.current.forEach((el, id) => {
-        const pos = labelPosRef.current.get(id);
-        if (!pos) { el.style.opacity = '0'; return; }
-
-        polar2Cartesian(pos.lat, pos.lng, pos.alt + 0.015, satVec);
-
-        // Occlusion: hide labels behind the globe
-        ray.origin.copy(camPos);
-        ray.direction.subVectors(satVec, camPos).normalize();
-        const hit = ray.intersectSphere(sphere, hitPoint);
-        const occluded = hit && camPos.distanceTo(hitPoint) < camPos.distanceTo(satVec) - 0.5;
-
-        if (occluded) {
-          el.style.opacity = '0';
-        } else {
-          el.style.opacity = '1';
-          // Scale font by distance to camera
-          const distToSat = camPos.distanceTo(satVec);
-          const baseFontSize = el.style.fontWeight === '600' ? 11 : 9;
-          const scale = Math.max(0.4, Math.min(2.0, 200 / distToSat));
-          el.style.fontSize = `${Math.round(baseFontSize * scale)}px`;
-        }
-      });
-    }
-
-    tick();
-    return () => cancelAnimationFrame(raf);
-  }, []);
+  // 60fps animation loop: satellite orientation + label occlusion
+  useGlobeAnimation(globeRef, sunPosRef, stablePointsMapRef, satModelMapRef, labelPosRef, labelElsRef);
 
   // Counter that increments every 30s to force orbit path refresh
   const [orbitEpoch, setOrbitEpoch] = useState(0);
