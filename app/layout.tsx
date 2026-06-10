@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import Toasts from '@/components/Toasts';
 import 'flag-icons/css/flag-icons.min.css';
 import './globals.css';
 
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} dark h-full`}>
       <body className="h-full bg-gray-950 text-gray-100 font-sans antialiased flex flex-col">
         {children}
+        <Toasts />
       </body>
     </html>
   );

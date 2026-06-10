@@ -15,6 +15,7 @@ import type { SatelliteGroup } from '@/lib/constants';
 import type { Satellite } from '@/types/satellite';
 import type { SatNogsInfo, SatNogsTransmitter } from '@/types/satnogs';
 import { usePropagation } from '@/hooks/usePropagation';
+import { useToastStore } from '@/store/useToastStore';
 import VisitorTracker from '@/components/VisitorTracker';
 
 const FlatMapView = dynamic(() => import('@/components/FlatMapView'), { ssr: false });
@@ -29,6 +30,8 @@ export default function Home() {
   const sourceCelestrak = useSatelliteStore((s) => s.sourceCelestrak);
   const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
   const mapMode = useSatelliteStore((s) => s.mapMode);
+
+  const addToast = useToastStore((s) => s.addToast);
 
   // Run SGP4 propagation (shared between globe and flat map views)
   usePropagation();
@@ -126,7 +129,7 @@ export default function Home() {
           setMassSatellites([]);
         }
       } catch {
-        // Network error — satellites will remain empty
+        useToastStore.getState().addToast('Failed to load satellite data from CelesTrak');
       }
     }
 
@@ -171,7 +174,7 @@ export default function Home() {
           setSatnogsTransmitters(txMap);
         }
       } catch {
-        // SatNOGS unavailable — app works fine without it
+        useToastStore.getState().addToast('SatNOGS data unavailable');
       }
     }
 
