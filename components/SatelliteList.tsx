@@ -9,24 +9,16 @@ import type { SatelliteGroup } from '@/lib/constants';
 import type { SatellitePosition } from '@/types/satellite';
 import { CountryFlag } from '@/components/CountryFlag';
 import { RadioBadge } from '@/components/radio/RadioBadge';
-import { RadioDetail } from '@/components/radio/RadioDetail';
 import { PassListItem } from '@/components/PassListItem';
+import { SatelliteDetail } from '@/components/SatelliteDetail';
 import {
   getRadioProfile,
   isReceivable,
 } from '@/lib/radio/radioProfiles';
 import { computeMaxDoppler } from '@/lib/radio/doppler';
-import type { SatNogsTransmitter } from '@/types/satnogs';
 
 const ITEM_HEIGHT = 36; // px per row
 const OVERSCAN = 10;
-
-function formatFreqHz(hz: number): string {
-  if (hz >= 1e9) return `${(hz / 1e9).toFixed(3)} GHz`;
-  if (hz >= 1e6) return `${(hz / 1e6).toFixed(3)} MHz`;
-  if (hz >= 1e3) return `${(hz / 1e3).toFixed(1)} kHz`;
-  return `${hz} Hz`;
-}
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -540,132 +532,16 @@ export default function SatelliteList() {
     </div>
   );
 
-  const detailSatNogs = detailSat ? satnogsInfo.get(detailSat.id) : undefined;
-  const detailTransmitters = detailSat ? satnogsTransmitters.get(detailSat.id) : undefined;
-
   const detailPopup = detailSat && (
-    <div className="absolute inset-x-4 top-16 md:top-16 bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-4 z-50 max-h-[60vh] overflow-y-auto">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <h3 className="text-sm font-semibold text-white truncate">{detailSat.name}</h3>
-          <RadioBadge noradId={detailSat.id} group={detailSat.group} />
-          {detailSatNogs && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-              detailSatNogs.status === 'alive' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-              detailSatNogs.status === 'dead' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-              detailSatNogs.status === 're-entered' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-              'bg-gray-600/20 text-gray-400 border border-gray-600/30'
-            }`}>
-              {detailSatNogs.status}
-            </span>
-          )}
-        </div>
-        <button
-          onClick={() => setDetailSatId(null)}
-          className="text-gray-400 hover:text-white text-lg leading-none shrink-0 ml-2"
-        >
-          &times;
-        </button>
-      </div>
-
-      {/* SatNOGS metadata */}
-      {detailSatNogs && (
-        <dl className="space-y-1.5 text-xs mb-3 pb-3 border-b border-gray-700/50">
-          {detailSatNogs.operator && (
-            <div className="flex justify-between">
-              <dt className="text-gray-400">Operator</dt>
-              <dd className="text-gray-200 text-right max-w-[60%] truncate">{detailSatNogs.operator}</dd>
-            </div>
-          )}
-          {detailSatNogs.countries && (
-            <div className="flex justify-between">
-              <dt className="text-gray-400">Country</dt>
-              <dd className="text-gray-200">{detailSatNogs.countries}</dd>
-            </div>
-          )}
-          {detailSatNogs.launched && (
-            <div className="flex justify-between">
-              <dt className="text-gray-400">Launched</dt>
-              <dd className="text-gray-200 font-mono">{detailSatNogs.launched.split('T')[0]}</dd>
-            </div>
-          )}
-          {detailSatNogs.website && (
-            <div className="flex justify-between">
-              <dt className="text-gray-400">Website</dt>
-              <dd>
-                <a href={detailSatNogs.website} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline truncate block max-w-[180px]">
-                  {detailSatNogs.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                </a>
-              </dd>
-            </div>
-          )}
-        </dl>
-      )}
-
-      {detailPos && (
-        <dl className="space-y-1.5 text-xs">
-          <div className="flex justify-between">
-            <dt className="text-gray-400">Latitude</dt>
-            <dd className="text-white font-mono">{detailPos.lat.toFixed(4)}&deg;</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-gray-400">Longitude</dt>
-            <dd className="text-white font-mono">{detailPos.lng.toFixed(4)}&deg;</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-gray-400">Altitude</dt>
-            <dd className="text-white font-mono">{detailPos.alt.toFixed(1)} km</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-gray-400">Velocity</dt>
-            <dd className="text-white font-mono">{detailPos.velocity.toFixed(2)} km/s</dd>
-          </div>
-        </dl>
-      )}
-
-      {/* SatNOGS Transmitters */}
-      {detailTransmitters && detailTransmitters.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-700/50">
-          <h4 className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
-            Transmitters ({detailTransmitters.length})
-          </h4>
-          <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
-            {detailTransmitters.map((tx: SatNogsTransmitter, i: number) => (
-              <div key={i} className="text-xs bg-gray-900/50 rounded px-2 py-1.5">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-gray-300 truncate font-medium">{tx.description}</span>
-                  {tx.mode && <span className="text-[10px] text-cyan-400 shrink-0">{tx.mode}</span>}
-                </div>
-                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-500">
-                  {tx.downlink_low && (
-                    <span>
-                      <span className="text-gray-600">DL:</span>{' '}
-                      <span className="text-green-400 font-mono">{formatFreqHz(tx.downlink_low)}</span>
-                    </span>
-                  )}
-                  {tx.uplink_low && (
-                    <span>
-                      <span className="text-gray-600">UL:</span>{' '}
-                      <span className="text-orange-400 font-mono">{formatFreqHz(tx.uplink_low)}</span>
-                    </span>
-                  )}
-                  {tx.baud && <span className="text-gray-600">{tx.baud} baud</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Radio section */}
-      <RadioDetail
-        noradId={detailSat.id}
-        satName={detailSat.name}
-        group={detailSat.group}
-        observer={observer}
-        pass={detailPass}
-      />
-    </div>
+    <SatelliteDetail
+      sat={detailSat}
+      position={detailPos}
+      satnogsInfo={satnogsInfo.get(detailSat.id)}
+      transmitters={satnogsTransmitters.get(detailSat.id)}
+      observer={observer}
+      pass={detailPass}
+      onClose={() => setDetailSatId(null)}
+    />
   );
 
   return (
