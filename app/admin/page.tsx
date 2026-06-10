@@ -74,7 +74,9 @@ export default function AdminPage() {
   useEffect(() => {
     if (!adminKey) return;
     setLoading(true);
-    fetch(`/api/admin/visitors?key=${encodeURIComponent(adminKey)}`)
+    fetch('/api/admin/visitors', {
+      headers: { Authorization: `Bearer ${adminKey}` },
+    })
       .then((r) => {
         if (!r.ok) throw new Error('Unauthorized');
         return r.json();

@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+function checkAdminKey(header: string | null): boolean {
+  const expected = process.env.ADMIN_KEY;
+  if (!header || !expected) return false;
+  const token = header.startsWith('Bearer ') ? header.slice(7) : header;
+  if (token.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+}
+
 export async function GET(req: NextRequest) {
-  // Check admin key
-  const key = req.nextUrl.searchParams.get('key');
-  if (key !== process.env.ADMIN_KEY) {
+  if (!checkAdminKey(req.headers.get('authorization'))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
