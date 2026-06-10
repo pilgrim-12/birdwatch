@@ -11,6 +11,11 @@ interface IpApiResponse {
 
 const SESSION_GAP_MS = 30 * 60 * 1000; // 30 min — same IP after this = new session
 
+// Simple in-memory geo cache — avoids duplicate ip-api.com lookups for same IP
+// ip-api.com free tier: 45 req/min — cache prevents hitting that during traffic spikes
+const geoCache = new Map<string, { country: string | null; city: string | null; lat: number | null; lng: number | null; ts: number }>();
+const GEO_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
 /** POST /api/track — create or resume a session (also handles beacon PATCH) */
 export async function POST(req: NextRequest) {
   try {
@@ -60,28 +65,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ id: existing.id, resumed: true });
     }
 
-    // New session — geolocate IP
+    // New session — geolocate IP (with in-memory cache to reduce ip-api.com calls)
     let country: string | null = null;
     let city: string | null = null;
     let lat: number | null = null;
     let lng: number | null = null;
 
     if (ip !== 'unknown' && ip !== '127.0.0.1' && ip !== '::1') {
-      try {
-        const geoRes = await fetch(
-          `http://ip-api.com/json/${ip}?fields=status,country,city,lat,lon`,
-        );
-        if (geoRes.ok) {
-          const geo: IpApiResponse = await geoRes.json();
-          if (geo.status === 'success') {
-            country = geo.country ?? null;
-            city = geo.city ?? null;
-            lat = geo.lat ?? null;
-            lng = geo.lon ?? null;
+      const cached = geoCache.get(ip);
+      if (cached && Date.now() - cached.ts < GEO_CACHE_TTL) {
+        country = cached.country;
+        city = cached.city;
+        lat = cached.lat;
+        lng = cached.lng;
+      } else {
+        try {
+          const geoRes = await fetch(
+            `http://ip-api.com/json/${ip}?fields=status,country,city,lat,lon`,
+          );
+          if (geoRes.ok) {
+            const geo: IpApiResponse = await geoRes.json();
+            if (geo.status === 'success') {
+              country = geo.country ?? null;
+              city = geo.city ?? null;
+              lat = geo.lat ?? null;
+              lng = geo.lon ?? null;
+            }
+            geoCache.set(ip, { country, city, lat, lng, ts: Date.now() });
+            // Evict old entries to prevent memory leak
+            if (geoCache.size > 5000) {
+              const oldest = geoCache.keys().next().value as string;
+              geoCache.delete(oldest);
+            }
           }
+        } catch {
+          // Geolocation failed
         }
-      } catch {
-        // Geolocation failed
       }
     }
 

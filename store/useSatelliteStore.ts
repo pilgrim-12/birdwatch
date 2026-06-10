@@ -145,7 +145,16 @@ export const useSatelliteStore = create<SatelliteStore>()(
   massPositions: new Map(),
 
   setSatellites: (satellites) => set({ satellites }),
-  setObserver: (observer) => set({ observer }),
+  setObserver: (observer) => {
+    if (observer) {
+      const lat = Math.max(-90, Math.min(90, observer.lat));
+      const lng = ((observer.lng + 180) % 360 + 360) % 360 - 180;
+      const alt = Math.max(0, observer.alt ?? 0);
+      set({ observer: { lat, lng, alt } });
+    } else {
+      set({ observer: null });
+    }
+  },
   selectSatellite: (id) =>
     set((s) => ({
       selectedSatIds: id === null

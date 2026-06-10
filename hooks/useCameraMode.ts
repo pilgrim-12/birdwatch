@@ -2,12 +2,19 @@
 
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { EARTH_RADIUS_KM } from '@/lib/constants';
 import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GlobeRef = React.MutableRefObject<any>;
+interface GlobeInstance {
+  controls(): OrbitControls;
+  camera(): THREE.PerspectiveCamera;
+  renderer(): THREE.WebGLRenderer;
+  __freeCamFlyTo?: (toPos: THREE.Vector3, toTarget: THREE.Vector3, duration?: number) => void;
+}
+
+type GlobeRef = React.MutableRefObject<GlobeInstance | null>;
 
 function easeInOutQuad(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -47,8 +54,7 @@ export function useCameraMode(globeRef: GlobeRef): void {
       const globe = globeRef.current;
       if (!globe || patchedRef.current) return;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let controls: any;
+      let controls: OrbitControls;
       try {
         controls = globe.controls();
         if (!controls) return;
@@ -60,7 +66,7 @@ export function useCameraMode(globeRef: GlobeRef): void {
       clearInterval(timer);
 
       // --- Override setScalar on target to block globe.gl's reset ---
-      const target = controls.target as THREE.Vector3;
+      const target = controls.target;
       const origSetScalar = target.setScalar.bind(target);
       target.setScalar = function (s: number) {
         if (s === 0) return this; // block the (0,0,0) reset
@@ -72,18 +78,18 @@ export function useCameraMode(globeRef: GlobeRef): void {
       // We replace with our own that only does adaptive speed.
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const listeners = (controls as any)._listeners?.change;
+        const ed = controls as any;
+        const listeners = ed._listeners?.change;
         if (Array.isArray(listeners)) {
           const copy = [...listeners];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          copy.forEach((fn: any) => controls.removeEventListener('change', fn));
+          copy.forEach((fn) => ed.removeEventListener('change', fn));
         }
       } catch { /* _listeners may not be accessible — setScalar override still protects us */ }
 
       // --- Our change listener: adaptive speed based on distance to orbit target ---
       controls.addEventListener('change', () => {
         try {
-          const camera = globe.camera() as THREE.PerspectiveCamera;
+          const camera = globe.camera();
           const dist = camera.position.distanceTo(controls.target);
           const nd = dist / GLOBE_RADIUS;
           controls.rotateSpeed = Math.max(0.05, nd * 0.3);
@@ -106,12 +112,11 @@ export function useCameraMode(globeRef: GlobeRef): void {
         duration = 800,
       ) => {
         // Fetch current camera/controls fresh each time (avoid stale closures)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let ctrl: any;
+        let ctrl: OrbitControls;
         let cam: THREE.PerspectiveCamera;
         try {
           ctrl = globe.controls();
-          cam = globe.camera() as THREE.PerspectiveCamera;
+          cam = globe.camera();
           if (!ctrl) return;
         } catch {
           return;
@@ -157,10 +162,9 @@ export function useCameraMode(globeRef: GlobeRef): void {
         );
 
         let camera: THREE.PerspectiveCamera;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let controls: any;
+        let controls: OrbitControls;
         try {
-          camera = globe.camera() as THREE.PerspectiveCamera;
+          camera = globe.camera();
           controls = globe.controls();
           if (!controls) return;
         } catch {
@@ -190,17 +194,15 @@ export function useCameraMode(globeRef: GlobeRef): void {
       };
 
       canvas.addEventListener('dblclick', handleDblClick);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (canvas as any).__dblHandler = handleDblClick;
+      (canvas as HTMLCanvasElement & { __dblHandler?: (e: MouseEvent) => void }).__dblHandler = handleDblClick;
     }, 500);
 
     return () => {
       clearInterval(timer);
       try {
-        const canvas = globeRef.current?.renderer()?.domElement;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const canvas = globeRef.current?.renderer()?.domElement as HTMLCanvasElement & { __dblHandler?: (e: MouseEvent) => void } | undefined;
         if (canvas?.__dblHandler) {
-          canvas.removeEventListener('dblclick', (canvas as any).__dblHandler);
+          canvas.removeEventListener('dblclick', canvas.__dblHandler);
         }
       } catch { /* ignore */ }
     };
@@ -214,12 +216,11 @@ export function useCameraMode(globeRef: GlobeRef): void {
       const globe = globeRef.current;
       if (!globe || !patchedRef.current) return;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let controls: any;
+      let controls: OrbitControls;
       let camera: THREE.PerspectiveCamera;
       try {
         controls = globe.controls();
-        camera = globe.camera() as THREE.PerspectiveCamera;
+        camera = globe.camera();
         if (!controls) return;
       } catch {
         return;

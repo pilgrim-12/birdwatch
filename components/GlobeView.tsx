@@ -656,13 +656,19 @@ export default function GlobeView() {
     return labels;
   }, [showLabels, showFlags, selectedSatIds, pointsData, cpaInfo, groundLineInfo]);
 
-  // Sync label positions ref for occlusion check
+  // Sync label positions ref for occlusion check + clean stale label element refs
   useEffect(() => {
     const m = new Map<number, { lat: number; lng: number; alt: number }>();
+    const activeIds = new Set<number>();
     for (const l of htmlLabelsData) {
       m.set(l.id, { lat: l.lat, lng: l.lng, alt: l.alt });
+      activeIds.add(l.id);
     }
     labelPosRef.current = m;
+    // Remove stale entries from labelElsRef for satellites no longer rendered
+    for (const id of labelElsRef.current.keys()) {
+      if (!activeIds.has(id)) labelElsRef.current.delete(id);
+    }
   }, [htmlLabelsData]);
 
   // Footprint polygons for selected satellites

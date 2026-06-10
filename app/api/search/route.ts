@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CELESTRAK_BASE_URL } from '@/lib/constants';
 import { parseTLEText } from '@/lib/tle';
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get('q')?.trim();
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   try {
     const response = await fetch(
       `${CELESTRAK_BASE_URL}?NAME=${encodeURIComponent(q)}&FORMAT=tle`,
-      { next: { revalidate: 3600 } },
+      { next: { revalidate: 300 } },
     );
 
     if (!response.ok) {
