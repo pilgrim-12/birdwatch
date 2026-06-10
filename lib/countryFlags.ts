@@ -62,19 +62,19 @@ export function getGroupPrimaryIsoCode(group: string): string | null {
 
 /** Preloaded flag Image cache for canvas rendering */
 const flagImageCache = new Map<string, HTMLImageElement>();
-let flagImagesLoading = false;
+const loadingCodes = new Set<string>();
 
 /** Load all needed flag images for canvas rendering. Returns cached map. */
 export function loadFlagImages(): Map<string, HTMLImageElement> {
-  if (flagImagesLoading || flagImageCache.size > 0) return flagImageCache;
-  flagImagesLoading = true;
   const codes = Object.values(COUNTRY_FLAG_MAP).filter((c): c is string => c !== null);
   for (const code of codes) {
+    if (flagImageCache.has(code) || loadingCodes.has(code)) continue;
+    loadingCodes.add(code);
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.src = `https://flagcdn.com/w40/${code}.png`;
     img.onload = () => flagImageCache.set(code, img);
-    // Pre-set so we know the code is being loaded
+    img.onerror = () => loadingCodes.delete(code); // allow retry on failure
   }
   return flagImageCache;
 }
