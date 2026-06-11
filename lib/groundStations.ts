@@ -11,6 +11,7 @@ export const STATION_COLORS: Record<string, string> = {
   roscosmos: '#ab47bc', // purple
   cnsa: '#e53935',     // crimson
   ksat: '#26c6da',     // cyan
+  launch: '#f44336',   // red (rocket/spaceport)
   other: '#90a4ae',    // blue-gray
 };
 
@@ -25,6 +26,7 @@ export const STATION_NETWORK_LABELS: Record<string, string> = {
   roscosmos: 'Roscosmos',
   cnsa: 'CNSA',
   ksat: 'KSAT',
+  launch: 'Launch Site',
   other: 'Other',
 };
 
@@ -394,5 +396,113 @@ export const PROFESSIONAL_STATIONS: GroundStation[] = [
     id: -223, name: 'Guildford SSTL', lat: 51.243, lng: -0.589, alt: 60,
     network: 'other', status: 'online', owner: 'SSTL (UK)',
     antennas: ['S-band (5m)', 'X-band (3.7m)'],
+  },
+
+  // ===== LAUNCH SITES (SPACEPORTS) =====
+
+  // --- USA ---
+  {
+    id: -300, name: 'Kennedy Space Center LC-39', lat: 28.608, lng: -80.604, alt: 5,
+    network: 'launch', status: 'online', owner: 'NASA / SpaceX',
+  },
+  {
+    id: -301, name: 'SpaceX Starbase', lat: 25.997, lng: -97.157, alt: 3,
+    network: 'launch', status: 'online', owner: 'SpaceX',
+  },
+  {
+    id: -302, name: 'Kodiak Launch Complex', lat: 57.436, lng: -152.338, alt: 30,
+    network: 'launch', status: 'online', owner: 'Alaska Aerospace',
+  },
+
+  // --- Russia ---
+  {
+    id: -310, name: 'Baikonur Cosmodrome', lat: 45.965, lng: 63.305, alt: 90,
+    network: 'launch', status: 'online', owner: 'Roscosmos',
+  },
+  {
+    id: -311, name: 'Plesetsk Cosmodrome', lat: 62.927, lng: 40.577, alt: 130,
+    network: 'launch', status: 'online', owner: 'Russian MoD',
+  },
+
+  // --- China ---
+  {
+    id: -320, name: 'Taiyuan SLC', lat: 38.849, lng: 111.608, alt: 1500,
+    network: 'launch', status: 'online', owner: 'CNSA',
+  },
+  {
+    id: -321, name: 'Xichang SLC', lat: 28.246, lng: 102.027, alt: 1825,
+    network: 'launch', status: 'online', owner: 'CNSA',
+  },
+  {
+    id: -322, name: 'Wenchang SLS', lat: 19.614, lng: 110.951, alt: 10,
+    network: 'launch', status: 'online', owner: 'CNSA',
+  },
+
+  // --- India ---
+  {
+    id: -330, name: 'Satish Dhawan / Sriharikota', lat: 13.72, lng: 80.23, alt: 5,
+    network: 'launch', status: 'online', owner: 'ISRO',
+  },
+
+  // --- Japan ---
+  {
+    id: -340, name: 'Uchinoura Space Center', lat: 31.251, lng: 131.079, alt: 220,
+    network: 'launch', status: 'online', owner: 'JAXA',
+  },
+
+  // --- South Korea ---
+  {
+    id: -341, name: 'Naro Space Center', lat: 34.432, lng: 127.535, alt: 10,
+    network: 'launch', status: 'online', owner: 'KARI',
+  },
+
+  // --- New Zealand ---
+  {
+    id: -350, name: 'Rocket Lab LC-1 Mahia', lat: -39.262, lng: 177.865, alt: 30,
+    network: 'launch', status: 'online', owner: 'Rocket Lab',
+  },
+
+  // --- Israel ---
+  {
+    id: -351, name: 'Palmachim', lat: 31.897, lng: 34.691, alt: 10,
+    network: 'launch', status: 'online', owner: 'ISA (Israel)',
+  },
+
+  // --- Iran ---
+  {
+    id: -352, name: 'Imam Khomeini Spaceport', lat: 35.235, lng: 53.921, alt: 950,
+    network: 'launch', status: 'online', owner: 'ISA (Iran)',
+  },
+
+  // --- Brazil ---
+  {
+    id: -353, name: 'Alcântara Launch Center', lat: -2.373, lng: -44.396, alt: 40,
+    network: 'launch', status: 'online', owner: 'AEB (Brazil)',
+  },
+
+  // --- Europe ---
+  {
+    id: -360, name: 'Esrange Space Center', lat: 67.893, lng: 21.104, alt: 300,
+    network: 'launch', status: 'online', owner: 'SSC (Sweden)',
+  },
+  {
+    id: -361, name: 'Andøya Space', lat: 69.294, lng: 16.021, alt: 15,
+    network: 'launch', status: 'online', owner: 'Andøya Space (Norway)',
+  },
+  {
+    id: -362, name: 'SaxaVord Spaceport', lat: 60.823, lng: -0.783, alt: 50,
+    network: 'launch', status: 'online', owner: 'SaxaVord (UK)',
+  },
+
+  // --- Australia ---
+  {
+    id: -370, name: 'Arnhem Space Centre', lat: -12.438, lng: 136.826, alt: 30,
+    network: 'launch', status: 'online', owner: 'ELA (Australia)',
+  },
+
+  // --- Pacific ---
+  {
+    id: -380, name: 'Omelek Island / Kwajalein', lat: 9.049, lng: 167.743, alt: 5,
+    network: 'launch', status: 'online', owner: 'US Army (Marshall Islands)',
   },
 ];
