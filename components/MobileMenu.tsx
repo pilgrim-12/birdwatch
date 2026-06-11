@@ -352,9 +352,13 @@ export default function MobileMenu() {
                 onClick={() => toggleGroup(group as SatelliteGroup)}
                 className={`min-h-[48px] px-3 rounded-lg text-sm transition-colors border flex items-center gap-2 ${
                   isActive
-                    ? 'bg-gray-800 border-gray-600 text-gray-200'
+                    ? 'text-white'
                     : 'bg-gray-800/50 text-gray-500 border-gray-700 active:bg-gray-800'
                 }`}
+                style={isActive ? {
+                  backgroundColor: `${color}18`,
+                  borderColor: `${color}50`,
+                } : undefined}
               >
                 <span
                   className="w-3 h-3 rounded-full shrink-0"

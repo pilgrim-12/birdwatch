@@ -463,9 +463,13 @@ export default function Header() {
                             onContextMenu={(e) => { e.preventDefault(); setInfoGroup(infoGroup === group ? null : group); }}
                             className={`px-2 py-1 rounded text-[11px] transition-colors border flex items-center gap-1 ${
                               isActive
-                                ? 'bg-gray-800 border-gray-600 text-gray-200'
+                                ? 'text-white'
                                 : 'bg-gray-800/50 text-gray-500 border-gray-700 hover:text-gray-300'
                             }`}
+                            style={isActive ? {
+                              backgroundColor: `${color}18`,
+                              borderColor: `${color}50`,
+                            } : undefined}
                             title={info.description}
                           >
                             <span

@@ -10,10 +10,11 @@ import type { SatelliteGroup } from '@/lib/constants';
 import { getCountryIsoCodes } from '@/lib/countryFlags';
 import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
 import { computeFootprintCircle } from '@/lib/footprint';
-import { haversineDistance } from '@/lib/flatMapMath';
+import { computeCPA, computeSlantRange } from '@/lib/orbitAnalysis';
 import { useCameraMode } from '@/hooks/useCameraMode';
 import { useGlobeLighting } from '@/hooks/useGlobeLighting';
 import { useGlobeAnimation } from '@/hooks/useGlobeAnimation';
+import { useSatelliteModels } from '@/hooks/useSatelliteModels';
 import { CameraControls } from './CameraControls';
 
 const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
@@ -43,6 +44,11 @@ interface MassLayerDatum {
   positions: Map<number, { lat: number; lng: number; alt: number; velocity: number }>;
 }
 
+interface FootprintDatum {
+  coords: [number, number][];
+  color: string;
+}
+
 export default function GlobeView() {
   const satellites = useSatelliteStore((s) => s.satellites);
   const positions = useSatelliteStore((s) => s.positions);
@@ -63,8 +69,6 @@ export default function GlobeView() {
   const beamWidth = useSatelliteStore((s) => s.beamWidth);
   const beamSpeed = useSatelliteStore((s) => s.beamSpeed);
   const cameraFollow = useSatelliteStore((s) => s.cameraFollow);
-
-  // Mass group (Starlink) state
   const massPositions = useSatelliteStore((s) => s.massPositions);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,37 +76,25 @@ export default function GlobeView() {
   const globeRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // Camera mode management hook
+  // Extracted hooks
   useCameraMode(globeRef);
+  const { sunPosRef } = useGlobeLighting(globeRef);
+  const { createSatelliteModel, createStationModel } = useSatelliteModels();
 
-  // Ref for current label positions — updated below after htmlLabelsData is computed
+  // Refs for animation + label tracking
   const labelPosRef = useRef<Map<number, { lat: number; lng: number; alt: number }>>(new Map());
-
-  // Label element refs — populated directly from htmlElement callback
   const labelElsRef = useRef<Map<number, HTMLElement>>(new Map());
-
-  // Stable map of PointData — reuses same object references so three-globe
-  // doesn't recreate Three.js meshes on every position update
   const stablePointsMapRef = useRef<Map<number, PointData>>(new Map());
-
-  // Interpolation keyframes for smooth 60fps motion between SGP4 updates
   const interpRef = useRef<{
     prev: Map<number, { lat: number; lng: number; alt: number }>;
     curr: Map<number, { lat: number; lng: number; alt: number }>;
     time: number;
     interval: number;
   }>({ prev: new Map(), curr: new Map(), time: 0, interval: 250 });
-
-  // Direct references to satellite 3D models for sun orientation
   const satModelMapRef = useRef<Map<number, THREE.Group>>(new Map());
 
-  // Sun/moon lighting and visual spheres
-  const { sunPosRef } = useGlobeLighting(globeRef);
-
-  // 60fps animation loop: satellite orientation + label occlusion
   useGlobeAnimation(globeRef, sunPosRef, stablePointsMapRef, satModelMapRef, labelPosRef, labelElsRef);
 
-  // Counter that increments every 30s to force orbit path refresh
   const [orbitEpoch, setOrbitEpoch] = useState(0);
 
   // Resize observer
@@ -117,12 +109,10 @@ export default function GlobeView() {
     return () => ro.disconnect();
   }, []);
 
-  // Apply max anisotropic filtering to globe texture for sharp zoom quality
+  // Apply max anisotropic filtering to globe texture
   useEffect(() => {
     const globe = globeRef.current;
     if (!globe) return;
-
-    // Texture loads asynchronously — poll until it's ready (max 30s)
     let attempts = 0;
     const timer = setInterval(() => {
       if (++attempts > 60) { clearInterval(timer); return; }
@@ -135,22 +125,16 @@ export default function GlobeView() {
           material.map.needsUpdate = true;
           clearInterval(timer);
         }
-      } catch {
-        // Globe not ready yet
-      }
+      } catch { /* Globe not ready */ }
     }, 500);
-
     return () => clearInterval(timer);
-  }, [nightMode]); // re-apply when texture changes (night/day)
+  }, [nightMode]);
 
-  // OrbitControls constraints are managed by useCameraMode hook (free camera)
-
-  // Auto-fly camera to selected satellite (skip when in follow mode)
+  // Auto-fly camera to selected satellite
   const prevSelectedRef = useRef<number | null>(null);
   const hasFlewRef = useRef(false);
   useEffect(() => {
     if (cameraFollow !== 'none') return;
-
     if (selectedSatId === null) {
       prevSelectedRef.current = null;
       hasFlewRef.current = false;
@@ -166,8 +150,6 @@ export default function GlobeView() {
     if (!pos || !globeRef.current) return;
 
     hasFlewRef.current = true;
-
-    // Use free camera flyTo if available, else fallback to pointOfView
     const relAlt = pos.alt / EARTH_RADIUS_KM;
     const satPos3D = polar2Cartesian(pos.lat, pos.lng, relAlt);
     const dirFromCenter = satPos3D.clone().normalize();
@@ -185,21 +167,16 @@ export default function GlobeView() {
     }
   }, [selectedSatId, positions, massPositions, cameraFollow]);
 
-  // Refresh orbit trails every 30s so the trail stays attached to the satellite
+  // Refresh orbit trails every 30s
   useEffect(() => {
     const interval = setInterval(() => setOrbitEpoch((n) => n + 1), 30_000);
     return () => clearInterval(interval);
   }, []);
 
-  // Propagation loops are in hooks/usePropagation.ts (called from page.tsx)
-
-  // Orbit trail cache — avoids recomputing on re-renders within the same epoch.
-  // Cleared on each epoch tick (30s) since trails are time-dependent.
+  // Orbit trail cache
   const orbitCacheRef = useRef<{ epoch: number; data: Map<string, { lat: number; lng: number; alt: number }[]> }>({ epoch: -1, data: new Map() });
 
-  // Orbit paths — recompute when satellites change or every 30s (normal satellites only)
   const orbitPathsRaw = useMemo(() => {
-    // Clear cache when epoch changes (trails are time-dependent)
     if (orbitCacheRef.current.epoch !== orbitEpoch) {
       orbitCacheRef.current = { epoch: orbitEpoch, data: new Map() };
     }
@@ -207,45 +184,32 @@ export default function GlobeView() {
 
     const results = satellites.map((sat) => {
       const cacheKey = sat.tle.line1 + sat.tle.line2;
-      // Use fewer steps for non-selected satellites (60 vs 90)
       const steps = selectedSatIds.includes(sat.id) ? 90 : 60;
       let points = cache.get(cacheKey);
       if (!points) {
         points = computeOrbitPath(sat.tle, new Date(), steps);
         cache.set(cacheKey, points);
       }
-      return {
-        id: sat.id,
-        group: sat.group,
-        color: GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff',
-        points,
-      };
+      return { id: sat.id, group: sat.group, color: GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff', points };
     });
 
-    // Include selected mass satellite orbits (Starlink / OneWeb / Active)
-    // Read from store snapshot to avoid adding massSatellites to deps (would cause
-    // expensive orbit recomputation on every mass position update cycle)
     const resultIds = new Set(results.map((r) => r.id));
     for (const selId of selectedSatIds) {
       if (!resultIds.has(selId)) {
         const massSat = useSatelliteStore.getState().massSatellites.find((s) => s.id === selId);
         if (massSat) {
-          const points = computeOrbitPath(massSat.tle, new Date(), 90);
           results.push({
-            id: massSat.id,
-            group: massSat.group,
+            id: massSat.id, group: massSat.group,
             color: GROUP_COLORS[massSat.group as SatelliteGroup] || '#00d4ff',
-            points,
+            points: computeOrbitPath(massSat.tle, new Date(), 90),
           });
         }
       }
     }
-
     return results;
   }, [satellites, orbitEpoch, selectedSatIds]);
 
-  // Points data (normal satellites only) — uses stable object references so
-  // three-globe reuses existing Three.js meshes instead of recreating them.
+  // Stable points data for three-globe
   const pointsData: PointData[] = useMemo(() => {
     const stable = stablePointsMapRef.current;
     const result: PointData[] = [];
@@ -255,221 +219,102 @@ export default function GlobeView() {
       const pos = positions.get(s.id);
       if (!pos) continue;
       activeIds.add(s.id);
-
       const isSelected = selectedSatIds.includes(s.id);
       const color = GROUP_COLORS[s.group as SatelliteGroup] || '#00d4ff';
       let point = stable.get(s.id);
 
       if (point) {
-        // Mutate position on existing object — preserves __threeObjObject reference
         point.lat = pos.lat;
         point.lng = pos.lng;
         point.alt = pos.alt / EARTH_RADIUS_KM;
         point.velocity = pos.velocity;
-        // When selection changes, create a fresh object so three-globe recreates the model
         if (point.selected !== isSelected) {
-          point = {
-            id: s.id, name: s.name,
-            lat: pos.lat, lng: pos.lng, alt: pos.alt / EARTH_RADIUS_KM,
-            velocity: pos.velocity, selected: isSelected,
-            group: s.group, color,
-          };
+          point = { id: s.id, name: s.name, lat: pos.lat, lng: pos.lng, alt: pos.alt / EARTH_RADIUS_KM, velocity: pos.velocity, selected: isSelected, group: s.group, color };
           stable.set(s.id, point);
         }
       } else {
-        point = {
-          id: s.id, name: s.name,
-          lat: pos.lat, lng: pos.lng, alt: pos.alt / EARTH_RADIUS_KM,
-          velocity: pos.velocity, selected: isSelected,
-          group: s.group, color,
-        };
+        point = { id: s.id, name: s.name, lat: pos.lat, lng: pos.lng, alt: pos.alt / EARTH_RADIUS_KM, velocity: pos.velocity, selected: isSelected, group: s.group, color };
         stable.set(s.id, point);
       }
       result.push(point);
     }
 
-    // Remove stale entries for satellites no longer loaded
     for (const id of stable.keys()) {
       if (!activeIds.has(id)) stable.delete(id);
     }
-
     return result;
   }, [satellites, positions, selectedSatIds]);
 
-  // Update interpolation keyframes whenever positions change
+  // Update interpolation keyframes
   useEffect(() => {
     const newCurr = new Map<number, { lat: number; lng: number; alt: number }>();
     positions.forEach((pos, id) => {
       newCurr.set(id, { lat: pos.lat, lng: pos.lng, alt: pos.alt / EARTH_RADIUS_KM });
     });
     const old = interpRef.current;
-    interpRef.current = {
-      prev: old.curr.size > 0 ? old.curr : newCurr,
-      curr: newCurr,
-      time: performance.now(),
-      interval: 250,
-    };
+    interpRef.current = { prev: old.curr.size > 0 ? old.curr : newCurr, curr: newCurr, time: performance.now(), interval: 250 };
   }, [positions]);
 
-  // CPA info: closest point on selected orbit to observer + distance
+  // CPA info — uses shared computeCPA
   const cpaInfo = useMemo(() => {
     if (!showLookLine || !observer || selectedSatId === null) return null;
     const selectedOrbit = orbitPathsRaw.find((o) => o.id === selectedSatId);
     if (!selectedOrbit || selectedOrbit.points.length === 0) return null;
-
-    let minDist = Infinity;
-    let closest = selectedOrbit.points[0];
-    for (const pt of selectedOrbit.points) {
-      const d = haversineDistance(observer.lat, observer.lng, pt.lat, pt.lng);
-      if (d < minDist) { minDist = d; closest = pt; }
-    }
-    const distKm = Math.round(minDist * EARTH_RADIUS_KM);
-    return {
-      closest,
-      distKm,
-      midLat: (observer.lat + closest.lat) / 2,
-      midLng: (observer.lng + closest.lng) / 2,
-      midAlt: closest.alt / 2,
-    };
+    return computeCPA(observer, selectedOrbit.points);
   }, [showLookLine, observer, selectedSatId, orbitPathsRaw]);
 
-  // Ground-line info: observer → selected satellite current position + slant range
+  // Ground-line info — uses shared computeSlantRange
   const groundLineInfo = useMemo(() => {
     if (!showGroundLine || !observer || selectedSatId === null) return null;
     const pos = positions.get(selectedSatId) ?? massPositions.get(selectedSatId);
     if (!pos) return null;
-
-    const satAlt = pos.alt / EARTH_RADIUS_KM;
-    const angDist = haversineDistance(observer.lat, observer.lng, pos.lat, pos.lng);
-    const R = EARTH_RADIUS_KM;
-    const rSat = R + pos.alt;
-    const slantKm = Math.round(Math.sqrt(R * R + rSat * rSat - 2 * R * rSat * Math.cos(angDist)));
-    return {
-      lat: pos.lat,
-      lng: pos.lng,
-      alt: satAlt,
-      slantKm,
-      midLat: (observer.lat + pos.lat) / 2,
-      midLng: (observer.lng + pos.lng) / 2,
-      midAlt: satAlt / 2,
-    };
+    return computeSlantRange(observer, pos);
   }, [showGroundLine, observer, selectedSatId, positions, massPositions]);
 
-  // Combined paths: orbit trajectories + scan beams (normal satellites only, not mass)
+  // Combined paths: orbits + beams + look-line + ground-line
   const allPaths: CombinedPath[] = useMemo(() => {
     const paths: CombinedPath[] = [];
 
-    // Orbit trajectories: all when toggle is on, or just selected satellite
     for (const raw of orbitPathsRaw) {
       const isSelected = selectedSatIds.includes(raw.id);
       if (showTrajectories || isSelected) {
-        paths.push({
-          pathId: `orbit-${raw.id}`,
-          type: 'orbit',
-          points: raw.points,
-          selected: isSelected,
-          color: raw.color,
-        });
+        paths.push({ pathId: `orbit-${raw.id}`, type: 'orbit', points: raw.points, selected: isSelected, color: raw.color });
       }
     }
 
-    // Beams: lines from satellite to ground
     if (showBeams) {
       for (const p of pointsData) {
-        paths.push({
-          pathId: `beam-${p.id}`,
-          type: 'beam',
-          points: [
-            { lat: p.lat, lng: p.lng, alt: p.alt },
-            { lat: p.lat, lng: p.lng, alt: 0 },
-          ],
-          selected: p.selected,
-          color: p.color,
-        });
+        paths.push({ pathId: `beam-${p.id}`, type: 'beam', points: [{ lat: p.lat, lng: p.lng, alt: p.alt }, { lat: p.lat, lng: p.lng, alt: 0 }], selected: p.selected, color: p.color });
       }
     }
 
-    // Look-line: observer → closest point on selected orbit
     if (cpaInfo && observer) {
-      paths.push({
-        pathId: 'look-line',
-        type: 'look-line',
-        points: [
-          { lat: observer.lat, lng: observer.lng, alt: 0 },
-          { lat: cpaInfo.closest.lat, lng: cpaInfo.closest.lng, alt: cpaInfo.closest.alt },
-        ],
-        selected: true,
-        color: '#ff9800',
-      });
+      paths.push({ pathId: 'look-line', type: 'look-line', points: [{ lat: observer.lat, lng: observer.lng, alt: 0 }, { lat: cpaInfo.closest.lat, lng: cpaInfo.closest.lng, alt: cpaInfo.closest.alt }], selected: true, color: '#ff9800' });
     }
 
-    // Ground-line: observer → selected satellite current position
     if (groundLineInfo && observer) {
-      paths.push({
-        pathId: 'ground-line',
-        type: 'ground-line',
-        points: [
-          { lat: observer.lat, lng: observer.lng, alt: 0 },
-          { lat: groundLineInfo.lat, lng: groundLineInfo.lng, alt: groundLineInfo.alt },
-        ],
-        selected: true,
-        color: '#4fc3f7',
-      });
+      paths.push({ pathId: 'ground-line', type: 'ground-line', points: [{ lat: observer.lat, lng: observer.lng, alt: 0 }, { lat: groundLineInfo.lat, lng: groundLineInfo.lng, alt: groundLineInfo.alt }], selected: true, color: '#4fc3f7' });
     }
 
     return paths;
   }, [showTrajectories, showBeams, orbitPathsRaw, selectedSatIds, pointsData, observer, cpaInfo, groundLineInfo]);
 
-  // HTML labels for satellites on the globe (+ CPA / ground-line distance labels)
+  // HTML labels
   const htmlLabelsData = useMemo(() => {
     const labels = (showLabels || showFlags)
-      ? pointsData.map((p) => ({
-          id: p.id,
-          lat: p.lat,
-          lng: p.lng,
-          alt: p.alt + 0.015,
-          name: p.name,
-          color: p.color,
-          group: p.group,
-          selected: selectedSatIds.includes(p.id),
-          _flags: showFlags, _labels: showLabels, // force element re-creation on toggle
-        }))
+      ? pointsData.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, alt: p.alt + 0.015, name: p.name, color: p.color, group: p.group, selected: selectedSatIds.includes(p.id), _flags: showFlags, _labels: showLabels }))
       : [];
 
-    // CPA distance label at midpoint of look-line
     if (cpaInfo) {
-      labels.push({
-        id: -1,
-        lat: cpaInfo.midLat,
-        lng: cpaInfo.midLng,
-        alt: cpaInfo.midAlt + 0.01,
-        name: `${cpaInfo.distKm} km`,
-        color: '#ff9800',
-        group: '',
-        selected: false,
-        _flags: showFlags, _labels: showLabels,
-      });
+      labels.push({ id: -1, lat: cpaInfo.midLat, lng: cpaInfo.midLng, alt: cpaInfo.midAlt + 0.01, name: `${cpaInfo.distKm} km`, color: '#ff9800', group: '', selected: false, _flags: showFlags, _labels: showLabels });
     }
-
-    // Ground-line distance label at midpoint
     if (groundLineInfo) {
-      labels.push({
-        id: -2,
-        lat: groundLineInfo.midLat,
-        lng: groundLineInfo.midLng,
-        alt: groundLineInfo.midAlt + 0.01,
-        name: `${groundLineInfo.slantKm} km`,
-        color: '#4fc3f7',
-        group: '',
-        selected: false,
-        _flags: showFlags, _labels: showLabels,
-      });
+      labels.push({ id: -2, lat: groundLineInfo.midLat, lng: groundLineInfo.midLng, alt: groundLineInfo.midAlt + 0.01, name: `${groundLineInfo.slantKm} km`, color: '#4fc3f7', group: '', selected: false, _flags: showFlags, _labels: showLabels });
     }
-
     return labels;
   }, [showLabels, showFlags, selectedSatIds, pointsData, cpaInfo, groundLineInfo]);
 
-  // Sync label positions ref for occlusion check + clean stale label element refs
+  // Sync label positions ref
   useEffect(() => {
     const m = new Map<number, { lat: number; lng: number; alt: number }>();
     const activeIds = new Set<number>();
@@ -478,31 +323,21 @@ export default function GlobeView() {
       activeIds.add(l.id);
     }
     labelPosRef.current = m;
-    // Remove stale entries from labelElsRef for satellites no longer rendered
     for (const id of labelElsRef.current.keys()) {
       if (!activeIds.has(id)) labelElsRef.current.delete(id);
     }
   }, [htmlLabelsData]);
 
-  // Footprint polygons for selected satellites
-  interface FootprintDatum {
-    coords: [number, number][];
-    color: string;
-  }
+  // Footprint polygons
   const footprintData: FootprintDatum[] = useMemo(() => {
     if (!showFootprint || selectedSatIds.length === 0) return [];
     const result: FootprintDatum[] = [];
     for (const id of selectedSatIds) {
       const pos = positions.get(id) ?? massPositions.get(id);
       if (!pos) continue;
-      const sat = satellites.find((s) => s.id === id)
-        ?? useSatelliteStore.getState().massSatellites.find((s) => s.id === id);
-      const color = sat
-        ? (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff')
-        : '#00d4ff';
-      const minElev = sat
-        ? (GROUP_INFO[sat.group as SatelliteGroup]?.minElevationDeg ?? 0)
-        : 0;
+      const sat = satellites.find((s) => s.id === id) ?? useSatelliteStore.getState().massSatellites.find((s) => s.id === id);
+      const color = sat ? (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff') : '#00d4ff';
+      const minElev = sat ? (GROUP_INFO[sat.group as SatelliteGroup]?.minElevationDeg ?? 0) : 0;
       const ring = computeFootprintCircle(pos.lat, pos.lng, pos.alt, 72, minElev);
       if (ring.length === 0) continue;
       result.push({ coords: ring, color });
@@ -510,160 +345,25 @@ export default function GlobeView() {
     return result;
   }, [showFootprint, selectedSatIds, positions, massPositions, satellites]);
 
-  // Observer ring
   const ringsData = useMemo(() => {
     if (!observer) return [];
     return [{ lat: observer.lat, lng: observer.lng }];
   }, [observer]);
 
-  // --- Mass group (Starlink) InstancedMesh via customLayerData ---
+  // Mass group InstancedMesh
   const customLayerData: MassLayerDatum[] = useMemo(() => {
     if (massPositions.size === 0) return [];
     return [{ id: 'mass-constellation', positions: massPositions }];
   }, [massPositions]);
 
-  // Cached geometries & materials for satellite 3D models (body + solar panels + antenna)
-  const bodyGeoRef = useRef(new THREE.BoxGeometry(1.0, 0.6, 0.6));
-  const panelGeoRef = useRef(new THREE.BoxGeometry(1.6, 0.05, 0.8));
-  const antennaGeoRef = useRef(new THREE.ConeGeometry(0.2, 0.5, 6));
-  const selectedBodyGeoRef = useRef(new THREE.BoxGeometry(1.6, 1.0, 1.0));
-  const selectedPanelGeoRef = useRef(new THREE.BoxGeometry(2.6, 0.08, 1.3));
-  const selectedAntennaGeoRef = useRef(new THREE.ConeGeometry(0.35, 0.8, 6));
-  const panelMatRef = useRef(new THREE.MeshBasicMaterial({ color: 0x1a237e }));
-  const selectedPanelMatRef = useRef(new THREE.MeshBasicMaterial({ color: 0x3949ab }));
-  const materialCacheRef = useRef(new Map<string, THREE.MeshBasicMaterial>());
-
-  // Cached station geometries (BUG-2 fix: avoid creating new geometries per call)
-  const stationMainGeoRef = useRef<THREE.CylinderGeometry | null>(null);
-  const stationModuleLGeoRef = useRef<THREE.CylinderGeometry | null>(null);
-  const stationModuleRGeoRef = useRef<THREE.CylinderGeometry | null>(null);
-  const stationTrussGeoRef = useRef<THREE.BoxGeometry | null>(null);
-  const stationPanelGeoRef = useRef<THREE.BoxGeometry | null>(null);
-  const stationRadiatorGeoRef = useRef<THREE.BoxGeometry | null>(null);
-  const stationSelMainGeoRef = useRef<THREE.CylinderGeometry | null>(null);
-  const stationSelModuleLGeoRef = useRef<THREE.CylinderGeometry | null>(null);
-  const stationSelModuleRGeoRef = useRef<THREE.CylinderGeometry | null>(null);
-  const stationSelTrussGeoRef = useRef<THREE.BoxGeometry | null>(null);
-  const stationSelPanelGeoRef = useRef<THREE.BoxGeometry | null>(null);
-  const stationSelRadiatorGeoRef = useRef<THREE.BoxGeometry | null>(null);
-  const getMaterial = useCallback((color: string | number) => {
-    const key = String(color);
-    let mat = materialCacheRef.current.get(key);
-    if (!mat) {
-      mat = new THREE.MeshBasicMaterial({ color });
-      materialCacheRef.current.set(key, mat);
-    }
-    return mat;
-  }, []);
-
-  const createSatelliteModel = useCallback((color: string | number, selected: boolean) => {
-    const group = new THREE.Group();
-    const bGeo = selected ? selectedBodyGeoRef.current : bodyGeoRef.current;
-    const pGeo = selected ? selectedPanelGeoRef.current : panelGeoRef.current;
-    const aGeo = selected ? selectedAntennaGeoRef.current : antennaGeoRef.current;
-    const bodyMat = getMaterial(color);
-    const pMat = selected ? selectedPanelMatRef.current : panelMatRef.current;
-
-    // Main bus (body)
-    const body = new THREE.Mesh(bGeo, bodyMat);
-    group.add(body);
-
-    // Solar panel — left (tagged for sun-tracking rotation)
-    const panelL = new THREE.Mesh(pGeo, pMat);
-    panelL.position.x = selected ? -2.1 : -1.3;
-    panelL.userData.isPanel = true;
-    group.add(panelL);
-
-    // Solar panel — right (tagged for sun-tracking rotation)
-    const panelR = new THREE.Mesh(pGeo, pMat);
-    panelR.position.x = selected ? 2.1 : 1.3;
-    panelR.userData.isPanel = true;
-    group.add(panelR);
-
-    // Antenna dish on top
-    const antenna = new THREE.Mesh(aGeo, bodyMat);
-    antenna.position.y = selected ? 0.7 : 0.45;
-    group.add(antenna);
-
-    return group;
-  }, [getMaterial]);
-
-  /** Space station model: long truss with 4 panel pairs + central modules */
-  const createStationModel = useCallback((color: string | number, selected: boolean) => {
-    const group = new THREE.Group();
-    const s = selected ? 2.0 : 1.0;
-    const bodyMat = getMaterial(color);
-    const pMat = selected ? selectedPanelMatRef.current : panelMatRef.current;
-    const radiatorMat = getMaterial(0xcccccc);
-
-    // Lazily create and cache station geometries
-    const mainGeoRef = selected ? stationSelMainGeoRef : stationMainGeoRef;
-    const modLRef = selected ? stationSelModuleLGeoRef : stationModuleLGeoRef;
-    const modRRef = selected ? stationSelModuleRGeoRef : stationModuleRGeoRef;
-    const trussRef = selected ? stationSelTrussGeoRef : stationTrussGeoRef;
-    const sPanelRef = selected ? stationSelPanelGeoRef : stationPanelGeoRef;
-    const radRef = selected ? stationSelRadiatorGeoRef : stationRadiatorGeoRef;
-
-    if (!mainGeoRef.current) mainGeoRef.current = new THREE.CylinderGeometry(0.5 * s, 0.5 * s, 1.8 * s, 8);
-    if (!modLRef.current) modLRef.current = new THREE.CylinderGeometry(0.35 * s, 0.35 * s, 1.2 * s, 8);
-    if (!modRRef.current) modRRef.current = new THREE.CylinderGeometry(0.35 * s, 0.35 * s, 1.2 * s, 8);
-    if (!trussRef.current) trussRef.current = new THREE.BoxGeometry(8.0 * s, 0.15 * s, 0.15 * s);
-    if (!sPanelRef.current) sPanelRef.current = new THREE.BoxGeometry(0.15 * s, 0.05 * s, 2.0 * s);
-    if (!radRef.current) radRef.current = new THREE.BoxGeometry(0.8 * s, 0.03 * s, 0.6 * s);
-
-    const mainModule = new THREE.Mesh(mainGeoRef.current, bodyMat);
-    mainModule.rotation.z = Math.PI / 2;
-    group.add(mainModule);
-
-    const moduleL = new THREE.Mesh(modLRef.current, bodyMat);
-    moduleL.rotation.z = Math.PI / 2;
-    moduleL.position.y = 0.6 * s;
-    group.add(moduleL);
-
-    const moduleR = new THREE.Mesh(modRRef.current, bodyMat);
-    moduleR.rotation.z = Math.PI / 2;
-    moduleR.position.y = -0.6 * s;
-    group.add(moduleR);
-
-    const truss = new THREE.Mesh(trussRef.current, radiatorMat);
-    group.add(truss);
-
-    const panelPositions = [-3.2, -1.6, 1.6, 3.2];
-    for (const px of panelPositions) {
-      const panel = new THREE.Mesh(sPanelRef.current, pMat);
-      panel.position.set(px * s, 0.1 * s, 0);
-      panel.userData.isPanel = true;
-      group.add(panel);
-    }
-
-    for (const rx of [-2.4, 2.4]) {
-      const radiator = new THREE.Mesh(radRef.current, radiatorMat);
-      radiator.position.set(rx * s, -0.15 * s, 0);
-      group.add(radiator);
-    }
-
-    return group;
-  }, [getMaterial]);
-
   const starlinkMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const dummyObj = useRef(new THREE.Object3D());
+  const massUpRef = useRef(new THREE.Vector3(0, 1, 0));
+  const massDirRef = useRef(new THREE.Vector3());
 
-  // Dispose all cached GPU resources on unmount (BUG-3/4 fix)
+  // Dispose starlink mesh on unmount
   useEffect(() => {
-    // Capture ref values for cleanup (react-hooks/exhaustive-deps)
-    const pMat = panelMatRef.current;
-    const sPMat = selectedPanelMatRef.current;
-    const matCache = materialCacheRef.current;
-    const geoRefs = [bodyGeoRef, panelGeoRef, antennaGeoRef, selectedBodyGeoRef, selectedPanelGeoRef, selectedAntennaGeoRef];
-    const stationRefs = [stationMainGeoRef, stationModuleLGeoRef, stationModuleRGeoRef, stationTrussGeoRef, stationPanelGeoRef, stationRadiatorGeoRef,
-      stationSelMainGeoRef, stationSelModuleLGeoRef, stationSelModuleRGeoRef, stationSelTrussGeoRef, stationSelPanelGeoRef, stationSelRadiatorGeoRef];
     return () => {
-      for (const ref of geoRefs) ref.current?.dispose();
-      for (const ref of stationRefs) ref.current?.dispose();
-      pMat?.dispose();
-      sPMat?.dispose();
-      matCache.forEach((mat) => mat.dispose());
-      matCache.clear();
       if (starlinkMeshRef.current) {
         starlinkMeshRef.current.geometry.dispose();
         (starlinkMeshRef.current.material as THREE.Material).dispose();
@@ -672,12 +372,8 @@ export default function GlobeView() {
   }, []);
 
   const createMassMesh = useCallback(() => {
-    const geo = new THREE.BoxGeometry(1.0, 0.2, 0.5); // flat satellite shape for performance
-    const mat = new THREE.MeshBasicMaterial({
-      color: GROUP_COLORS.starlink,
-      transparent: true,
-      opacity: 0.9,
-    });
+    const geo = new THREE.BoxGeometry(1.0, 0.2, 0.5);
+    const mat = new THREE.MeshBasicMaterial({ color: GROUP_COLORS.starlink, transparent: true, opacity: 0.9 });
     const mesh = new THREE.InstancedMesh(geo, mat, 11000);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.count = 0;
@@ -685,71 +381,43 @@ export default function GlobeView() {
     return mesh;
   }, []);
 
-  // Pre-allocated vectors for updateMassMesh (PERF-3 fix: avoid GC pressure)
-  const massUpRef = useRef(new THREE.Vector3(0, 1, 0));
-  const massDirRef = useRef(new THREE.Vector3());
+  const updateMassMesh = useCallback((obj: object) => {
+    const mesh = obj as THREE.InstancedMesh;
+    if (massPositions.size === 0) { mesh.count = 0; return; }
+    let idx = 0;
+    const dummy = dummyObj.current;
+    const up = massUpRef.current;
+    const dir = massDirRef.current;
+    massPositions.forEach((pos) => {
+      const relAlt = pos.alt / EARTH_RADIUS_KM;
+      const vec = polar2Cartesian(pos.lat, pos.lng, relAlt);
+      dummy.position.copy(vec);
+      dir.copy(vec).negate().normalize();
+      dummy.quaternion.setFromUnitVectors(up, dir);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(idx, dummy.matrix);
+      idx++;
+    });
+    mesh.count = idx;
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [massPositions]);
 
-  const updateMassMesh = useCallback(
-    (obj: object) => {
-      const mesh = obj as THREE.InstancedMesh;
-      if (massPositions.size === 0) {
-        mesh.count = 0;
-        return;
-      }
+  const handlePointClick = useCallback((point: object) => {
+    selectSatellite((point as PointData).id);
+  }, [selectSatellite]);
 
-      let idx = 0;
-      const dummy = dummyObj.current;
-      const up = massUpRef.current;
-      const dir = massDirRef.current;
-
-      massPositions.forEach((pos) => {
-        const relAlt = pos.alt / EARTH_RADIUS_KM;
-        const vec = polar2Cartesian(pos.lat, pos.lng, relAlt);
-        dummy.position.copy(vec);
-        // Orient flat side (+Y) toward Earth center
-        dir.copy(vec).negate().normalize();
-        dummy.quaternion.setFromUnitVectors(up, dir);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(idx, dummy.matrix);
-        idx++;
-      });
-
-      mesh.count = idx;
-      mesh.instanceMatrix.needsUpdate = true;
-    },
-    [massPositions],
-  );
-
-  const handlePointClick = useCallback(
-    (point: object) => {
-      const p = point as PointData;
-      selectSatellite(p.id);
-    },
-    [selectSatellite],
-  );
-
-  const handleGlobeClick = useCallback(
-    ({ lat, lng }: { lat: number; lng: number }) => {
-      // Check if click is near a mass satellite — select it instead of setting observer
-      let bestId: number | null = null;
-      let bestDist = 3; // degrees tolerance
-      massPositions.forEach((pos, id) => {
-        const dLat = pos.lat - lat;
-        const dLng = pos.lng - lng;
-        const d = Math.sqrt(dLat * dLat + dLng * dLng);
-        if (d < bestDist) {
-          bestDist = d;
-          bestId = id;
-        }
-      });
-      if (bestId !== null) {
-        selectSatellite(bestId);
-      } else {
-        setObserver({ lat, lng, alt: 0 });
-      }
-    },
-    [setObserver, selectSatellite, massPositions],
-  );
+  const handleGlobeClick = useCallback(({ lat, lng }: { lat: number; lng: number }) => {
+    let bestId: number | null = null;
+    let bestDist = 3;
+    massPositions.forEach((pos, id) => {
+      const dLat = pos.lat - lat;
+      const dLng = pos.lng - lng;
+      const d = Math.sqrt(dLat * dLat + dLng * dLng);
+      if (d < bestDist) { bestDist = d; bestId = id; }
+    });
+    if (bestId !== null) selectSatellite(bestId);
+    else setObserver({ lat, lng, alt: 0 });
+  }, [setObserver, selectSatellite, massPositions]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative z-0">
@@ -759,17 +427,8 @@ export default function GlobeView() {
           ref={globeRef}
           width={dimensions.width}
           height={dimensions.height}
-          globeImageUrl={
-            nightMode
-              ? '/earth-night-4k.jpg'
-              : '/earth-day-4k.jpg'
-          }
-          backgroundImageUrl={
-            nightMode
-              ? '/night-sky.png'
-              : undefined
-          }
-          // Satellite 3D spheres (colored by group) — normal satellites only
+          globeImageUrl={nightMode ? '/earth-night-4k.jpg' : '/earth-day-4k.jpg'}
+          backgroundImageUrl={nightMode ? '/night-sky.png' : undefined}
           objectsData={pointsData}
           objectLat="lat"
           objectLng="lng"
@@ -785,16 +444,14 @@ export default function GlobeView() {
             return model;
           }}
           onObjectClick={handlePointClick}
-          // HTML tooltip label for selected satellite
           htmlElementsData={htmlLabelsData}
           htmlLat="lat"
           htmlLng="lng"
           htmlAltitude="alt"
           htmlElement={(d: object) => {
-            const data = d as { id: number; name: string; color: string; group: string; selected: boolean; lat: number; lng: number; alt: number };
+            const data = d as { id: number; name: string; color: string; group: string; selected: boolean };
             const el = document.createElement('div');
             el.setAttribute('data-sat-id', String(data.id));
-            // Distance labels (CPA id=-1, ground-line id=-2)
             if (data.id < 0) {
               el.textContent = data.name;
               el.style.cssText = `color:#fff;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;border:1px solid ${data.color};transition:opacity 0.15s;`;
@@ -802,7 +459,6 @@ export default function GlobeView() {
               el.style.cssText = `display:flex;align-items:center;gap:3px;white-space:nowrap;pointer-events:none;transition:opacity 0.15s;` + (data.selected
                 ? `color:#fff;font-size:11px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:2px 8px;border-radius:4px;transform:translateY(-18px);border:1px solid ${data.color};font-weight:600;`
                 : `color:#ccc;font-size:9px;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.5);padding:1px 5px;border-radius:3px;transform:translateY(-14px);`);
-              // Flag icon
               const { showFlags: sf, showLabels: sl } = useSatelliteStore.getState();
               if (sf && data.group) {
                 const info = GROUP_INFO[data.group as SatelliteGroup];
@@ -817,16 +473,12 @@ export default function GlobeView() {
                   }
                 }
               }
-              // Name text
-              if (sl) {
-                el.appendChild(document.createTextNode(data.name));
-              }
+              if (sl) el.appendChild(document.createTextNode(data.name));
             }
             labelElsRef.current.set(data.id, el);
             return el;
           }}
           htmlTransitionDuration={0}
-          // Combined paths: orbit trajectories + scan beams
           pathsData={allPaths}
           pathId="pathId"
           pathPoints="points"
@@ -872,17 +524,10 @@ export default function GlobeView() {
             return 0;
           }}
           pathTransitionDuration={0}
-          // Footprint polygons for selected satellites
           polygonsData={footprintData}
-          polygonCapColor={(d: object) => {
-            const fp = d as FootprintDatum;
-            return fp.color + '25';
-          }}
+          polygonCapColor={(d: object) => (d as FootprintDatum).color + '25'}
           polygonSideColor={() => 'rgba(0,0,0,0)'}
-          polygonStrokeColor={(d: object) => {
-            const fp = d as FootprintDatum;
-            return fp.color + '90';
-          }}
+          polygonStrokeColor={(d: object) => (d as FootprintDatum).color + '90'}
           polygonAltitude={0.005}
           polygonGeoJsonGeometry={(d: object) => {
             const fp = d as FootprintDatum;
@@ -890,11 +535,9 @@ export default function GlobeView() {
             return { type: 'Polygon', coordinates: [fp.coords] } as any;
           }}
           polygonsTransitionDuration={0}
-          // Mass group (Starlink) — rendered as InstancedMesh (single draw call)
           customLayerData={customLayerData}
           customThreeObject={createMassMesh}
           customThreeObjectUpdate={updateMassMesh}
-          // Observer ring
           ringsData={ringsData}
           ringLat="lat"
           ringLng="lng"
@@ -902,7 +545,6 @@ export default function GlobeView() {
           ringMaxRadius={3}
           ringPropagationSpeed={2}
           ringRepeatPeriod={1000}
-          // Globe interaction
           onGlobeClick={handleGlobeClick}
           animateIn={false}
         />
