@@ -435,15 +435,32 @@ export function drawObserverMarker(
   ctx.fill();
 }
 
-/** Draw ground tracking stations */
+/** Draw ground tracking stations. Labels only shown for station nearest to hoverPos. */
 export function drawGroundStations(
   ctx: CanvasRenderingContext2D,
   w: number, h: number,
   v: ViewState,
   stations: GroundStation[],
   scale: number,
+  hoverPos?: { x: number; y: number } | null,
 ) {
-  for (const gs of stations) {
+  const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  const hoverThreshold = 20 * dpr;
+
+  // First pass: find nearest station to hover position
+  let hoveredIdx = -1;
+  if (hoverPos) {
+    let bestDist = hoverThreshold;
+    for (let i = 0; i < stations.length; i++) {
+      const { x, y } = latLngToXY(stations[i].lat, stations[i].lng, w, h, v.zoom, v.ox, v.oy);
+      const d = Math.hypot(x - hoverPos.x, y - hoverPos.y);
+      if (d < bestDist) { bestDist = d; hoveredIdx = i; }
+    }
+  }
+
+  // Second pass: draw all stations
+  for (let i = 0; i < stations.length; i++) {
+    const gs = stations[i];
     const { x, y } = latLngToXY(gs.lat, gs.lng, w, h, v.zoom, v.ox, v.oy);
     if (x < -20 || x > w + 20 || y < -20 || y > h + 20) continue;
 
@@ -464,14 +481,28 @@ export function drawGroundStations(
     ctx.arc(x, y + sz * 0.5, sz * 0.6, 0, Math.PI * 2);
     ctx.fill();
 
-    // Label when zoomed in
-    if (v.zoom >= 3) {
-      ctx.font = `${Math.round(8 * scale)}px system-ui, sans-serif`;
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.85;
+    // Label only for hovered station
+    if (i === hoveredIdx) {
+      ctx.font = `bold ${Math.round(9 * scale)}px system-ui, sans-serif`;
+      ctx.fillStyle = '#fff';
+      ctx.globalAlpha = 0.95;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(gs.name, x, y + sz * 2);
+      const label = gs.owner ? `${gs.name} (${gs.owner})` : gs.name;
+      // Background pill
+      const tw = ctx.measureText(label).width;
+      const px = 4 * scale;
+      const py = 2 * scale;
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.beginPath();
+      const lx = x - tw / 2 - px;
+      const ly = y + sz * 2;
+      const lw = tw + px * 2;
+      const lh = 9 * scale + py * 2;
+      ctx.roundRect(lx, ly, lw, lh, 3 * scale);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.fillText(label, x, ly + py);
       ctx.globalAlpha = 1;
     }
   }

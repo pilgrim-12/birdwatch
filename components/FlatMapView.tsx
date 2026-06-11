@@ -66,6 +66,28 @@ export default function FlatMapView() {
   const beamOpacity = useSatelliteStore((s) => s.beamOpacity);
   const showLookLine = useSatelliteStore((s) => s.showLookLine);
 
+  // Track mouse position for ground station hover labels
+  const mousePosRef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      mousePosRef.current = {
+        x: (e.clientX - rect.left) * dpr,
+        y: (e.clientY - rect.top) * dpr,
+      };
+    };
+    const onLeave = () => { mousePosRef.current = null; };
+    canvas.addEventListener('mousemove', onMove);
+    canvas.addEventListener('mouseleave', onLeave);
+    return () => {
+      canvas.removeEventListener('mousemove', onMove);
+      canvas.removeEventListener('mouseleave', onLeave);
+    };
+  }, []);
+
   // Resize observer
   useEffect(() => {
     const el = containerRef.current;
@@ -214,7 +236,7 @@ export default function FlatMapView() {
 
       // Ground stations
       if (state.showGroundStations && state.groundStations.length > 0) {
-        drawGroundStations(ctx, w, h, v, state.groundStations, scale);
+        drawGroundStations(ctx, w, h, v, state.groundStations, scale, mousePosRef.current);
       }
 
       // Observer marker
