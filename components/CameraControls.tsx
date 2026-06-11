@@ -5,10 +5,10 @@ import * as THREE from 'three';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { EARTH_RADIUS_KM } from '@/lib/constants';
 import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
+import type { GlobeRef } from '@/types/globe';
 
 interface CameraControlsProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  globeRef: React.MutableRefObject<any>;
+  globeRef: GlobeRef;
 }
 
 export function CameraControls({ globeRef }: CameraControlsProps) {

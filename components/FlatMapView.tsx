@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { computeOrbitPath } from '@/lib/orbit';
-import { GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
+import { EARTH_RADIUS_KM, GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import { getGroupPrimaryIsoCode, loadFlagImages } from '@/lib/countryFlags';
 import { computeFootprintCircle } from '@/lib/footprint';
@@ -524,11 +524,14 @@ export default function FlatMapView() {
         }
       }
 
+      // --- Satellite lookup map (shared by beams, dots, labels) ---
+      const satGroupMap = new Map(satellites.map((s) => [s.id, s]));
+
       // --- Beams ---
       if (state.showBeams) {
         const alpha = state.beamOpacity / 100;
         state.positions.forEach((pos, id) => {
-          const sat = satellites.find((s) => s.id === id);
+          const sat = satGroupMap.get(id);
           if (!sat) return;
           const color = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
           const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, zoom, ox, oy);
@@ -559,7 +562,6 @@ export default function FlatMapView() {
       ctx.globalAlpha = 1;
 
       // --- Normal satellite dots ---
-      const satGroupMap = new Map(satellites.map((s) => [s.id, s]));
       state.positions.forEach((pos, id) => {
         const sat = satGroupMap.get(id);
         if (!sat) return;
@@ -694,7 +696,7 @@ export default function FlatMapView() {
           ctx.fill();
 
           // Distance label
-          const distKm = Math.round(minDist * 6371);
+          const distKm = Math.round(minDist * EARTH_RADIUS_KM);
           const midX = (obsXY.x + cpaXY.x) / 2;
           const midY = (obsXY.y + cpaXY.y) / 2;
           const cpaFs = Math.round(12 * scale);
@@ -735,7 +737,7 @@ export default function FlatMapView() {
 
           // Slant range distance (3D straight-line distance)
           const angDist = haversineDistance(state.observer.lat, state.observer.lng, satPos.lat, satPos.lng);
-          const R = 6371;
+          const R = EARTH_RADIUS_KM;
           const rObs = R;
           const rSat = R + satPos.alt;
           const slantKm = Math.round(Math.sqrt(rObs * rObs + rSat * rSat - 2 * rObs * rSat * Math.cos(angDist)));

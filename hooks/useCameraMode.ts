@@ -6,15 +6,7 @@ import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { EARTH_RADIUS_KM } from '@/lib/constants';
 import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
-
-interface GlobeInstance {
-  controls(): OrbitControls;
-  camera(): THREE.PerspectiveCamera;
-  renderer(): THREE.WebGLRenderer;
-  __freeCamFlyTo?: (toPos: THREE.Vector3, toTarget: THREE.Vector3, duration?: number) => void;
-}
-
-type GlobeRef = React.MutableRefObject<GlobeInstance | null>;
+import type { GlobeRef } from '@/types/globe';
 
 function easeInOutQuad(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -50,7 +42,9 @@ export function useCameraMode(globeRef: GlobeRef): void {
 
   // 1. Patch controls once ready + expose flyTo + replace change listener
   useEffect(() => {
+    let attempts = 0;
     const timer = setInterval(() => {
+      if (++attempts > 100) { clearInterval(timer); return; }
       const globe = globeRef.current;
       if (!globe || patchedRef.current) return;
 
@@ -138,7 +132,9 @@ export function useCameraMode(globeRef: GlobeRef): void {
 
   // 2. Double-click to set new orbit pivot
   useEffect(() => {
+    let attempts = 0;
     const timer = setInterval(() => {
+      if (++attempts > 100) { clearInterval(timer); return; }
       const globe = globeRef.current;
       if (!globe) return;
 

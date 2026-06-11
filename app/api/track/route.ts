@@ -34,7 +34,6 @@ export async function POST(req: NextRequest) {
     const ip =
       req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
       req.headers.get('x-real-ip') ||
-      body.ip ||
       'unknown';
     const userAgent = body.userAgent || req.headers.get('user-agent') || null;
     const path = body.path || '/';
@@ -80,8 +79,10 @@ export async function POST(req: NextRequest) {
         lng = cached.lng;
       } else {
         try {
+          // Note: ip-api.com free tier is HTTP-only; HTTPS requires paid plan.
+          // Server-to-server only — visitor IP not exposed to client.
           const geoRes = await fetch(
-            `http://ip-api.com/json/${ip}?fields=status,country,city,lat,lon`,
+            `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,city,lat,lon`,
           );
           if (geoRes.ok) {
             const geo: IpApiResponse = await geoRes.json();
@@ -92,10 +93,17 @@ export async function POST(req: NextRequest) {
               lng = geo.lon ?? null;
             }
             geoCache.set(ip, { country, city, lat, lng, ts: Date.now() });
-            // Evict old entries to prevent memory leak
+            // Evict expired + overflow entries to prevent memory leak
             if (geoCache.size > 5000) {
-              const oldest = geoCache.keys().next().value as string;
-              geoCache.delete(oldest);
+              const now = Date.now();
+              for (const [k, v] of geoCache) {
+                if (now - v.ts > GEO_CACHE_TTL) geoCache.delete(k);
+              }
+              // If still over limit after TTL sweep, remove oldest
+              if (geoCache.size > 5000) {
+                const oldest = geoCache.keys().next().value as string;
+                geoCache.delete(oldest);
+              }
             }
           }
         } catch {

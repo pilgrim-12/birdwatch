@@ -5,9 +5,7 @@ import * as THREE from 'three';
 import { GLOBE_RADIUS, sunPosition3D, moonPosition3D } from '@/lib/globe-math';
 import { getSunLatLng } from '@/lib/sun';
 import { getMoonLatLng } from '@/lib/moon';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GlobeRef = React.MutableRefObject<any>;
+import type { GlobeRef } from '@/types/globe';
 
 /**
  * Sets up sun-based directional lighting, sun/moon visual spheres,
@@ -29,7 +27,9 @@ export function useGlobeLighting(globeRef: GlobeRef) {
 
   // Setup sun-based lighting: replace default lights with sun-positioned DirectionalLight
   useEffect(() => {
+    let attempts = 0;
     const timer = setInterval(() => {
+      if (++attempts > 100) { clearInterval(timer); return; } // max 30s
       const globe = globeRef.current;
       if (!globe) return;
       let scene: THREE.Scene;
@@ -92,7 +92,29 @@ export function useGlobeLighting(globeRef: GlobeRef) {
       moonMeshRef.current = moonMesh;
     }, 300);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      if (sunMeshRef.current) {
+        const sun = sunMeshRef.current;
+        for (const child of sun.children) {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            (child.material as THREE.Material).dispose();
+          }
+        }
+        sun.geometry.dispose();
+        (sun.material as THREE.Material).dispose();
+        sun.parent?.remove(sun);
+        sunMeshRef.current = null;
+      }
+      if (moonMeshRef.current) {
+        const moon = moonMeshRef.current;
+        moon.geometry.dispose();
+        (moon.material as THREE.Material).dispose();
+        moon.parent?.remove(moon);
+        moonMeshRef.current = null;
+      }
+    };
   }, [globeRef]);
 
   // Update sun & moon positions every 60s

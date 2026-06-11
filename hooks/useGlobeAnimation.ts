@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import * as THREE from 'three';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
+import type { GlobeRef } from '@/types/globe';
 
 interface PointData {
   id: number;
@@ -11,9 +12,6 @@ interface PointData {
   lng: number;
   alt: number;
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GlobeRef = React.MutableRefObject<any>;
 
 /**
  * 60fps animation loop that handles:

@@ -10,6 +10,7 @@ import type { SatelliteGroup } from '@/lib/constants';
 import { getCountryIsoCodes } from '@/lib/countryFlags';
 import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
 import { computeFootprintCircle } from '@/lib/footprint';
+import { haversineDistance } from '@/lib/flatMapMath';
 import { useCameraMode } from '@/hooks/useCameraMode';
 import { useGlobeLighting } from '@/hooks/useGlobeLighting';
 import { useGlobeAnimation } from '@/hooks/useGlobeAnimation';
@@ -35,15 +36,6 @@ interface CombinedPath {
   points: { lat: number; lng: number; alt: number }[];
   selected: boolean;
   color: string;
-}
-
-/** Great-circle distance in radians between two lat/lng points */
-function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const toRad = (d: number) => d * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 interface MassLayerDatum {
@@ -130,8 +122,10 @@ export default function GlobeView() {
     const globe = globeRef.current;
     if (!globe) return;
 
-    // Texture loads asynchronously — poll until it's ready
+    // Texture loads asynchronously — poll until it's ready (max 30s)
+    let attempts = 0;
     const timer = setInterval(() => {
+      if (++attempts > 60) { clearInterval(timer); return; }
       try {
         const renderer = globe.renderer();
         const material = globe.globeMaterial();
@@ -538,6 +532,20 @@ export default function GlobeView() {
   const panelMatRef = useRef(new THREE.MeshBasicMaterial({ color: 0x1a237e }));
   const selectedPanelMatRef = useRef(new THREE.MeshBasicMaterial({ color: 0x3949ab }));
   const materialCacheRef = useRef(new Map<string, THREE.MeshBasicMaterial>());
+
+  // Cached station geometries (BUG-2 fix: avoid creating new geometries per call)
+  const stationMainGeoRef = useRef<THREE.CylinderGeometry | null>(null);
+  const stationModuleLGeoRef = useRef<THREE.CylinderGeometry | null>(null);
+  const stationModuleRGeoRef = useRef<THREE.CylinderGeometry | null>(null);
+  const stationTrussGeoRef = useRef<THREE.BoxGeometry | null>(null);
+  const stationPanelGeoRef = useRef<THREE.BoxGeometry | null>(null);
+  const stationRadiatorGeoRef = useRef<THREE.BoxGeometry | null>(null);
+  const stationSelMainGeoRef = useRef<THREE.CylinderGeometry | null>(null);
+  const stationSelModuleLGeoRef = useRef<THREE.CylinderGeometry | null>(null);
+  const stationSelModuleRGeoRef = useRef<THREE.CylinderGeometry | null>(null);
+  const stationSelTrussGeoRef = useRef<THREE.BoxGeometry | null>(null);
+  const stationSelPanelGeoRef = useRef<THREE.BoxGeometry | null>(null);
+  const stationSelRadiatorGeoRef = useRef<THREE.BoxGeometry | null>(null);
   const getMaterial = useCallback((color: string | number) => {
     const key = String(color);
     let mat = materialCacheRef.current.get(key);
@@ -583,42 +591,53 @@ export default function GlobeView() {
   /** Space station model: long truss with 4 panel pairs + central modules */
   const createStationModel = useCallback((color: string | number, selected: boolean) => {
     const group = new THREE.Group();
-    const s = selected ? 2.0 : 1.0; // scale factor
+    const s = selected ? 2.0 : 1.0;
     const bodyMat = getMaterial(color);
     const pMat = selected ? selectedPanelMatRef.current : panelMatRef.current;
     const radiatorMat = getMaterial(0xcccccc);
 
-    // Central module cluster (3 connected modules)
-    const mainModule = new THREE.Mesh(new THREE.CylinderGeometry(0.5 * s, 0.5 * s, 1.8 * s, 8), bodyMat);
+    // Lazily create and cache station geometries
+    const mainGeoRef = selected ? stationSelMainGeoRef : stationMainGeoRef;
+    const modLRef = selected ? stationSelModuleLGeoRef : stationModuleLGeoRef;
+    const modRRef = selected ? stationSelModuleRGeoRef : stationModuleRGeoRef;
+    const trussRef = selected ? stationSelTrussGeoRef : stationTrussGeoRef;
+    const sPanelRef = selected ? stationSelPanelGeoRef : stationPanelGeoRef;
+    const radRef = selected ? stationSelRadiatorGeoRef : stationRadiatorGeoRef;
+
+    if (!mainGeoRef.current) mainGeoRef.current = new THREE.CylinderGeometry(0.5 * s, 0.5 * s, 1.8 * s, 8);
+    if (!modLRef.current) modLRef.current = new THREE.CylinderGeometry(0.35 * s, 0.35 * s, 1.2 * s, 8);
+    if (!modRRef.current) modRRef.current = new THREE.CylinderGeometry(0.35 * s, 0.35 * s, 1.2 * s, 8);
+    if (!trussRef.current) trussRef.current = new THREE.BoxGeometry(8.0 * s, 0.15 * s, 0.15 * s);
+    if (!sPanelRef.current) sPanelRef.current = new THREE.BoxGeometry(0.15 * s, 0.05 * s, 2.0 * s);
+    if (!radRef.current) radRef.current = new THREE.BoxGeometry(0.8 * s, 0.03 * s, 0.6 * s);
+
+    const mainModule = new THREE.Mesh(mainGeoRef.current, bodyMat);
     mainModule.rotation.z = Math.PI / 2;
     group.add(mainModule);
 
-    const moduleL = new THREE.Mesh(new THREE.CylinderGeometry(0.35 * s, 0.35 * s, 1.2 * s, 8), bodyMat);
+    const moduleL = new THREE.Mesh(modLRef.current, bodyMat);
     moduleL.rotation.z = Math.PI / 2;
     moduleL.position.y = 0.6 * s;
     group.add(moduleL);
 
-    const moduleR = new THREE.Mesh(new THREE.CylinderGeometry(0.35 * s, 0.35 * s, 1.2 * s, 8), bodyMat);
+    const moduleR = new THREE.Mesh(modRRef.current, bodyMat);
     moduleR.rotation.z = Math.PI / 2;
     moduleR.position.y = -0.6 * s;
     group.add(moduleR);
 
-    // Truss (long horizontal beam)
-    const truss = new THREE.Mesh(new THREE.BoxGeometry(8.0 * s, 0.15 * s, 0.15 * s), radiatorMat);
+    const truss = new THREE.Mesh(trussRef.current, radiatorMat);
     group.add(truss);
 
-    // 4 pairs of solar panels along the truss (tagged for sun-tracking rotation)
     const panelPositions = [-3.2, -1.6, 1.6, 3.2];
     for (const px of panelPositions) {
-      const panel = new THREE.Mesh(new THREE.BoxGeometry(0.15 * s, 0.05 * s, 2.0 * s), pMat);
+      const panel = new THREE.Mesh(sPanelRef.current, pMat);
       panel.position.set(px * s, 0.1 * s, 0);
       panel.userData.isPanel = true;
       group.add(panel);
     }
 
-    // Radiator panels (smaller, white, between panel pairs)
     for (const rx of [-2.4, 2.4]) {
-      const radiator = new THREE.Mesh(new THREE.BoxGeometry(0.8 * s, 0.03 * s, 0.6 * s), radiatorMat);
+      const radiator = new THREE.Mesh(radRef.current, radiatorMat);
       radiator.position.set(rx * s, -0.15 * s, 0);
       group.add(radiator);
     }
@@ -628,6 +647,29 @@ export default function GlobeView() {
 
   const starlinkMeshRef = useRef<THREE.InstancedMesh | null>(null);
   const dummyObj = useRef(new THREE.Object3D());
+
+  // Dispose all cached GPU resources on unmount (BUG-3/4 fix)
+  useEffect(() => {
+    // Capture ref values for cleanup (react-hooks/exhaustive-deps)
+    const pMat = panelMatRef.current;
+    const sPMat = selectedPanelMatRef.current;
+    const matCache = materialCacheRef.current;
+    const geoRefs = [bodyGeoRef, panelGeoRef, antennaGeoRef, selectedBodyGeoRef, selectedPanelGeoRef, selectedAntennaGeoRef];
+    const stationRefs = [stationMainGeoRef, stationModuleLGeoRef, stationModuleRGeoRef, stationTrussGeoRef, stationPanelGeoRef, stationRadiatorGeoRef,
+      stationSelMainGeoRef, stationSelModuleLGeoRef, stationSelModuleRGeoRef, stationSelTrussGeoRef, stationSelPanelGeoRef, stationSelRadiatorGeoRef];
+    return () => {
+      for (const ref of geoRefs) ref.current?.dispose();
+      for (const ref of stationRefs) ref.current?.dispose();
+      pMat?.dispose();
+      sPMat?.dispose();
+      matCache.forEach((mat) => mat.dispose());
+      matCache.clear();
+      if (starlinkMeshRef.current) {
+        starlinkMeshRef.current.geometry.dispose();
+        (starlinkMeshRef.current.material as THREE.Material).dispose();
+      }
+    };
+  }, []);
 
   const createMassMesh = useCallback(() => {
     const geo = new THREE.BoxGeometry(1.0, 0.2, 0.5); // flat satellite shape for performance
@@ -643,6 +685,10 @@ export default function GlobeView() {
     return mesh;
   }, []);
 
+  // Pre-allocated vectors for updateMassMesh (PERF-3 fix: avoid GC pressure)
+  const massUpRef = useRef(new THREE.Vector3(0, 1, 0));
+  const massDirRef = useRef(new THREE.Vector3());
+
   const updateMassMesh = useCallback(
     (obj: object) => {
       const mesh = obj as THREE.InstancedMesh;
@@ -653,8 +699,8 @@ export default function GlobeView() {
 
       let idx = 0;
       const dummy = dummyObj.current;
-      const up = new THREE.Vector3(0, 1, 0);
-      const dir = new THREE.Vector3();
+      const up = massUpRef.current;
+      const dir = massDirRef.current;
 
       massPositions.forEach((pos) => {
         const relAlt = pos.alt / EARTH_RADIUS_KM;
