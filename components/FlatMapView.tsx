@@ -19,6 +19,7 @@ import {
   drawCpaLine,
   drawGroundLine,
   drawObserverMarker,
+  drawGroundStations,
   drawZoomIndicator,
 } from '@/lib/flatMapDraw';
 
@@ -209,6 +210,11 @@ export default function FlatMapView() {
         if (satPos) {
           drawGroundLine(ctx, w, h, v, state.observer, satPos, scale);
         }
+      }
+
+      // Ground stations
+      if (state.showGroundStations && state.groundStations.length > 0) {
+        drawGroundStations(ctx, w, h, v, state.groundStations, scale);
       }
 
       // Observer marker

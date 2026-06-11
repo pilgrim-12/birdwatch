@@ -11,6 +11,7 @@ import { getCountryIsoCodes } from '@/lib/countryFlags';
 import { polar2Cartesian, GLOBE_RADIUS } from '@/lib/globe-math';
 import { computeFootprintCircle } from '@/lib/footprint';
 import { computeCPA, computeSlantRange } from '@/lib/orbitAnalysis';
+import { STATION_COLORS } from '@/lib/groundStations';
 import { useCameraMode } from '@/hooks/useCameraMode';
 import { useGlobeLighting } from '@/hooks/useGlobeLighting';
 import { useGlobeAnimation } from '@/hooks/useGlobeAnimation';
@@ -70,6 +71,8 @@ export default function GlobeView() {
   const beamSpeed = useSatelliteStore((s) => s.beamSpeed);
   const cameraFollow = useSatelliteStore((s) => s.cameraFollow);
   const massPositions = useSatelliteStore((s) => s.massPositions);
+  const groundStations = useSatelliteStore((s) => s.groundStations);
+  const showGroundStations = useSatelliteStore((s) => s.showGroundStations);
 
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -302,17 +305,32 @@ export default function GlobeView() {
   // HTML labels
   const htmlLabelsData = useMemo(() => {
     const labels = (showLabels || showFlags)
-      ? pointsData.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, alt: p.alt + 0.015, name: p.name, color: p.color, group: p.group, selected: selectedSatIds.includes(p.id), _flags: showFlags, _labels: showLabels }))
+      ? pointsData.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, alt: p.alt + 0.015, name: p.name, color: p.color, group: p.group, selected: selectedSatIds.includes(p.id), _flags: showFlags, _labels: showLabels, _station: false }))
       : [];
 
     if (cpaInfo) {
-      labels.push({ id: -1, lat: cpaInfo.midLat, lng: cpaInfo.midLng, alt: cpaInfo.midAlt + 0.01, name: `${cpaInfo.distKm} km`, color: '#ff9800', group: '', selected: false, _flags: showFlags, _labels: showLabels });
+      labels.push({ id: -1, lat: cpaInfo.midLat, lng: cpaInfo.midLng, alt: cpaInfo.midAlt + 0.01, name: `${cpaInfo.distKm} km`, color: '#ff9800', group: '', selected: false, _flags: showFlags, _labels: showLabels, _station: false });
     }
     if (groundLineInfo) {
-      labels.push({ id: -2, lat: groundLineInfo.midLat, lng: groundLineInfo.midLng, alt: groundLineInfo.midAlt + 0.01, name: `${groundLineInfo.slantKm} km`, color: '#4fc3f7', group: '', selected: false, _flags: showFlags, _labels: showLabels });
+      labels.push({ id: -2, lat: groundLineInfo.midLat, lng: groundLineInfo.midLng, alt: groundLineInfo.midAlt + 0.01, name: `${groundLineInfo.slantKm} km`, color: '#4fc3f7', group: '', selected: false, _flags: showFlags, _labels: showLabels, _station: false });
     }
+
+    // Ground station markers
+    if (showGroundStations && groundStations.length > 0) {
+      for (const gs of groundStations) {
+        const color = STATION_COLORS[gs.network] || STATION_COLORS.other;
+        labels.push({
+          id: gs.id < 0 ? gs.id - 10000 : gs.id + 100000,
+          lat: gs.lat, lng: gs.lng, alt: 0.003,
+          name: gs.name, color, group: gs.network,
+          selected: false, _flags: false, _labels: showLabels,
+          _station: true,
+        });
+      }
+    }
+
     return labels;
-  }, [showLabels, showFlags, selectedSatIds, pointsData, cpaInfo, groundLineInfo]);
+  }, [showLabels, showFlags, selectedSatIds, pointsData, cpaInfo, groundLineInfo, showGroundStations, groundStations]);
 
   // Sync label positions ref
   useEffect(() => {
@@ -449,10 +467,32 @@ export default function GlobeView() {
           htmlLng="lng"
           htmlAltitude="alt"
           htmlElement={(d: object) => {
-            const data = d as { id: number; name: string; color: string; group: string; selected: boolean };
+            const data = d as { id: number; name: string; color: string; group: string; selected: boolean; _station?: boolean };
             const el = document.createElement('div');
             el.setAttribute('data-sat-id', String(data.id));
-            if (data.id < 0) {
+
+            // Ground station marker
+            if (data._station) {
+              el.style.cssText = `display:flex;flex-direction:column;align-items:center;pointer-events:none;transition:opacity 0.15s;transform:translateY(-8px);`;
+              // Antenna icon (triangle pointing up)
+              const icon = document.createElement('div');
+              icon.style.cssText = `width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:8px solid ${data.color};`;
+              el.appendChild(icon);
+              // Station dot
+              const dot = document.createElement('div');
+              dot.style.cssText = `width:5px;height:5px;border-radius:50%;background:${data.color};margin-top:-1px;`;
+              el.appendChild(dot);
+              // Label (only when zoomed in)
+              const label = document.createElement('div');
+              label.textContent = data.name;
+              label.style.cssText = `font-size:8px;color:${data.color};font-family:system-ui,sans-serif;white-space:nowrap;margin-top:1px;text-shadow:0 0 3px rgba(0,0,0,0.9);`;
+              el.appendChild(label);
+              labelElsRef.current.set(data.id, el);
+              return el;
+            }
+
+            // CPA / LOS distance labels
+            if (data.id === -1 || data.id === -2) {
               el.textContent = data.name;
               el.style.cssText = `color:#fff;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;background:rgba(0,0,0,0.85);padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;border:1px solid ${data.color};transition:opacity 0.15s;`;
             } else {

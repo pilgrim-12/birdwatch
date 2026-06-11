@@ -14,6 +14,8 @@ import { MASS_GROUPS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { Satellite } from '@/types/satellite';
 import type { SatNogsInfo, SatNogsTransmitter } from '@/types/satnogs';
+import type { GroundStation } from '@/types/groundStation';
+import { PROFESSIONAL_STATIONS } from '@/lib/groundStations';
 import { usePropagation } from '@/hooks/usePropagation';
 import { useToastStore } from '@/store/useToastStore';
 import VisitorTracker from '@/components/VisitorTracker';
@@ -30,6 +32,8 @@ export default function Home() {
   const sourceCelestrak = useSatelliteStore((s) => s.sourceCelestrak);
   const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
   const mapMode = useSatelliteStore((s) => s.mapMode);
+  const showGroundStations = useSatelliteStore((s) => s.showGroundStations);
+  const setGroundStations = useSatelliteStore((s) => s.setGroundStations);
 
   const addToast = useToastStore((s) => s.addToast);
 
@@ -180,6 +184,34 @@ export default function Home() {
 
     fetchSatNOGS();
   }, [sourceSatnogs, satnogsLoaded, setSatnogsInfo, setSatnogsTransmitters]);
+
+  // Fetch ground stations (lazy — only when toggle is on)
+  useEffect(() => {
+    if (!showGroundStations) {
+      setGroundStations([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchStations() {
+      try {
+        const res = await fetch('/api/stations');
+        if (!res.ok) throw new Error('Failed to fetch stations');
+        const satnogs: GroundStation[] = await res.json();
+        if (cancelled) return;
+        setGroundStations([...PROFESSIONAL_STATIONS, ...satnogs]);
+      } catch {
+        if (!cancelled) {
+          setGroundStations([...PROFESSIONAL_STATIONS]);
+          useToastStore.getState().addToast('SatNOGS ground stations unavailable, showing professional stations only');
+        }
+      }
+    }
+
+    fetchStations();
+    return () => { cancelled = true; };
+  }, [showGroundStations, setGroundStations]);
 
   const isMobilePanelOpen = useSatelliteStore((s) => s.isMobilePanelOpen);
   const setMobilePanelOpen = useSatelliteStore((s) => s.setMobilePanelOpen);

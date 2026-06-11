@@ -27,6 +27,7 @@ export default function MobileMenu() {
     showTrajectories, showLabels, showBeams, nightMode,
     beamOpacity, beamWidth, beamSpeed,
     showLookLine, showGroundLine, showFootprint, showFlags,
+    showGroundStations,
     activeGroups, countryFilter, observer,
     mapMode, sourceCelestrak, sourceSatnogs,
     isMobileMenuOpen, isOrbitViewOpen,
@@ -42,6 +43,7 @@ export default function MobileMenu() {
     showGroundLine: s.showGroundLine,
     showFootprint: s.showFootprint,
     showFlags: s.showFlags,
+    showGroundStations: s.showGroundStations,
     activeGroups: s.activeGroups,
     countryFilter: s.countryFilter,
     observer: s.observer,
@@ -55,6 +57,7 @@ export default function MobileMenu() {
   const {
     toggleTrajectories, toggleLabels, toggleBeams,
     toggleLookLine, toggleGroundLine, toggleFootprint, toggleFlags,
+    toggleGroundStations,
     toggleNightMode, toggleGroup, toggleOrbitView, toggleMapMode,
     toggleSourceCelestrak, toggleSourceSatnogs,
     setBeamOpacity, setBeamWidth, setBeamSpeed,
@@ -68,6 +71,7 @@ export default function MobileMenu() {
     toggleGroundLine: s.toggleGroundLine,
     toggleFootprint: s.toggleFootprint,
     toggleFlags: s.toggleFlags,
+    toggleGroundStations: s.toggleGroundStations,
     toggleNightMode: s.toggleNightMode,
     toggleGroup: s.toggleGroup,
     toggleOrbitView: s.toggleOrbitView,
@@ -155,6 +159,12 @@ export default function MobileMenu() {
             className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(showFlags)}`}
           >
             Flags
+          </button>
+          <button
+            onClick={toggleGroundStations}
+            className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(showGroundStations)}`}
+          >
+            Stations
           </button>
           <button
             onClick={toggleNightMode}

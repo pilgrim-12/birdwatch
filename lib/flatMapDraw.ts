@@ -1,6 +1,8 @@
 import { GROUP_COLORS, GROUP_INFO } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import { latLngToXY } from '@/lib/flatMapMath';
+import type { GroundStation } from '@/types/groundStation';
+import { STATION_COLORS } from '@/lib/groundStations';
 import { computeFootprintCircle } from '@/lib/footprint';
 import { computeCPA, computeSlantRange } from '@/lib/orbitAnalysis';
 import { computeOrbitPath } from '@/lib/orbit';
@@ -431,6 +433,48 @@ export function drawObserverMarker(
   ctx.beginPath();
   ctx.arc(x, y, 3 * scale, 0, Math.PI * 2);
   ctx.fill();
+}
+
+/** Draw ground tracking stations */
+export function drawGroundStations(
+  ctx: CanvasRenderingContext2D,
+  w: number, h: number,
+  v: ViewState,
+  stations: GroundStation[],
+  scale: number,
+) {
+  for (const gs of stations) {
+    const { x, y } = latLngToXY(gs.lat, gs.lng, w, h, v.zoom, v.ox, v.oy);
+    if (x < -20 || x > w + 20 || y < -20 || y > h + 20) continue;
+
+    const color = STATION_COLORS[gs.network] || STATION_COLORS.other;
+    const sz = 3.5 * scale;
+
+    // Triangle (antenna) pointing up
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y - sz * 2.5);
+    ctx.lineTo(x - sz, y);
+    ctx.lineTo(x + sz, y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Base dot
+    ctx.beginPath();
+    ctx.arc(x, y + sz * 0.5, sz * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Label when zoomed in
+    if (v.zoom >= 3) {
+      ctx.font = `${Math.round(8 * scale)}px system-ui, sans-serif`;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.85;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(gs.name, x, y + sz * 2);
+      ctx.globalAlpha = 1;
+    }
+  }
 }
 
 /** Draw zoom indicator in corner */

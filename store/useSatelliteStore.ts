@@ -4,6 +4,7 @@ import type { Satellite, ObserverLocation, SatellitePosition, TLEData } from '@/
 import type { SatellitePass } from '@/lib/passes';
 import type { SatelliteGroup } from '@/lib/constants';
 import type { SatNogsInfo, SatNogsTransmitter } from '@/types/satnogs';
+import type { GroundStation } from '@/types/groundStation';
 
 export type CameraFollow = 'none' | 'track' | 'sat-pov';
 
@@ -106,6 +107,12 @@ interface SatelliteStore {
   // Map mode
   mapMode: 'globe' | 'flat';
   toggleMapMode: () => void;
+
+  // Ground stations
+  groundStations: GroundStation[];
+  showGroundStations: boolean;
+  setGroundStations: (stations: GroundStation[]) => void;
+  toggleGroundStations: () => void;
 
   // Data sources toggles (persisted)
   sourceCelestrak: boolean;
@@ -252,6 +259,12 @@ export const useSatelliteStore = create<SatelliteStore>()(
   setSatnogsInfo: (info) => set({ satnogsInfo: info, satnogsLoaded: true }),
   setSatnogsTransmitters: (tx) => set({ satnogsTransmitters: tx }),
 
+  // Ground stations
+  groundStations: [],
+  showGroundStations: false,
+  setGroundStations: (stations) => set({ groundStations: stations }),
+  toggleGroundStations: () => set((s) => ({ showGroundStations: !s.showGroundStations })),
+
   // Map mode
   mapMode: 'globe',
   toggleMapMode: () => set((s) => ({ mapMode: s.mapMode === 'globe' ? 'flat' : 'globe' })),
@@ -298,6 +311,7 @@ export const useSatelliteStore = create<SatelliteStore>()(
         beamSpeed: state.beamSpeed,
         activeGroups: state.activeGroups,
         countryFilter: state.countryFilter,
+        showGroundStations: state.showGroundStations,
         sidebarWidth: state.sidebarWidth,
         mapMode: state.mapMode,
         sourceCelestrak: state.sourceCelestrak,
