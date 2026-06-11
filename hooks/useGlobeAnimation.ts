@@ -70,7 +70,7 @@ export function useGlobeAnimation(
 
       // --- Label/flag occlusion + distance scaling ---
       const _state = useSatelliteStore.getState();
-      if (!_state.showLabels && !_state.showFlags) return;
+      if (!_state.showLabels && !_state.showFlags && !_state.showGroundStations) return;
 
       let camera: THREE.PerspectiveCamera;
       try {
