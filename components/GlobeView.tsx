@@ -473,7 +473,7 @@ export default function GlobeView() {
 
             // Ground station marker
             if (data._station) {
-              el.style.cssText = `display:flex;flex-direction:column;align-items:center;pointer-events:auto;cursor:pointer;transition:opacity 0.15s;transform:translateY(-8px);`;
+              el.style.cssText = `position:relative;display:flex;flex-direction:column;align-items:center;pointer-events:auto;cursor:pointer;transition:opacity 0.15s;transform:translateY(-8px);`;
               // Antenna icon (triangle pointing up)
               const icon = document.createElement('div');
               icon.style.cssText = `width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:8px solid ${data.color};`;
@@ -482,10 +482,10 @@ export default function GlobeView() {
               const dot = document.createElement('div');
               dot.style.cssText = `width:5px;height:5px;border-radius:50%;background:${data.color};margin-top:-1px;`;
               el.appendChild(dot);
-              // Label — hidden by default, shown on hover
+              // Label — hidden by default, shown on hover (absolute so it doesn't shift the icon)
               const label = document.createElement('div');
               label.textContent = data.name;
-              label.style.cssText = `font-size:8px;color:${data.color};font-family:system-ui,sans-serif;white-space:nowrap;margin-top:1px;text-shadow:0 0 3px rgba(0,0,0,0.9);display:none;`;
+              label.style.cssText = `position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:8px;color:${data.color};font-family:system-ui,sans-serif;white-space:nowrap;margin-top:1px;text-shadow:0 0 3px rgba(0,0,0,0.9);display:none;`;
               el.appendChild(label);
               el.addEventListener('mouseenter', () => { label.style.display = ''; });
               el.addEventListener('mouseleave', () => { label.style.display = 'none'; });
