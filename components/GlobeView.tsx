@@ -379,13 +379,20 @@ export default function GlobeView() {
   const massUpRef = useRef(new THREE.Vector3(0, 1, 0));
   const massDirRef = useRef(new THREE.Vector3());
 
-  // Dispose starlink mesh on unmount
+  // Dispose starlink mesh + WebGL renderer on unmount
   useEffect(() => {
     return () => {
       if (starlinkMeshRef.current) {
         starlinkMeshRef.current.geometry.dispose();
         (starlinkMeshRef.current.material as THREE.Material).dispose();
       }
+      try {
+        const renderer = globeRef.current?.renderer() as THREE.WebGLRenderer | undefined;
+        if (renderer) {
+          renderer.dispose();
+          renderer.forceContextLoss();
+        }
+      } catch { /* globe already gone */ }
     };
   }, []);
 
