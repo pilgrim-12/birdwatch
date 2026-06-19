@@ -21,13 +21,18 @@ export default function AdminMap({ visitors }: AdminMapProps) {
     const map = L.map(containerRef.current, {
       center: [30, 20],
       zoom: 2,
+      minZoom: 2,
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 1.0,
       zoomControl: true,
       attributionControl: false,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
       maxZoom: 18,
       subdomains: 'abcd',
+      noWrap: true,
+      bounds: [[-85, -180], [85, 180]],
     }).addTo(map);
 
     markersRef.current = L.layerGroup().addTo(map);
@@ -103,7 +108,7 @@ export default function AdminMap({ visitors }: AdminMapProps) {
     <div
       ref={containerRef}
       className="w-full h-full"
-      style={{ minHeight: '300px' }}
+      style={{ minHeight: '300px', background: '#0d1117' }}
     />
   );
 }
