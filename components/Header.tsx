@@ -137,7 +137,7 @@ export default function Header() {
               <path d="M12,8 Q9,6 5,7 Q8,9 9,12 L12,10 L15,12 Q16,9 19,7 Q15,6 12,8Z" fill="#111827" />
               <path d="M11,13 L12,17 L13,13 Z" fill="#111827" />
             </svg>
-            BirdWatch
+            BirdWatches
           </h1>
 
           {/* About dropdown */}
@@ -160,7 +160,7 @@ export default function Header() {
                     <path d="M12,8 Q9,6 5,7 Q8,9 9,12 L12,10 L15,12 Q16,9 19,7 Q15,6 12,8Z" fill="#111827" />
                     <path d="M11,13 L12,17 L13,13 Z" fill="#111827" />
                   </svg>
-                  <span className="text-sm font-semibold text-white">BirdWatch</span>
+                  <span className="text-sm font-semibold text-white">BirdWatches</span>
                   <span className="text-[10px] text-gray-500 ml-auto">Real-Time Satellite Tracker</span>
                 </div>
                 <p className="text-[11px] text-gray-300 leading-relaxed">

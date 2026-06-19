@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'BirdWatch — Real-time Satellite Tracker',
+  title: 'BirdWatches — Real-time Satellite Tracker',
   description:
     'Track satellites in real-time on a 3D globe. Built for amateur radio operators and space enthusiasts.',
 };

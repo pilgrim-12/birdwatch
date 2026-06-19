@@ -125,7 +125,7 @@ export default function AdminPage() {
       {/* Header */}
       <header className="border-b border-gray-800 px-4 py-3 flex items-center gap-3">
         <Link href="/" className="text-gray-500 hover:text-gray-300 text-sm">&larr; Back</Link>
-        <h1 className="text-lg font-semibold">BirdWatch Admin</h1>
+        <h1 className="text-lg font-semibold">BirdWatches Admin</h1>
         <span className="text-xs text-gray-600 ml-auto">Last updated: {new Date().toLocaleTimeString()}</span>
       </header>
 

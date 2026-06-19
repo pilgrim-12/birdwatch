@@ -81,7 +81,7 @@ export function generateSatDumpConfig(
           alt_m: observer.alt,
         }
       : null,
-    generated_by: 'BirdWatch',
+    generated_by: 'BirdWatches',
     generated_at: new Date().toISOString(),
     // TODO: Add SatDump pipeline.json generation for automatic import
   };

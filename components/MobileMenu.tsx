@@ -426,7 +426,7 @@ export default function MobileMenu() {
             <path d="M12,8 Q9,6 5,7 Q8,9 9,12 L12,10 L15,12 Q16,9 19,7 Q15,6 12,8Z" fill="#111827" />
             <path d="M11,13 L12,17 L13,13 Z" fill="#111827" />
           </svg>
-          <span className="text-sm font-semibold text-white">BirdWatch</span>
+          <span className="text-sm font-semibold text-white">BirdWatches</span>
         </div>
         <p className="text-xs text-gray-300 leading-relaxed mb-2">
           Real-time satellite tracker on a 3D globe. Built for amateur radio operators and space enthusiasts.
