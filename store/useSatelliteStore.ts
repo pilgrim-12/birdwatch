@@ -137,7 +137,7 @@ export const useSatelliteStore = create<SatelliteStore>()(
   passes: [],
   searchQuery: '',
   showTrajectories: false,
-  showLabels: true,
+  showLabels: false,
   showBeams: true,
   showLookLine: false,
   showGroundLine: false,

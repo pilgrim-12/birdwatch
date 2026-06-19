@@ -195,7 +195,7 @@ export default function FlatMapView() {
 
       // Beams
       if (state.showBeams) {
-        drawBeams(ctx, w, h, v, state.positions, satGroupMap, state.beamOpacity);
+        drawBeams(ctx, w, h, v, state.positions, satGroupMap, state.beamOpacity, selectedSatIds);
       }
 
       // Zoom-aware scale factor

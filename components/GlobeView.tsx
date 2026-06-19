@@ -287,6 +287,7 @@ export default function GlobeView() {
 
     if (showBeams) {
       for (const p of pointsData) {
+        if (!selectedSatIds.includes(p.id)) continue;
         paths.push({ pathId: `beam-${p.id}`, type: 'beam', points: [{ lat: p.lat, lng: p.lng, alt: p.alt }, { lat: p.lat, lng: p.lng, alt: 0 }], selected: p.selected, color: p.color });
       }
     }

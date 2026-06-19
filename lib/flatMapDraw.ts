@@ -146,9 +146,11 @@ export function drawBeams(
   positions: Map<number, SatellitePosition>,
   satGroupMap: Map<number, Satellite>,
   beamOpacity: number,
+  selectedIds?: number[],
 ) {
   const alpha = beamOpacity / 100;
   positions.forEach((pos, id) => {
+    if (selectedIds && !selectedIds.includes(id)) return;
     const sat = satGroupMap.get(id);
     if (!sat) return;
     const color = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
