@@ -74,6 +74,7 @@ export default function GlobeView() {
   const groundStations = useSatelliteStore((s) => s.groundStations);
   const showGroundStations = useSatelliteStore((s) => s.showGroundStations);
   const satnogsInfo = useSatelliteStore((s) => s.satnogsInfo);
+  const statusFilter = useSatelliteStore((s) => s.statusFilter);
 
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -222,10 +223,12 @@ export default function GlobeView() {
     for (const s of satellites) {
       const pos = positions.get(s.id);
       if (!pos) continue;
-      activeIds.add(s.id);
-      const isSelected = selectedSatIds.includes(s.id);
       const info = satnogsInfo.get(s.id);
       const isDead = info?.status === 'dead' || info?.status === 're-entered';
+      if (statusFilter === 'alive' && isDead) continue;
+      if (statusFilter === 'dead' && !isDead) continue;
+      activeIds.add(s.id);
+      const isSelected = selectedSatIds.includes(s.id);
       const color = isDead ? '#555555' : (GROUP_COLORS[s.group as SatelliteGroup] || '#00d4ff');
       let point = stable.get(s.id);
 
@@ -249,7 +252,7 @@ export default function GlobeView() {
       if (!activeIds.has(id)) stable.delete(id);
     }
     return result;
-  }, [satellites, positions, selectedSatIds, satnogsInfo]);
+  }, [satellites, positions, selectedSatIds, satnogsInfo, statusFilter]);
 
   // Update interpolation keyframes
   useEffect(() => {

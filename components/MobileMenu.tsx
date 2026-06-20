@@ -27,7 +27,7 @@ export default function MobileMenu() {
     showTrajectories, showLabels, showBeams, nightMode,
     beamOpacity, beamWidth, beamSpeed,
     showLookLine, showGroundLine, showFootprint, showFlags,
-    showGroundStations,
+    showGroundStations, statusFilter,
     activeGroups, countryFilter, observer,
     mapMode, sourceCelestrak, sourceSatnogs,
     isMobileMenuOpen, isOrbitViewOpen,
@@ -44,6 +44,7 @@ export default function MobileMenu() {
     showFootprint: s.showFootprint,
     showFlags: s.showFlags,
     showGroundStations: s.showGroundStations,
+    statusFilter: s.statusFilter,
     activeGroups: s.activeGroups,
     countryFilter: s.countryFilter,
     observer: s.observer,
@@ -62,6 +63,7 @@ export default function MobileMenu() {
     toggleSourceCelestrak, toggleSourceSatnogs,
     setBeamOpacity, setBeamWidth, setBeamSpeed,
     setActiveGroups, setCountryFilter, setObserver,
+    setStatusFilter,
     setMobileMenuOpen, openAntennaGuide,
   } = useSatelliteStore(useShallow((s) => ({
     toggleTrajectories: s.toggleTrajectories,
@@ -78,6 +80,7 @@ export default function MobileMenu() {
     toggleMapMode: s.toggleMapMode,
     toggleSourceCelestrak: s.toggleSourceCelestrak,
     toggleSourceSatnogs: s.toggleSourceSatnogs,
+    setStatusFilter: s.setStatusFilter,
     setBeamOpacity: s.setBeamOpacity,
     setBeamWidth: s.setBeamWidth,
     setBeamSpeed: s.setBeamSpeed,
@@ -166,6 +169,21 @@ export default function MobileMenu() {
           >
             Stations
           </button>
+          <div className="col-span-2 flex items-center gap-1 bg-gray-800/50 rounded-lg p-1">
+            {(['all', 'alive', 'dead'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className={`flex-1 min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${
+                  statusFilter === f
+                    ? f === 'dead' ? 'bg-gray-600 text-gray-200' : f === 'alive' ? 'bg-green-600/80 text-white' : 'bg-cyan-600/80 text-white'
+                    : 'text-gray-500'
+                }`}
+              >
+                {f === 'all' ? 'All' : f === 'alive' ? 'Live' : 'Dead'}
+              </button>
+            ))}
+          </div>
           <button
             onClick={toggleNightMode}
             className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(nightMode, 'night')}`}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
+import type { SatellitePosition } from '@/types/satellite';
 import { computeOrbitPath } from '@/lib/orbit';
 import { GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
@@ -57,6 +58,7 @@ export default function FlatMapView() {
   const showFlags = useSatelliteStore((s) => s.showFlags);
   const showBeams = useSatelliteStore((s) => s.showBeams);
   const satnogsInfo = useSatelliteStore((s) => s.satnogsInfo);
+  const statusFilter = useSatelliteStore((s) => s.statusFilter);
 
   // Preload flag images for canvas rendering
   const flagImagesRef = useRef(new Map<string, HTMLImageElement>());
@@ -114,12 +116,23 @@ export default function FlatMapView() {
   }, []);
 
   const orbitPaths = useMemo(() => {
-    const results = satellites.map((sat) => ({
-      id: sat.id,
-      group: sat.group,
-      color: GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff',
-      points: computeOrbitPath(sat.tle, new Date(), selectedSatIds.includes(sat.id) ? 90 : 60),
-    }));
+    const results = satellites
+      .filter((sat) => {
+        if (statusFilter === 'all') return true;
+        const info = satnogsInfo.get(sat.id);
+        const isDead = info?.status === 'dead' || info?.status === 're-entered';
+        return statusFilter === 'dead' ? isDead : !isDead;
+      })
+      .map((sat) => {
+        const info = satnogsInfo.get(sat.id);
+        const isDead = info?.status === 'dead' || info?.status === 're-entered';
+        return {
+          id: sat.id,
+          group: sat.group,
+          color: isDead ? '#555555' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff'),
+          points: computeOrbitPath(sat.tle, new Date(), selectedSatIds.includes(sat.id) ? 90 : 60),
+        };
+      });
 
     const resultIds = new Set(results.map((r) => r.id));
     for (const selId of selectedSatIds) {
@@ -137,7 +150,7 @@ export default function FlatMapView() {
     }
     return results;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [satellites, orbitEpoch, selectedSatIds]);
+  }, [satellites, orbitEpoch, selectedSatIds, satnogsInfo, statusFilter]);
 
   // Extracted interaction handling (mouse, touch, zoom, pan)
   const { handleContextMenu } = useFlatMapInteraction(
@@ -194,9 +207,24 @@ export default function FlatMapView() {
       // Satellite lookup map (shared by beams, dots, labels)
       const satGroupMap = new Map(satellites.map((s) => [s.id, s]));
 
+      // Build dead IDs set + filter positions by status
+      const deadIds = new Set<number>();
+      satnogsInfo.forEach((info, id) => {
+        if (info.status === 'dead' || info.status === 're-entered') deadIds.add(id);
+      });
+      let filteredPositions = state.positions;
+      if (statusFilter !== 'all') {
+        filteredPositions = new Map<number, SatellitePosition>();
+        state.positions.forEach((pos, id) => {
+          const isDead = deadIds.has(id);
+          if (statusFilter === 'alive' && !isDead) filteredPositions.set(id, pos);
+          if (statusFilter === 'dead' && isDead) filteredPositions.set(id, pos);
+        });
+      }
+
       // Beams
       if (state.showBeams) {
-        drawBeams(ctx, w, h, v, state.positions, satGroupMap, state.beamOpacity, selectedSatIds);
+        drawBeams(ctx, w, h, v, filteredPositions, satGroupMap, state.beamOpacity, selectedSatIds);
       }
 
       // Zoom-aware scale factor
@@ -204,14 +232,12 @@ export default function FlatMapView() {
       const scale = 0.6 + zs * 0.4;
 
       // Mass satellite dots
-      drawMassDots(ctx, w, h, v, state.massPositions, scale);
+      if (statusFilter !== 'dead') {
+        drawMassDots(ctx, w, h, v, state.massPositions, scale);
+      }
 
       // Normal satellite dots
-      const deadIds = new Set<number>();
-      satnogsInfo.forEach((info, id) => {
-        if (info.status === 'dead' || info.status === 're-entered') deadIds.add(id);
-      });
-      drawSatelliteDots(ctx, w, h, v, state.positions, satGroupMap, state.selectedSatIds, scale, deadIds);
+      drawSatelliteDots(ctx, w, h, v, filteredPositions, satGroupMap, state.selectedSatIds, scale, deadIds);
 
       // Labels & Flags
       if (state.showLabels || state.showFlags) {
@@ -255,7 +281,7 @@ export default function FlatMapView() {
 
     draw();
     return () => cancelAnimationFrame(raf);
-  }, [dimensions, imgLoaded, satellites, selectedSatIds, observer, showTrajectories, showLabels, showFlags, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode, satnogsInfo]);
+  }, [dimensions, imgLoaded, satellites, selectedSatIds, observer, showTrajectories, showLabels, showFlags, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode, satnogsInfo, statusFilter]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative z-0 bg-[#0a1628]">

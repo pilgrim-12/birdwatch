@@ -55,6 +55,8 @@ interface SatelliteStore {
   setActiveGroups: (groups: SatelliteGroup[]) => void;
   countryFilter: string | null;
   setCountryFilter: (country: string | null) => void;
+  statusFilter: 'all' | 'alive' | 'dead';
+  setStatusFilter: (filter: 'all' | 'alive' | 'dead') => void;
   setMassSatellites: (satellites: Satellite[]) => void;
   updateMassPositions: (positions: Map<number, SatellitePosition>) => void;
 
@@ -196,6 +198,8 @@ export const useSatelliteStore = create<SatelliteStore>()(
   setActiveGroups: (groups) => set({ activeGroups: groups }),
   countryFilter: null,
   setCountryFilter: (country) => set({ countryFilter: country }),
+  statusFilter: 'all',
+  setStatusFilter: (filter) => set({ statusFilter: filter }),
   setMassSatellites: (satellites) =>
     set(
       satellites.length === 0
