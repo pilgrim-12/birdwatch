@@ -8,7 +8,6 @@ import { GROUP_COLORS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
 import { loadFlagImages } from '@/lib/countryFlags';
 import { useFlatMapInteraction } from '@/hooks/useFlatMapInteraction';
-import { useInterpolatedPositions, useInterpolatedMassPositions } from '@/hooks/useInterpolatedPositions';
 import {
   drawGrid,
   drawFootprints,
@@ -47,10 +46,6 @@ export default function FlatMapView() {
     };
     return () => { img.onload = null; };
   }, [nightMode]);
-
-  // Interpolated position getters (called inside RAF — no re-renders)
-  const getPositions = useInterpolatedPositions();
-  const getMassPositions = useInterpolatedMassPositions();
 
   // Store selectors
   const satellites = useSatelliteStore((s) => s.satellites);
@@ -184,8 +179,6 @@ export default function FlatMapView() {
       const w = canvas!.width;
       const h = canvas!.height;
       const state = useSatelliteStore.getState();
-      const iPositions = getPositions();
-      const iMassPositions = getMassPositions();
       const v = viewRef.current;
 
       // Clear + background
@@ -203,7 +196,7 @@ export default function FlatMapView() {
       if (state.showFootprint && state.selectedSatIds.length > 0) {
         const satGroupMap = new Map(satellites.map((s) => [s.id, s]));
         const massSats = useSatelliteStore.getState().massSatellites;
-        drawFootprints(ctx, w, h, v, state.selectedSatIds, iPositions, iMassPositions, satGroupMap, massSats);
+        drawFootprints(ctx, w, h, v, state.selectedSatIds, state.positions, state.massPositions, satGroupMap, massSats);
       }
 
       // Orbit ground tracks
@@ -219,10 +212,10 @@ export default function FlatMapView() {
       satnogsInfo.forEach((info, id) => {
         if (info.status === 'dead' || info.status === 're-entered') deadIds.add(id);
       });
-      let filteredPositions = iPositions;
+      let filteredPositions = state.positions;
       if (statusFilter !== 'all') {
         filteredPositions = new Map<number, SatellitePosition>();
-        iPositions.forEach((pos, id) => {
+        state.positions.forEach((pos, id) => {
           const isDead = deadIds.has(id);
           if (statusFilter === 'alive' && !isDead) filteredPositions.set(id, pos);
           if (statusFilter === 'dead' && isDead) filteredPositions.set(id, pos);
@@ -240,7 +233,7 @@ export default function FlatMapView() {
 
       // Mass satellite dots
       if (statusFilter !== 'dead') {
-        drawMassDots(ctx, w, h, v, iMassPositions, scale);
+        drawMassDots(ctx, w, h, v, state.massPositions, scale);
       }
 
       // Normal satellite dots
@@ -248,13 +241,13 @@ export default function FlatMapView() {
 
       // Labels & Flags
       if (state.showLabels || state.showFlags) {
-        drawLabelsAndFlags(ctx, w, h, v, iPositions, satGroupMap, state.selectedSatIds, scale, state.showLabels, state.showFlags, flagImagesRef.current);
+        drawLabelsAndFlags(ctx, w, h, v, state.positions, satGroupMap, state.selectedSatIds, scale, state.showLabels, state.showFlags, flagImagesRef.current);
       }
 
       // Selected satellite names (always show if selected, even when labels off)
       if (state.selectedSatIds.length > 0 && !state.showLabels) {
         const massSats = useSatelliteStore.getState().massSatellites;
-        drawSelectedNames(ctx, w, h, v, state.selectedSatIds, iPositions, iMassPositions, satGroupMap, massSats, scale);
+        drawSelectedNames(ctx, w, h, v, state.selectedSatIds, state.positions, state.massPositions, satGroupMap, massSats, scale);
       }
 
       // CPA look-line
@@ -266,7 +259,7 @@ export default function FlatMapView() {
 
       // Ground-to-satellite line
       if (state.showGroundLine && state.observer && primarySatId !== null) {
-        const satPos = iPositions.get(primarySatId) ?? iMassPositions.get(primarySatId);
+        const satPos = state.positions.get(primarySatId) ?? state.massPositions.get(primarySatId);
         if (satPos) {
           drawGroundLine(ctx, w, h, v, state.observer, satPos, scale);
         }

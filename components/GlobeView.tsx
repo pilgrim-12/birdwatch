@@ -552,7 +552,7 @@ export default function GlobeView() {
             labelElsRef.current.set(data.id, el);
             return el;
           }}
-          htmlTransitionDuration={300}
+          htmlTransitionDuration={0}
           pathsData={allPaths}
           pathId="pathId"
           pathPoints="points"
@@ -597,7 +597,7 @@ export default function GlobeView() {
             }
             return 0;
           }}
-          pathTransitionDuration={300}
+          pathTransitionDuration={0}
           polygonsData={footprintData}
           polygonCapColor={(d: object) => (d as FootprintDatum).color + '25'}
           polygonSideColor={() => 'rgba(0,0,0,0)'}
