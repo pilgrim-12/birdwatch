@@ -3,33 +3,34 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import 'flag-icons/css/flag-icons.min.css';
 import type { Visitor, VisitorStats } from '@/types/analytics';
 
 const AdminMap = dynamic(() => import('@/components/AdminMap'), { ssr: false });
 
 /** Parse User-Agent to short browser name */
 const COUNTRY_TO_CODE: Record<string, string> = {
-  'United States': 'US', 'Canada': 'CA', 'United Kingdom': 'UK', 'Germany': 'DE',
-  'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Belgium': 'BE',
-  'Sweden': 'SE', 'Norway': 'NO', 'Denmark': 'DK', 'Finland': 'FI', 'Poland': 'PL',
-  'Ukraine': 'UA', 'Russia': 'RU', 'Japan': 'JP', 'China': 'CN', 'South Korea': 'KR',
-  'India': 'IN', 'Brazil': 'BR', 'Australia': 'AU', 'Mexico': 'MX', 'Argentina': 'AR',
-  'Turkey': 'TR', 'Israel': 'IL', 'Croatia': 'HR', 'Czech Republic': 'CZ', 'Czechia': 'CZ',
-  'Romania': 'RO', 'Hungary': 'HU', 'Portugal': 'PT', 'Switzerland': 'CH', 'Austria': 'AT',
-  'Ireland': 'IE', 'New Zealand': 'NZ', 'Singapore': 'SG', 'Thailand': 'TH',
-  'Indonesia': 'ID', 'Malaysia': 'MY', 'Philippines': 'PH', 'Vietnam': 'VN',
-  'Colombia': 'CO', 'Chile': 'CL', 'Peru': 'PE', 'Egypt': 'EG', 'South Africa': 'ZA',
-  'Nigeria': 'NG', 'Kenya': 'KE', 'Pakistan': 'PK', 'Bangladesh': 'BD', 'Iran': 'IR',
-  'Saudi Arabia': 'SA', 'UAE': 'AE', 'Luxembourg': 'LU', 'Greece': 'GR', 'Bulgaria': 'BG',
-  'Serbia': 'RS', 'Slovakia': 'SK', 'Slovenia': 'SI', 'Estonia': 'EE', 'Latvia': 'LV',
-  'Lithuania': 'LT', 'Georgia': 'GE', 'Taiwan': 'TW', 'Hong Kong': 'HK',
+  'United States': 'us', 'Canada': 'ca', 'United Kingdom': 'gb', 'Germany': 'de',
+  'France': 'fr', 'Italy': 'it', 'Spain': 'es', 'Netherlands': 'nl', 'Belgium': 'be',
+  'Sweden': 'se', 'Norway': 'no', 'Denmark': 'dk', 'Finland': 'fi', 'Poland': 'pl',
+  'Ukraine': 'ua', 'Russia': 'ru', 'Japan': 'jp', 'China': 'cn', 'South Korea': 'kr',
+  'India': 'in', 'Brazil': 'br', 'Australia': 'au', 'Mexico': 'mx', 'Argentina': 'ar',
+  'Turkey': 'tr', 'Israel': 'il', 'Croatia': 'hr', 'Czech Republic': 'cz', 'Czechia': 'cz',
+  'Romania': 'ro', 'Hungary': 'hu', 'Portugal': 'pt', 'Switzerland': 'ch', 'Austria': 'at',
+  'Ireland': 'ie', 'New Zealand': 'nz', 'Singapore': 'sg', 'Thailand': 'th',
+  'Indonesia': 'id', 'Malaysia': 'my', 'Philippines': 'ph', 'Vietnam': 'vn',
+  'Colombia': 'co', 'Chile': 'cl', 'Peru': 'pe', 'Egypt': 'eg', 'South Africa': 'za',
+  'Nigeria': 'ng', 'Kenya': 'ke', 'Pakistan': 'pk', 'Bangladesh': 'bd', 'Iran': 'ir',
+  'Saudi Arabia': 'sa', 'UAE': 'ae', 'Luxembourg': 'lu', 'Greece': 'gr', 'Bulgaria': 'bg',
+  'Serbia': 'rs', 'Slovakia': 'sk', 'Slovenia': 'si', 'Estonia': 'ee', 'Latvia': 'lv',
+  'Lithuania': 'lt', 'Georgia': 'ge', 'Taiwan': 'tw', 'Hong Kong': 'hk',
 };
 
-function countryFlag(country: string | null): string {
-  if (!country) return '';
-  const code = COUNTRY_TO_CODE[country] || '';
-  if (!code) return '';
-  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 - 65 + c.charCodeAt(0)));
+function FlagIcon({ country }: { country: string | null }) {
+  if (!country) return null;
+  const code = COUNTRY_TO_CODE[country];
+  if (!code) return null;
+  return <span className={`fi fi-${code} shrink-0`} style={{ width: 16, height: 12, display: 'inline-block', backgroundSize: 'cover' }} />;
 }
 
 function parseBrowser(ua: string | null): string {
@@ -190,7 +191,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               {stats.topCountries.map((c) => (
                 <div key={c.country} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">{countryFlag(c.country)} {c.country}</span>
+                  <span className="text-sm text-gray-300"><FlagIcon country={c.country} /> {c.country}</span>
                   <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">{c.count}</span>
                 </div>
               ))}
@@ -248,7 +249,7 @@ export default function AdminPage() {
                     {grouped.map((g) => (
                       <tr key={g.ip} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                         <td className="px-4 py-2 text-gray-300 font-mono text-xs">{g.ip}</td>
-                        <td className="px-4 py-2 text-gray-300">{countryFlag(g.country)} {g.location}</td>
+                        <td className="px-4 py-2 text-gray-300"><FlagIcon country={g.country} /> {g.location}</td>
                         <td className="px-4 py-2 text-cyan-400 font-medium">{g.visits}</td>
                         <td className="px-4 py-2 text-gray-400">{formatDuration(g.totalDuration || null)}</td>
                         <td className="px-4 py-2 text-gray-400 whitespace-nowrap">{formatTime(g.firstSeen)}</td>
