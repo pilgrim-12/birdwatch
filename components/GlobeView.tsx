@@ -187,16 +187,26 @@ export default function GlobeView() {
     }
     const cache = orbitCacheRef.current.data;
 
-    const results = satellites.map((sat) => {
-      const cacheKey = sat.tle.line1 + sat.tle.line2;
-      const steps = selectedSatIds.includes(sat.id) ? 90 : 60;
-      let points = cache.get(cacheKey);
-      if (!points) {
-        points = computeOrbitPath(sat.tle, new Date(), steps);
-        cache.set(cacheKey, points);
-      }
-      return { id: sat.id, group: sat.group, color: GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff', points };
-    });
+    const results = satellites
+      .filter((sat) => {
+        if (statusFilter === 'all') return true;
+        const info = satnogsInfo.get(sat.id);
+        const isDead = info?.status === 'dead' || info?.status === 're-entered';
+        return statusFilter === 'dead' ? isDead : !isDead;
+      })
+      .map((sat) => {
+        const cacheKey = sat.tle.line1 + sat.tle.line2;
+        const steps = selectedSatIds.includes(sat.id) ? 90 : 60;
+        let points = cache.get(cacheKey);
+        if (!points) {
+          points = computeOrbitPath(sat.tle, new Date(), steps);
+          cache.set(cacheKey, points);
+        }
+        const info = satnogsInfo.get(sat.id);
+        const isDead = info?.status === 'dead' || info?.status === 're-entered';
+        const color = isDead ? '#555555' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff');
+        return { id: sat.id, group: sat.group, color, points };
+      });
 
     const resultIds = new Set(results.map((r) => r.id));
     for (const selId of selectedSatIds) {
@@ -212,7 +222,7 @@ export default function GlobeView() {
       }
     }
     return results;
-  }, [satellites, orbitEpoch, selectedSatIds]);
+  }, [satellites, orbitEpoch, selectedSatIds, statusFilter, satnogsInfo]);
 
   // Stable points data for three-globe
   const pointsData: PointData[] = useMemo(() => {
