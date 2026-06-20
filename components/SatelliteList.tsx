@@ -84,6 +84,7 @@ export default function SatelliteList() {
   const collectionSatIds = useSatelliteStore((s) => s.collectionSatIds);
   const addToCollection = useSatelliteStore((s) => s.addToCollection);
   const removeFromCollection = useSatelliteStore((s) => s.removeFromCollection);
+  const statusFilter = useSatelliteStore((s) => s.statusFilter);
 
   // Ticking clock — 10s during live passes for real-time elevation, 60s otherwise
   const [now, setNow] = useState(() => new Date());
@@ -152,10 +153,16 @@ export default function SatelliteList() {
     document.body.style.userSelect = 'none';
   }, [setSidebarWidth]);
 
-  // Merge normal + mass satellites for display
+  // Merge normal + mass satellites for display, filtered by status
   const allSatellites = useMemo(() => {
-    return [...satellites, ...massSatellites];
-  }, [satellites, massSatellites]);
+    const merged = [...satellites, ...massSatellites];
+    if (statusFilter === 'all') return merged;
+    return merged.filter((s) => {
+      const info = satnogsInfo.get(s.id);
+      const isDead = info?.status === 'dead' || info?.status === 're-entered';
+      return statusFilter === 'dead' ? isDead : !isDead;
+    });
+  }, [satellites, massSatellites, statusFilter, satnogsInfo]);
 
   // Combined positions lookup
   const getPosition = useCallback(
