@@ -8,6 +8,30 @@ import type { Visitor, VisitorStats } from '@/types/analytics';
 const AdminMap = dynamic(() => import('@/components/AdminMap'), { ssr: false });
 
 /** Parse User-Agent to short browser name */
+const COUNTRY_TO_CODE: Record<string, string> = {
+  'United States': 'US', 'Canada': 'CA', 'United Kingdom': 'UK', 'Germany': 'DE',
+  'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Belgium': 'BE',
+  'Sweden': 'SE', 'Norway': 'NO', 'Denmark': 'DK', 'Finland': 'FI', 'Poland': 'PL',
+  'Ukraine': 'UA', 'Russia': 'RU', 'Japan': 'JP', 'China': 'CN', 'South Korea': 'KR',
+  'India': 'IN', 'Brazil': 'BR', 'Australia': 'AU', 'Mexico': 'MX', 'Argentina': 'AR',
+  'Turkey': 'TR', 'Israel': 'IL', 'Croatia': 'HR', 'Czech Republic': 'CZ', 'Czechia': 'CZ',
+  'Romania': 'RO', 'Hungary': 'HU', 'Portugal': 'PT', 'Switzerland': 'CH', 'Austria': 'AT',
+  'Ireland': 'IE', 'New Zealand': 'NZ', 'Singapore': 'SG', 'Thailand': 'TH',
+  'Indonesia': 'ID', 'Malaysia': 'MY', 'Philippines': 'PH', 'Vietnam': 'VN',
+  'Colombia': 'CO', 'Chile': 'CL', 'Peru': 'PE', 'Egypt': 'EG', 'South Africa': 'ZA',
+  'Nigeria': 'NG', 'Kenya': 'KE', 'Pakistan': 'PK', 'Bangladesh': 'BD', 'Iran': 'IR',
+  'Saudi Arabia': 'SA', 'UAE': 'AE', 'Luxembourg': 'LU', 'Greece': 'GR', 'Bulgaria': 'BG',
+  'Serbia': 'RS', 'Slovakia': 'SK', 'Slovenia': 'SI', 'Estonia': 'EE', 'Latvia': 'LV',
+  'Lithuania': 'LT', 'Georgia': 'GE', 'Taiwan': 'TW', 'Hong Kong': 'HK',
+};
+
+function countryFlag(country: string | null): string {
+  if (!country) return '';
+  const code = COUNTRY_TO_CODE[country] || '';
+  if (!code) return '';
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 - 65 + c.charCodeAt(0)));
+}
+
 function parseBrowser(ua: string | null): string {
   if (!ua) return '—';
   if (ua.includes('Firefox')) return 'Firefox';
@@ -166,7 +190,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               {stats.topCountries.map((c) => (
                 <div key={c.country} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">{c.country}</span>
+                  <span className="text-sm text-gray-300">{countryFlag(c.country)} {c.country}</span>
                   <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">{c.count}</span>
                 </div>
               ))}
@@ -179,7 +203,7 @@ export default function AdminPage() {
 
         {/* Unique visitors grouped by IP */}
         {(() => {
-          const byIp = new Map<string, { ip: string; visits: number; firstSeen: string; lastSeen: string; totalDuration: number; location: string; browser: string; os: string }>();
+          const byIp = new Map<string, { ip: string; visits: number; firstSeen: string; lastSeen: string; totalDuration: number; location: string; country: string | null; browser: string; os: string }>();
           for (const v of visitors) {
             const existing = byIp.get(v.ip);
             const loc = v.city && v.country ? `${v.city}, ${v.country}` : v.country || '—';
@@ -194,6 +218,7 @@ export default function AdminPage() {
                 firstSeen: v.created_at, lastSeen: v.created_at,
                 totalDuration: v.duration || 0,
                 location: loc,
+                country: v.country,
                 browser: parseBrowser(v.user_agent),
                 os: parseOS(v.user_agent),
               });
@@ -223,7 +248,7 @@ export default function AdminPage() {
                     {grouped.map((g) => (
                       <tr key={g.ip} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                         <td className="px-4 py-2 text-gray-300 font-mono text-xs">{g.ip}</td>
-                        <td className="px-4 py-2 text-gray-300">{g.location}</td>
+                        <td className="px-4 py-2 text-gray-300">{countryFlag(g.country)} {g.location}</td>
                         <td className="px-4 py-2 text-cyan-400 font-medium">{g.visits}</td>
                         <td className="px-4 py-2 text-gray-400">{formatDuration(g.totalDuration || null)}</td>
                         <td className="px-4 py-2 text-gray-400 whitespace-nowrap">{formatTime(g.firstSeen)}</td>
