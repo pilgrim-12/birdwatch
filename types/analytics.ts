@@ -18,5 +18,8 @@ export interface VisitorStats {
   today: number;
   thisWeek: number;
   total: number;
+  uniqueToday: number;
+  uniqueWeek: number;
+  uniqueTotal: number;
   topCountries: { country: string; count: number }[];
 }

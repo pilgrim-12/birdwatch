@@ -47,23 +47,38 @@ export async function GET(req: NextRequest) {
     .from('visitors')
     .select('*', { count: 'exact', head: true });
 
-  // Top countries
-  const countryMap = new Map<string, number>();
-  for (const v of visitors || []) {
-    const c = v.country || 'Unknown';
-    countryMap.set(c, (countryMap.get(c) || 0) + 1);
+  // Unique IPs
+  const allVisitors = visitors || [];
+  const todayIps = new Set<string>();
+  const weekIps = new Set<string>();
+  const allIps = new Set<string>();
+  for (const v of allVisitors) {
+    allIps.add(v.ip);
+    if (v.created_at >= todayStart) todayIps.add(v.ip);
+    if (v.created_at >= weekStart) weekIps.add(v.ip);
   }
-  const topCountries = [...countryMap.entries()]
-    .map(([country, count]) => ({ country, count }))
+
+  // Top countries (by unique IP)
+  const countryIps = new Map<string, Set<string>>();
+  for (const v of allVisitors) {
+    const c = v.country || 'Unknown';
+    if (!countryIps.has(c)) countryIps.set(c, new Set());
+    countryIps.get(c)!.add(v.ip);
+  }
+  const topCountries = [...countryIps.entries()]
+    .map(([country, ips]) => ({ country, count: ips.size }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
   return NextResponse.json({
-    visitors,
+    visitors: allVisitors,
     stats: {
       today: todayCount || 0,
       thisWeek: weekCount || 0,
       total: totalCount || 0,
+      uniqueToday: todayIps.size,
+      uniqueWeek: weekIps.size,
+      uniqueTotal: allIps.size,
       topCountries,
     },
   });

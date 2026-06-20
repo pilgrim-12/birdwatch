@@ -59,7 +59,7 @@ function formatDuration(seconds: number | null): string {
 
 export default function AdminPage() {
   const [visitors, setVisitors] = useState<Visitor[]>([]);
-  const [stats, setStats] = useState<VisitorStats>({ today: 0, thisWeek: 0, total: 0, topCountries: [] });
+  const [stats, setStats] = useState<VisitorStats>({ today: 0, thisWeek: 0, total: 0, uniqueToday: 0, uniqueWeek: 0, uniqueTotal: 0, topCountries: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [adminKey, setAdminKey] = useState<string | null>(null);
@@ -133,16 +133,19 @@ export default function AdminPage() {
         {/* Stats cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <div className="text-2xl font-bold text-cyan-400">{stats.today}</div>
-            <div className="text-xs text-gray-500 mt-1">Today</div>
+            <div className="text-2xl font-bold text-cyan-400">{stats.uniqueToday}</div>
+            <div className="text-xs text-gray-500 mt-1">Today (unique)</div>
+            <div className="text-xs text-gray-600">{stats.today} visits</div>
           </div>
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <div className="text-2xl font-bold text-green-400">{stats.thisWeek}</div>
-            <div className="text-xs text-gray-500 mt-1">This Week</div>
+            <div className="text-2xl font-bold text-green-400">{stats.uniqueWeek}</div>
+            <div className="text-xs text-gray-500 mt-1">This Week (unique)</div>
+            <div className="text-xs text-gray-600">{stats.thisWeek} visits</div>
           </div>
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <div className="text-2xl font-bold text-orange-400">{stats.total}</div>
-            <div className="text-xs text-gray-500 mt-1">Total</div>
+            <div className="text-2xl font-bold text-orange-400">{stats.uniqueTotal}</div>
+            <div className="text-xs text-gray-500 mt-1">Total (unique)</div>
+            <div className="text-xs text-gray-600">{stats.total} visits</div>
           </div>
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
             <div className="text-2xl font-bold text-purple-400">{stats.topCountries[0]?.country || '—'}</div>
@@ -174,51 +177,74 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Visitor list */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-800">
-            <h3 className="text-sm font-semibold text-gray-400">Recent Visitors ({visitors.length})</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
-                  <th className="px-4 py-2 font-medium">Time</th>
-                  <th className="px-4 py-2 font-medium">IP</th>
-                  <th className="px-4 py-2 font-medium">Location</th>
-                  <th className="px-4 py-2 font-medium">Duration</th>
-                  <th className="px-4 py-2 font-medium">Visits</th>
-                  <th className="px-4 py-2 font-medium">Page</th>
-                  <th className="px-4 py-2 font-medium">Browser</th>
-                  <th className="px-4 py-2 font-medium">OS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visitors.map((v) => (
-                  <tr key={v.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                    <td className="px-4 py-2 text-gray-400 whitespace-nowrap">{formatTime(v.created_at)}</td>
-                    <td className="px-4 py-2 text-gray-300 font-mono text-xs">{v.ip}</td>
-                    <td className="px-4 py-2 text-gray-300">
-                      {v.city && v.country ? `${v.city}, ${v.country}` : v.country || '—'}
-                    </td>
-                    <td className="px-4 py-2 text-gray-400">{formatDuration(v.duration)}</td>
-                    <td className="px-4 py-2 text-gray-400">{v.visit_count || 1}</td>
-                    <td className="px-4 py-2 text-gray-400">{v.path || '/'}</td>
-                    <td className="px-4 py-2 text-gray-400">{parseBrowser(v.user_agent)}</td>
-                    <td className="px-4 py-2 text-gray-400">{parseOS(v.user_agent)}</td>
-                  </tr>
-                ))}
-                {visitors.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-gray-600">
-                      No visitors yet. Data will appear after the first visit.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* Unique visitors grouped by IP */}
+        {(() => {
+          const byIp = new Map<string, { ip: string; visits: number; firstSeen: string; lastSeen: string; totalDuration: number; location: string; browser: string; os: string }>();
+          for (const v of visitors) {
+            const existing = byIp.get(v.ip);
+            const loc = v.city && v.country ? `${v.city}, ${v.country}` : v.country || '—';
+            if (existing) {
+              existing.visits++;
+              if (v.created_at < existing.firstSeen) existing.firstSeen = v.created_at;
+              if (v.created_at > existing.lastSeen) existing.lastSeen = v.created_at;
+              if (v.duration) existing.totalDuration += v.duration;
+            } else {
+              byIp.set(v.ip, {
+                ip: v.ip, visits: 1,
+                firstSeen: v.created_at, lastSeen: v.created_at,
+                totalDuration: v.duration || 0,
+                location: loc,
+                browser: parseBrowser(v.user_agent),
+                os: parseOS(v.user_agent),
+              });
+            }
+          }
+          const grouped = [...byIp.values()].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
+          return (
+            <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-800">
+                <h3 className="text-sm font-semibold text-gray-400">Unique Visitors ({grouped.length})</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
+                      <th className="px-4 py-2 font-medium">IP</th>
+                      <th className="px-4 py-2 font-medium">Location</th>
+                      <th className="px-4 py-2 font-medium">Visits</th>
+                      <th className="px-4 py-2 font-medium">Total Time</th>
+                      <th className="px-4 py-2 font-medium">First Seen</th>
+                      <th className="px-4 py-2 font-medium">Last Seen</th>
+                      <th className="px-4 py-2 font-medium">Browser</th>
+                      <th className="px-4 py-2 font-medium">OS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grouped.map((g) => (
+                      <tr key={g.ip} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                        <td className="px-4 py-2 text-gray-300 font-mono text-xs">{g.ip}</td>
+                        <td className="px-4 py-2 text-gray-300">{g.location}</td>
+                        <td className="px-4 py-2 text-cyan-400 font-medium">{g.visits}</td>
+                        <td className="px-4 py-2 text-gray-400">{formatDuration(g.totalDuration || null)}</td>
+                        <td className="px-4 py-2 text-gray-400 whitespace-nowrap">{formatTime(g.firstSeen)}</td>
+                        <td className="px-4 py-2 text-gray-400 whitespace-nowrap">{formatTime(g.lastSeen)}</td>
+                        <td className="px-4 py-2 text-gray-400">{g.browser}</td>
+                        <td className="px-4 py-2 text-gray-400">{g.os}</td>
+                      </tr>
+                    ))}
+                    {grouped.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-gray-600">
+                          No visitors yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
