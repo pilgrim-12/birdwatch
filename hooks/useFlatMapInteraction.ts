@@ -48,7 +48,17 @@ export function useFlatMapInteraction(
       let bestDist = 15 * dpr;
 
       const state = useSatelliteStore.getState();
+      const _filter = state.statusFilter;
+      const _info = state.satnogsInfo;
+      const isVisible = (id: number) => {
+        if (_filter === 'all') return true;
+        const info = _info.get(id);
+        const isDead = info?.status === 'dead' || info?.status === 're-entered';
+        return _filter === 'dead' ? isDead : !isDead;
+      };
+
       state.positions.forEach((pos, id) => {
+        if (!isVisible(id)) return;
         const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, v.zoom, v.ox, v.oy);
         const d = Math.hypot(x - mx, y - my);
         if (d < bestDist) { bestDist = d; bestId = id; }
@@ -56,6 +66,7 @@ export function useFlatMapInteraction(
 
       if (bestId === null) {
         state.massPositions.forEach((pos, id) => {
+          if (!isVisible(id)) return;
           const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, v.zoom, v.ox, v.oy);
           const d = Math.hypot(x - mx, y - my);
           if (d < bestDist) { bestDist = d; bestId = id; }
@@ -265,14 +276,24 @@ export function useFlatMapInteraction(
         let bestId: number | null = null;
         let bestDist = 20 * dpr;
         const state = useSatelliteStore.getState();
+        const _filter = state.statusFilter;
+        const _info = state.satnogsInfo;
+        const isVisible = (id: number) => {
+          if (_filter === 'all') return true;
+          const info = _info.get(id);
+          const isDead = info?.status === 'dead' || info?.status === 're-entered';
+          return _filter === 'dead' ? isDead : !isDead;
+        };
 
         state.positions.forEach((pos, id) => {
+          if (!isVisible(id)) return;
           const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, v.zoom, v.ox, v.oy);
           const d = Math.hypot(x - mx, y - my);
           if (d < bestDist) { bestDist = d; bestId = id; }
         });
         if (bestId === null) {
           state.massPositions.forEach((pos, id) => {
+            if (!isVisible(id)) return;
             const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, v.zoom, v.ox, v.oy);
             const d = Math.hypot(x - mx, y - my);
             if (d < bestDist) { bestDist = d; bestId = id; }
