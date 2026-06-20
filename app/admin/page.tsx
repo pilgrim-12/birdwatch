@@ -11,7 +11,7 @@ const AdminMap = dynamic(() => import('@/components/AdminMap'), { ssr: false });
 /** Parse User-Agent to short browser name */
 const COUNTRY_TO_CODE: Record<string, string> = {
   'United States': 'us', 'Canada': 'ca', 'United Kingdom': 'gb', 'Germany': 'de',
-  'France': 'fr', 'Italy': 'it', 'Spain': 'es', 'Netherlands': 'nl', 'Belgium': 'be',
+  'France': 'fr', 'Italy': 'it', 'Spain': 'es', 'Netherlands': 'nl', 'The Netherlands': 'nl', 'Belgium': 'be',
   'Sweden': 'se', 'Norway': 'no', 'Denmark': 'dk', 'Finland': 'fi', 'Poland': 'pl',
   'Ukraine': 'ua', 'Russia': 'ru', 'Japan': 'jp', 'China': 'cn', 'South Korea': 'kr',
   'India': 'in', 'Brazil': 'br', 'Australia': 'au', 'Mexico': 'mx', 'Argentina': 'ar',
