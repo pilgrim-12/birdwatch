@@ -579,13 +579,13 @@ export default function GlobeView() {
           pathDashLength={(d: object) => {
             const path = d as CombinedPath;
             if (path.type === 'look-line' || path.type === 'ground-line') return 0;
-            if (path.type === 'beam') return 0.3;
+            if (path.type === 'beam') return 0;
             return path.selected ? 0 : 1;
           }}
           pathDashGap={(d: object) => {
             const path = d as CombinedPath;
             if (path.type === 'look-line' || path.type === 'ground-line') return 0;
-            if (path.type === 'beam') return 0.7;
+            if (path.type === 'beam') return 0;
             return path.selected ? 0 : 0.5;
           }}
           pathDashAnimateTime={(d: object) => {
