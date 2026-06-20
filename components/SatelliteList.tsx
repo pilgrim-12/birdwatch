@@ -401,7 +401,9 @@ export default function SatelliteList() {
         {visibleSatellites.map((sat, i) => {
           const pos = getPosition(sat.id);
           const isSelected = selectedSatIds.includes(sat.id);
-          const groupColor = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
+          const info = satnogsInfo.get(sat.id);
+          const isDead = info?.status === 'dead' || info?.status === 're-entered';
+          const groupColor = isDead ? '#555555' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff');
           const itemIndex = startIndex + i;
           const inactive = isInactive(sat.id);
 
@@ -447,6 +449,11 @@ export default function SatelliteList() {
                 >
                   {sat.name}
                 </span>
+                {isDead && (
+                  <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-gray-700 text-gray-400 shrink-0">
+                    {info?.status === 're-entered' ? 'RE' : 'DEAD'}
+                  </span>
+                )}
                 <RadioBadge noradId={sat.id} group={sat.group} />
                 {pos && (
                   <span className="text-gray-500 text-xs shrink-0">
