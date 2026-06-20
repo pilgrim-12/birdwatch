@@ -449,9 +449,17 @@ export default function GlobeView() {
   }, [selectSatellite]);
 
   const handleGlobeClick = useCallback(({ lat, lng }: { lat: number; lng: number }) => {
+    const _filter = useSatelliteStore.getState().statusFilter;
+    const _info = useSatelliteStore.getState().satnogsInfo;
     let bestId: number | null = null;
     let bestDist = 3;
     massPositions.forEach((pos, id) => {
+      if (_filter !== 'all') {
+        const info = _info.get(id);
+        const isDead = info?.status === 'dead' || info?.status === 're-entered';
+        if (_filter === 'alive' && isDead) return;
+        if (_filter === 'dead' && !isDead) return;
+      }
       const dLat = pos.lat - lat;
       const dLng = pos.lng - lng;
       const d = Math.sqrt(dLat * dLat + dLng * dLng);
