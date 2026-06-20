@@ -193,11 +193,12 @@ export function drawSatelliteDots(
   satGroupMap: Map<number, Satellite>,
   selectedSatIds: number[],
   scale: number,
+  deadIds?: Set<number>,
 ) {
   positions.forEach((pos, id) => {
     const sat = satGroupMap.get(id);
     if (!sat) return;
-    const color = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
+    const color = deadIds?.has(id) ? '#555555' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff');
     const isSelected = selectedSatIds.includes(id);
     const isStation = sat.group === 'stations';
     const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, v.zoom, v.ox, v.oy);

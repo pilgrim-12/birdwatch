@@ -56,6 +56,7 @@ export default function FlatMapView() {
   const showLabels = useSatelliteStore((s) => s.showLabels);
   const showFlags = useSatelliteStore((s) => s.showFlags);
   const showBeams = useSatelliteStore((s) => s.showBeams);
+  const satnogsInfo = useSatelliteStore((s) => s.satnogsInfo);
 
   // Preload flag images for canvas rendering
   const flagImagesRef = useRef(new Map<string, HTMLImageElement>());
@@ -206,7 +207,11 @@ export default function FlatMapView() {
       drawMassDots(ctx, w, h, v, state.massPositions, scale);
 
       // Normal satellite dots
-      drawSatelliteDots(ctx, w, h, v, state.positions, satGroupMap, state.selectedSatIds, scale);
+      const deadIds = new Set<number>();
+      satnogsInfo.forEach((info, id) => {
+        if (info.status === 'dead' || info.status === 're-entered') deadIds.add(id);
+      });
+      drawSatelliteDots(ctx, w, h, v, state.positions, satGroupMap, state.selectedSatIds, scale, deadIds);
 
       // Labels & Flags
       if (state.showLabels || state.showFlags) {
@@ -250,7 +255,7 @@ export default function FlatMapView() {
 
     draw();
     return () => cancelAnimationFrame(raf);
-  }, [dimensions, imgLoaded, satellites, selectedSatIds, observer, showTrajectories, showLabels, showFlags, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode]);
+  }, [dimensions, imgLoaded, satellites, selectedSatIds, observer, showTrajectories, showLabels, showFlags, showBeams, beamOpacity, showLookLine, orbitPaths, nightMode, satnogsInfo]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative z-0 bg-[#0a1628]">
