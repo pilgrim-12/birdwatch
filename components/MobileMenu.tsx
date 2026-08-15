@@ -30,7 +30,7 @@ export default function MobileMenu() {
     showGroundStations, statusFilter,
     activeGroups, countryFilter, observer,
     mapMode, sourceCelestrak, sourceSatnogs,
-    isMobileMenuOpen, isOrbitViewOpen,
+    isMobileMenuOpen, isOrbitViewOpen, isTimelineOpen,
   } = useSatelliteStore(useShallow((s) => ({
     showTrajectories: s.showTrajectories,
     showLabels: s.showLabels,
@@ -53,13 +53,14 @@ export default function MobileMenu() {
     sourceSatnogs: s.sourceSatnogs,
     isMobileMenuOpen: s.isMobileMenuOpen,
     isOrbitViewOpen: s.isOrbitViewOpen,
+    isTimelineOpen: s.isTimelineOpen,
   })));
 
   const {
     toggleTrajectories, toggleLabels, toggleBeams,
     toggleLookLine, toggleGroundLine, toggleFootprint, toggleFlags,
     toggleGroundStations,
-    toggleNightMode, toggleGroup, toggleOrbitView, toggleMapMode,
+    toggleNightMode, toggleGroup, toggleOrbitView, toggleMapMode, toggleTimeline,
     toggleSourceCelestrak, toggleSourceSatnogs,
     setBeamOpacity, setBeamWidth, setBeamSpeed,
     setActiveGroups, setCountryFilter, setObserver,
@@ -77,6 +78,7 @@ export default function MobileMenu() {
     toggleNightMode: s.toggleNightMode,
     toggleGroup: s.toggleGroup,
     toggleOrbitView: s.toggleOrbitView,
+    toggleTimeline: s.toggleTimeline,
     toggleMapMode: s.toggleMapMode,
     toggleSourceCelestrak: s.toggleSourceCelestrak,
     toggleSourceSatnogs: s.toggleSourceSatnogs,
@@ -195,6 +197,12 @@ export default function MobileMenu() {
             className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(mapMode === 'flat')}`}
           >
             {mapMode === 'globe' ? '2D Map' : '3D Globe'}
+          </button>
+          <button
+            onClick={() => { toggleTimeline(); setMobileMenuOpen(false); }}
+            className={`min-h-[48px] px-3 rounded-lg text-sm font-medium transition-colors ${toggleBtnClass(isTimelineOpen)}`}
+          >
+            Time
           </button>
           <button
             onClick={() => { toggleOrbitView(); setMobileMenuOpen(false); }}

@@ -70,7 +70,8 @@ export function useGlobeAnimation(
 
       // --- Label/flag occlusion + distance scaling ---
       const _state = useSatelliteStore.getState();
-      if (!_state.showLabels && !_state.showFlags && !_state.showGroundStations) return;
+      // Ghost markers from the time scrubber also live in the label layer
+      if (!_state.showLabels && !_state.showFlags && !_state.showGroundStations && !_state.isTimelineOpen) return;
 
       let camera: THREE.PerspectiveCamera;
       try {

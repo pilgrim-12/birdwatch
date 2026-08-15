@@ -81,6 +81,22 @@ interface SatelliteStore {
   toggleOrbitView: () => void;
   selectOrbitViewSat: (id: number | null) => void;
 
+  // Time scrub — "where was / will the satellite be" timeline.
+  // timeOffsetSec is relative to the real clock, so offset 0 always means live.
+  isTimelineOpen: boolean;
+  timeOffsetSec: number;
+  timeWindowSec: number; // half-window the slider covers
+  timePlaying: boolean;
+  timeRate: number; // playback multiplier (1 = real time)
+  toggleTimeline: () => void;
+  setTimelineOpen: (open: boolean) => void;
+  setTimeOffsetSec: (sec: number) => void;
+  nudgeTimeOffset: (deltaSec: number) => void;
+  setTimeWindowSec: (sec: number) => void;
+  toggleTimePlaying: () => void;
+  setTimeRate: (rate: number) => void;
+  resetTimeOffset: () => void;
+
   // Header collapse (desktop)
   isHeaderCollapsed: boolean;
   toggleHeaderCollapsed: () => void;
@@ -129,6 +145,11 @@ interface SatelliteStore {
   collectionTLEs: Record<number, { name: string; tle: TLEData }>;
   addToCollection: (sat: Satellite) => void;
   removeFromCollection: (id: number) => void;
+}
+
+function clampOffset(sec: number, windowSec: number): number {
+  if (!Number.isFinite(sec)) return 0;
+  return Math.max(-windowSec, Math.min(windowSec, sec));
 }
 
 export const useSatelliteStore = create<SatelliteStore>()(
@@ -245,6 +266,30 @@ export const useSatelliteStore = create<SatelliteStore>()(
     })),
   selectOrbitViewSat: (id) => set({ orbitViewSelectedSatId: id }),
 
+  // Time scrub
+  isTimelineOpen: false,
+  timeOffsetSec: 0,
+  timeWindowSec: 5400, // ±90 min ≈ one LEO revolution
+  timePlaying: false,
+  timeRate: 60,
+  toggleTimeline: () =>
+    set((s) => ({
+      isTimelineOpen: !s.isTimelineOpen,
+      timeOffsetSec: 0,
+      timePlaying: false,
+    })),
+  setTimelineOpen: (open) =>
+    set({ isTimelineOpen: open, timeOffsetSec: 0, timePlaying: false }),
+  setTimeOffsetSec: (sec) =>
+    set((s) => ({ timeOffsetSec: clampOffset(sec, s.timeWindowSec) })),
+  nudgeTimeOffset: (deltaSec) =>
+    set((s) => ({ timeOffsetSec: clampOffset(s.timeOffsetSec + deltaSec, s.timeWindowSec) })),
+  setTimeWindowSec: (sec) =>
+    set((s) => ({ timeWindowSec: sec, timeOffsetSec: clampOffset(s.timeOffsetSec, sec) })),
+  toggleTimePlaying: () => set((s) => ({ timePlaying: !s.timePlaying })),
+  setTimeRate: (rate) => set({ timeRate: rate }),
+  resetTimeOffset: () => set({ timeOffsetSec: 0, timePlaying: false }),
+
   // Header collapse (desktop)
   isHeaderCollapsed: false,
   toggleHeaderCollapsed: () => set((s) => ({ isHeaderCollapsed: !s.isHeaderCollapsed })),
@@ -336,6 +381,8 @@ export const useSatelliteStore = create<SatelliteStore>()(
         sourceSatnogs: state.sourceSatnogs,
         collectionSatIds: state.collectionSatIds,
         collectionTLEs: state.collectionTLEs,
+        timeWindowSec: state.timeWindowSec,
+        timeRate: state.timeRate,
       }),
     },
   ),

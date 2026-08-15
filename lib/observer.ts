@@ -1,5 +1,4 @@
 import {
-  twoline2satrec,
   propagate,
   gstime,
   eciToEcf,
@@ -7,6 +6,7 @@ import {
   degreesToRadians,
 } from 'satellite.js';
 import type { ObserverLocation, LookAngles, TLEData } from '@/types/satellite';
+import { getCachedSatrec } from '@/lib/sgp4';
 
 export function calculateLookAngles(
   tle: TLEData,
@@ -14,7 +14,7 @@ export function calculateLookAngles(
   date: Date,
 ): LookAngles | null {
   try {
-    const satrec = twoline2satrec(tle.line1, tle.line2);
+    const satrec = getCachedSatrec(tle);
     const positionAndVelocity = propagate(satrec, date);
 
     if (typeof positionAndVelocity.position === 'boolean') {

@@ -13,6 +13,7 @@ import { computeFootprintCircle } from '@/lib/footprint';
 import { computeCPA, computeSlantRange } from '@/lib/orbitAnalysis';
 import { STATION_COLORS } from '@/lib/groundStations';
 import { useCameraMode } from '@/hooks/useCameraMode';
+import { useTimeScrub } from '@/hooks/useTimeScrub';
 import { useGlobeLighting } from '@/hooks/useGlobeLighting';
 import { useGlobeAnimation } from '@/hooks/useGlobeAnimation';
 import { useSatelliteModels } from '@/hooks/useSatelliteModels';
@@ -34,11 +35,29 @@ interface PointData {
 
 interface CombinedPath {
   pathId: string;
-  type: 'orbit' | 'beam' | 'look-line' | 'ground-line';
+  type: 'orbit' | 'beam' | 'look-line' | 'ground-line' | 'track-past' | 'track-future';
   points: { lat: number; lng: number; alt: number }[];
   selected: boolean;
   color: string;
 }
+
+interface HtmlLabelDatum {
+  id: number;
+  lat: number;
+  lng: number;
+  alt: number;
+  name: string;
+  color: string;
+  group: string;
+  selected: boolean;
+  _flags: boolean;
+  _labels: boolean;
+  _station: boolean;
+  _ghost?: boolean;
+}
+
+/** Ghost (time-scrubbed) markers get their own id space so they never collide with real labels */
+const GHOST_LABEL_ID_BASE = -1_000_000;
 
 interface MassLayerDatum {
   id: string;
@@ -84,6 +103,7 @@ export default function GlobeView() {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   // Extracted hooks
+  const scrub = useTimeScrub();
   useCameraMode(globeRef);
   const { sunPosRef } = useGlobeLighting(globeRef);
   const { createSatelliteModel, createStationModel } = useSatelliteModels();
@@ -318,12 +338,22 @@ export default function GlobeView() {
       paths.push({ pathId: 'ground-line', type: 'ground-line', points: [{ lat: observer.lat, lng: observer.lng, alt: 0 }, { lat: groundLineInfo.lat, lng: groundLineInfo.lng, alt: groundLineInfo.alt }], selected: true, color: '#4fc3f7' });
     }
 
+    // Time-scrub ground tracks: where the satellite was and where it will be
+    for (const track of scrub.tracks) {
+      if (track.past.length > 1) {
+        paths.push({ pathId: `track-past-${track.id}`, type: 'track-past', points: track.past, selected: false, color: track.color });
+      }
+      if (track.future.length > 1) {
+        paths.push({ pathId: `track-future-${track.id}`, type: 'track-future', points: track.future, selected: false, color: track.color });
+      }
+    }
+
     return paths;
-  }, [showTrajectories, showBeams, orbitPathsRaw, selectedIdSet, pointsData, observer, cpaInfo, groundLineInfo]);
+  }, [showTrajectories, showBeams, orbitPathsRaw, selectedIdSet, pointsData, observer, cpaInfo, groundLineInfo, scrub.tracks]);
 
   // HTML labels
-  const htmlLabelsData = useMemo(() => {
-    const labels = (showLabels || showFlags)
+  const htmlLabelsData = useMemo<HtmlLabelDatum[]>(() => {
+    const labels: HtmlLabelDatum[] = (showLabels || showFlags)
       ? pointsData.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, alt: p.alt + 0.015, name: p.name, color: p.color, group: p.group, selected: selectedIdSet.has(p.id), _flags: showFlags, _labels: showLabels, _station: false }))
       : [];
 
@@ -348,8 +378,18 @@ export default function GlobeView() {
       }
     }
 
+    // Ghost markers at the scrubbed moment in time
+    for (const ghost of scrub.ghosts) {
+      labels.push({
+        id: GHOST_LABEL_ID_BASE - ghost.id,
+        lat: ghost.lat, lng: ghost.lng, alt: ghost.alt + 0.015,
+        name: ghost.name, color: ghost.color, group: ghost.group,
+        selected: false, _flags: false, _labels: false, _station: false, _ghost: true,
+      });
+    }
+
     return labels;
-  }, [showLabels, showFlags, selectedIdSet, pointsData, cpaInfo, groundLineInfo, showGroundStations, groundStations]);
+  }, [showLabels, showFlags, selectedIdSet, pointsData, cpaInfo, groundLineInfo, showGroundStations, groundStations, scrub.ghosts]);
 
   // Sync label positions ref
   useEffect(() => {
@@ -503,9 +543,23 @@ export default function GlobeView() {
           htmlLng="lng"
           htmlAltitude="alt"
           htmlElement={(d: object) => {
-            const data = d as { id: number; name: string; color: string; group: string; selected: boolean; _station?: boolean };
+            const data = d as HtmlLabelDatum;
             const el = document.createElement('div');
             el.setAttribute('data-sat-id', String(data.id));
+
+            // Time-scrub ghost: hollow ring at the position for the scrubbed moment
+            if (data._ghost) {
+              el.style.cssText = 'position:relative;display:flex;flex-direction:column;align-items:center;pointer-events:none;transition:opacity 0.15s;';
+              const ring = document.createElement('div');
+              ring.style.cssText = `width:14px;height:14px;border-radius:50%;border:2px dashed ${data.color};box-shadow:0 0 6px ${data.color}80;`;
+              el.appendChild(ring);
+              const caption = document.createElement('div');
+              caption.textContent = data.name;
+              caption.style.cssText = `font-size:9px;color:${data.color};font-family:system-ui,sans-serif;white-space:nowrap;margin-top:2px;text-shadow:0 0 3px rgba(0,0,0,0.9);opacity:0.9;`;
+              el.appendChild(caption);
+              labelElsRef.current.set(data.id, el);
+              return el;
+            }
 
             // Ground station marker
             if (data._station) {
@@ -566,6 +620,8 @@ export default function GlobeView() {
           pathColor={(d: object) => {
             const path = d as CombinedPath;
             const hex = path.color;
+            if (path.type === 'track-past') return `${hex}60`;
+            if (path.type === 'track-future') return `${hex}E6`;
             if (path.type === 'look-line' || path.type === 'ground-line') return `${hex}FF`;
             if (path.type === 'beam') {
               const selectedAlpha = Math.round((beamOpacity / 100) * 255).toString(16).padStart(2, '0');
@@ -576,24 +632,31 @@ export default function GlobeView() {
           }}
           pathStroke={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'track-past') return 1.2;
+            if (path.type === 'track-future') return 2.2;
             if (path.type === 'look-line' || path.type === 'ground-line') return 1.5;
             if (path.type === 'beam') return path.selected ? beamWidth * 1.5 : beamWidth * 0.5;
             return path.selected ? 2 : 0.8;
           }}
           pathDashLength={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'track-past') return 0.6;
+            if (path.type === 'track-future') return 0;
             if (path.type === 'look-line' || path.type === 'ground-line') return 0;
             if (path.type === 'beam') return 0;
             return path.selected ? 0 : 1;
           }}
           pathDashGap={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'track-past') return 0.4;
+            if (path.type === 'track-future') return 0;
             if (path.type === 'look-line' || path.type === 'ground-line') return 0;
             if (path.type === 'beam') return 0;
             return path.selected ? 0 : 0.5;
           }}
           pathDashAnimateTime={(d: object) => {
             const path = d as CombinedPath;
+            if (path.type === 'track-past' || path.type === 'track-future') return 0;
             if (path.type === 'look-line' || path.type === 'ground-line') return 0;
             if (path.type === 'beam') {
               const speedMap = [0, 4000, 2000, 800];

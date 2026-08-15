@@ -15,6 +15,51 @@ export interface OrbitPoint {
   alt: number; // normalized to Earth radii (for globe.gl)
 }
 
+export interface TrackPoint extends OrbitPoint {
+  altKm: number;
+  t: number; // epoch ms of this sample
+}
+
+/**
+ * Ground track around an arbitrary moment in time — both past and future.
+ * Unlike computeOrbitPath (which only trails behind "now"), this is what the
+ * time scrubber rides along: `backSec` before `centerMs` and `fwdSec` after it.
+ * Sample times are returned so callers can split past/future and interpolate.
+ */
+export function computeGroundTrack(
+  tle: TLEData,
+  centerMs: number,
+  backSec: number,
+  fwdSec: number,
+  stepSec: number = 30,
+): TrackPoint[] {
+  if (stepSec <= 0 || backSec < 0 || fwdSec < 0) return [];
+
+  const satrec = getCachedSatrec(tle);
+  const points: TrackPoint[] = [];
+  const startMs = centerMs - backSec * 1000;
+  const steps = Math.round((backSec + fwdSec) / stepSec);
+
+  for (let i = 0; i <= steps; i++) {
+    const tMs = startMs + i * stepSec * 1000;
+    const date = new Date(tMs);
+    const posVel = propagate(satrec, date);
+    if (!posVel.position || typeof posVel.position === 'boolean') continue;
+
+    const gd = eciToGeodetic(posVel.position, gstime(date));
+    const altKm = gd.height;
+    points.push({
+      lat: degreesLat(gd.latitude),
+      lng: degreesLong(gd.longitude),
+      alt: altKm / EARTH_RADIUS_KM,
+      altKm,
+      t: tMs,
+    });
+  }
+
+  return points;
+}
+
 /**
  * Compute an orbit trail for a satellite.
  * Returns points sampled from the past up to slightly after startDate,

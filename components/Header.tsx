@@ -18,7 +18,7 @@ export default function Header() {
     showGroundStations, statusFilter,
     activeGroups, countryFilter, observer,
     mapMode, sourceCelestrak, sourceSatnogs,
-    isOrbitViewOpen,
+    isOrbitViewOpen, isTimelineOpen,
   } = useSatelliteStore(useShallow((s) => ({
     showTrajectories: s.showTrajectories,
     showLabels: s.showLabels,
@@ -40,13 +40,14 @@ export default function Header() {
     sourceCelestrak: s.sourceCelestrak,
     sourceSatnogs: s.sourceSatnogs,
     isOrbitViewOpen: s.isOrbitViewOpen,
+    isTimelineOpen: s.isTimelineOpen,
   })));
 
   const {
     toggleTrajectories, toggleLabels, toggleBeams,
     toggleLookLine, toggleGroundLine, toggleFootprint, toggleFlags,
     toggleGroundStations,
-    toggleNightMode, toggleGroup, toggleOrbitView, toggleMapMode,
+    toggleNightMode, toggleGroup, toggleOrbitView, toggleMapMode, toggleTimeline,
     toggleSourceCelestrak, toggleSourceSatnogs,
     setBeamOpacity, setBeamWidth, setBeamSpeed,
     setActiveGroups, setCountryFilter, setObserver,
@@ -64,6 +65,7 @@ export default function Header() {
     toggleNightMode: s.toggleNightMode,
     toggleGroup: s.toggleGroup,
     toggleOrbitView: s.toggleOrbitView,
+    toggleTimeline: s.toggleTimeline,
     toggleMapMode: s.toggleMapMode,
     toggleSourceCelestrak: s.toggleSourceCelestrak,
     toggleSourceSatnogs: s.toggleSourceSatnogs,
@@ -303,6 +305,13 @@ export default function Header() {
 
             <div className="w-px h-5 bg-gray-700" />
 
+            <button
+              onClick={toggleTimeline}
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${toggleBtnClass(isTimelineOpen)}`}
+              title="Time machine — scrub the selected satellite forward/backward in time"
+            >
+              Time
+            </button>
             <button
               onClick={toggleOrbitView}
               className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${toggleBtnClass(isOrbitViewOpen)}`}

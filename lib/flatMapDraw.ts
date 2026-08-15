@@ -8,6 +8,7 @@ import { computeCPA, computeSlantRange } from '@/lib/orbitAnalysis';
 import { computeOrbitPath } from '@/lib/orbit';
 import { getGroupPrimaryIsoCode } from '@/lib/countryFlags';
 import type { Satellite, SatellitePosition } from '@/types/satellite';
+import type { ScrubGhost, ScrubTrack } from '@/types/scrub';
 
 interface ViewState {
   zoom: number;
@@ -137,6 +138,80 @@ export function drawOrbits(
     }
     ctx.stroke();
   }
+}
+
+/**
+ * Draw time-scrub ground tracks: the past leg dashed and faded, the future leg
+ * solid. Segments are broken at the antimeridian like regular orbit tracks.
+ */
+export function drawScrubTracks(
+  ctx: CanvasRenderingContext2D,
+  w: number, h: number,
+  v: ViewState,
+  tracks: ScrubTrack[],
+  scale: number,
+) {
+  for (const track of tracks) {
+    for (const leg of ['past', 'future'] as const) {
+      const points = track[leg];
+      if (points.length < 2) continue;
+
+      const isPast = leg === 'past';
+      ctx.strokeStyle = track.color + (isPast ? '55' : 'E6');
+      ctx.lineWidth = (isPast ? 1.2 : 2) * scale;
+      ctx.setLineDash(isPast ? [5 * scale, 4 * scale] : []);
+
+      ctx.beginPath();
+      let penDown = false;
+      for (let i = 0; i < points.length; i++) {
+        const { x, y } = latLngToXY(points[i].lat, points[i].lng, w, h, v.zoom, v.ox, v.oy);
+        if (i > 0 && Math.abs(points[i].lng - points[i - 1].lng) > 180) {
+          ctx.stroke();
+          ctx.beginPath();
+          penDown = false;
+        }
+        if (!penDown) { ctx.moveTo(x, y); penDown = true; }
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+/** Draw "ghost" markers showing where satellites are at the scrubbed moment */
+export function drawScrubGhosts(
+  ctx: CanvasRenderingContext2D,
+  w: number, h: number,
+  v: ViewState,
+  ghosts: ScrubGhost[],
+  scale: number,
+) {
+  const fontSize = Math.round(10 * scale);
+  ctx.font = `${fontSize}px system-ui, sans-serif`;
+  ctx.textBaseline = 'middle';
+
+  for (const ghost of ghosts) {
+    const { x, y } = latLngToXY(ghost.lat, ghost.lng, w, h, v.zoom, v.ox, v.oy);
+    if (x < -40 || x > w + 40 || y < -20 || y > h + 20) continue;
+
+    ctx.strokeStyle = ghost.color;
+    ctx.lineWidth = 2 * scale;
+    ctx.setLineDash([3 * scale, 3 * scale]);
+    ctx.beginPath();
+    ctx.arc(x, y, 7 * scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = ghost.color;
+    ctx.beginPath();
+    ctx.arc(x, y, 2 * scale, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = ghost.color;
+    ctx.fillText(ghost.name, x + 11 * scale, y);
+  }
+  ctx.textBaseline = 'alphabetic';
 }
 
 /** Draw beam circles at satellite positions */

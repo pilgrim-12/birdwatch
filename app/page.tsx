@@ -8,6 +8,7 @@ import SatelliteList from '@/components/SatelliteList';
 import OrbitView from '@/components/OrbitView';
 import AntennaGuide from '@/components/AntennaGuide';
 import SelectedPanel from '@/components/SelectedPanel';
+import TimelineBar from '@/components/TimelineBar';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { parseTLEText, tlesToSatellites, extractNoradId } from '@/lib/tle';
 import { MASS_GROUPS } from '@/lib/constants';
@@ -224,6 +225,7 @@ export default function Home() {
         <div className="flex-1 relative min-w-0">
           {mapMode === 'globe' ? <GlobeView /> : <FlatMapView />}
           <SelectedPanel />
+          <TimelineBar />
           {/* Mobile bottom FAB bar */}
           <div className="md:hidden absolute bottom-3 left-3 right-3 z-20 flex gap-2">
             <button

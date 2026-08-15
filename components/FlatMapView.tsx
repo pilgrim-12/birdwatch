@@ -22,7 +22,10 @@ import {
   drawObserverMarker,
   drawGroundStations,
   drawZoomIndicator,
+  drawScrubTracks,
+  drawScrubGhosts,
 } from '@/lib/flatMapDraw';
+import { useTimeScrub } from '@/hooks/useTimeScrub';
 
 export default function FlatMapView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -157,6 +160,11 @@ export default function FlatMapView() {
     canvasRef, viewRef, dimensions, selectSatellite, setObserver,
   );
 
+  // Time-scrub overlay — read through a ref so the RAF loop always sees the latest
+  const scrub = useTimeScrub();
+  const scrubRef = useRef(scrub);
+  useEffect(() => { scrubRef.current = scrub; });
+
   // Main render loop
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -231,6 +239,11 @@ export default function FlatMapView() {
       const zs = Math.min(Math.max(v.zoom, 1), 12);
       const scale = 0.6 + zs * 0.4;
 
+      // Time-scrub ground tracks (under the satellite dots)
+      if (scrubRef.current.enabled) {
+        drawScrubTracks(ctx, w, h, v, scrubRef.current.tracks, scale);
+      }
+
       // Mass satellite dots
       if (statusFilter !== 'dead') {
         drawMassDots(ctx, w, h, v, state.massPositions, scale);
@@ -248,6 +261,11 @@ export default function FlatMapView() {
       if (state.selectedSatIds.length > 0 && !state.showLabels) {
         const massSats = useSatelliteStore.getState().massSatellites;
         drawSelectedNames(ctx, w, h, v, state.selectedSatIds, state.positions, state.massPositions, satGroupMap, massSats, scale);
+      }
+
+      // Time-scrub ghost markers (on top of live dots)
+      if (scrubRef.current.ghosts.length > 0) {
+        drawScrubGhosts(ctx, w, h, v, scrubRef.current.ghosts, scale);
       }
 
       // CPA look-line
