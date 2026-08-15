@@ -117,8 +117,9 @@ export function drawOrbits(
   selectedSatIds: number[],
   showTrajectories: boolean,
 ) {
+  const selected = new Set(selectedSatIds);
   for (const orbit of orbitPaths) {
-    const isSelected = selectedSatIds.includes(orbit.id);
+    const isSelected = selected.has(orbit.id);
     if (!showTrajectories && !isSelected) continue;
     ctx.strokeStyle = isSelected ? orbit.color : orbit.color + '70';
     ctx.lineWidth = isSelected ? 2 : 1;
@@ -149,8 +150,9 @@ export function drawBeams(
   selectedIds?: number[],
 ) {
   const alpha = beamOpacity / 100;
+  const selected = selectedIds ? new Set(selectedIds) : null;
   positions.forEach((pos, id) => {
-    if (selectedIds && !selectedIds.includes(id)) return;
+    if (selected && !selected.has(id)) return;
     const sat = satGroupMap.get(id);
     if (!sat) return;
     const color = GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff';
@@ -195,11 +197,12 @@ export function drawSatelliteDots(
   scale: number,
   deadIds?: Set<number>,
 ) {
+  const selected = new Set(selectedSatIds);
   positions.forEach((pos, id) => {
     const sat = satGroupMap.get(id);
     if (!sat) return;
     const color = deadIds?.has(id) ? '#555555' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff');
-    const isSelected = selectedSatIds.includes(id);
+    const isSelected = selected.has(id);
     const isStation = sat.group === 'stations';
     const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, v.zoom, v.ox, v.oy);
 
@@ -254,10 +257,11 @@ export function drawLabelsAndFlags(
   ctx.textBaseline = 'bottom';
   const flagW = Math.round(14 * scale);
   const flagH = Math.round(10 * scale);
+  const selected = new Set(selectedSatIds);
   positions.forEach((pos, id) => {
     const sat = satGroupMap.get(id);
     if (!sat) return;
-    const isSelected = selectedSatIds.includes(id);
+    const isSelected = selected.has(id);
     const { x, y } = latLngToXY(pos.lat, pos.lng, w, h, v.zoom, v.ox, v.oy);
     if (x < -50 || x > w + 50 || y < -20 || y > h + 20) return;
     let offsetX = x + 6 * scale;

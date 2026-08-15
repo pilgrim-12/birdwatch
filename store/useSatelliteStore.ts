@@ -36,6 +36,8 @@ interface SatelliteStore {
   setObserver: (observer: ObserverLocation | null) => void;
   selectSatellite: (id: number | null) => void; // toggle: adds/removes from selection
   deselectSatellite: (id: number) => void;
+  selectSatellites: (ids: number[]) => void; // bulk add (union with current selection)
+  deselectSatellites: (ids: number[]) => void; // bulk remove
   clearSelection: () => void;
   setSearchQuery: (q: string) => void;
   updatePositions: (positions: Map<number, SatellitePosition>) => void;
@@ -174,6 +176,18 @@ export const useSatelliteStore = create<SatelliteStore>()(
     })),
   deselectSatellite: (id) =>
     set((s) => ({ selectedSatIds: s.selectedSatIds.filter((x) => x !== id) })),
+  selectSatellites: (ids) =>
+    set((s) => {
+      const current = new Set(s.selectedSatIds);
+      const added = ids.filter((id) => !current.has(id));
+      return added.length === 0 ? s : { selectedSatIds: [...s.selectedSatIds, ...added] };
+    }),
+  deselectSatellites: (ids) =>
+    set((s) => {
+      const remove = new Set(ids);
+      const next = s.selectedSatIds.filter((id) => !remove.has(id));
+      return next.length === s.selectedSatIds.length ? s : { selectedSatIds: next };
+    }),
   clearSelection: () => set({ selectedSatIds: [] }),
   setSearchQuery: (q) => set({ searchQuery: q }),
   updatePositions: (positions) => set({ positions }),

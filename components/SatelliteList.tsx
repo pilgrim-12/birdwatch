@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
+import { useToastStore } from '@/store/useToastStore';
 import { findPasses, getCurrentElevation } from '@/lib/passes';
 import type { SatellitePass } from '@/lib/passes';
-import { GROUP_COLORS } from '@/lib/constants';
+import { GROUP_COLORS, GROUP_LABELS } from '@/lib/constants';
 import type { SatelliteGroup } from '@/lib/constants';
-import type { SatellitePosition } from '@/types/satellite';
+import type { Satellite, SatellitePosition } from '@/types/satellite';
 import { CountryFlag } from '@/components/CountryFlag';
 import { RadioBadge } from '@/components/radio/RadioBadge';
 import { PassListItem } from '@/components/PassListItem';
@@ -17,8 +18,15 @@ import {
 } from '@/lib/radio/radioProfiles';
 import { computeMaxDoppler } from '@/lib/radio/doppler';
 
-const ITEM_HEIGHT = 36; // px per row
+const ITEM_HEIGHT = 36; // px per satellite row
+const HEADER_HEIGHT = 30; // px per group header row
 const OVERSCAN = 10;
+// Safety cap: selecting a whole mega-constellation at once would stall rendering
+const MAX_GROUP_SELECT = 200;
+
+type ListRow =
+  | { kind: 'header'; group: string; ids: number[]; top: number; height: number }
+  | { kind: 'sat'; sat: Satellite; top: number; height: number };
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -69,6 +77,9 @@ export default function SatelliteList() {
   const massPositions = useSatelliteStore((s) => s.massPositions);
   const selectedSatIds = useSatelliteStore((s) => s.selectedSatIds);
   const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
+  const selectSatellites = useSatelliteStore((s) => s.selectSatellites);
+  const deselectSatellites = useSatelliteStore((s) => s.deselectSatellites);
+  const addToast = useToastStore((s) => s.addToast);
   const observer = useSatelliteStore((s) => s.observer);
   const passes = useSatelliteStore((s) => s.passes);
   const setPasses = useSatelliteStore((s) => s.setPasses);
@@ -102,9 +113,12 @@ export default function SatelliteList() {
   const [detailSatId, setDetailSatId] = useState<number | null>(null);
   const [computingPasses, setComputingPasses] = useState(false);
   const [collectionCollapsed, setCollectionCollapsed] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const [scrollTop, setScrollTop] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
+  const virtualRef = useRef<HTMLDivElement>(null);
+  const [virtualOffset, setVirtualOffset] = useState(0);
   const [listHeight, setListHeight] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
 
@@ -276,18 +290,105 @@ export default function SatelliteList() {
     return map;
   }, [visiblePasses, observer, tleMap]);
 
-  // Virtual scrolling calculations
-  const totalItems = allSatellites.length;
-  const totalHeight = totalItems * ITEM_HEIGHT;
-  const useVirtualScroll = totalItems > 100;
+  const selectedSet = useMemo(() => new Set(selectedSatIds), [selectedSatIds]);
 
-  const startIndex = useVirtualScroll
-    ? Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN)
-    : 0;
-  const endIndex = useVirtualScroll
-    ? Math.min(totalItems, Math.ceil((scrollTop + listHeight) / ITEM_HEIGHT) + OVERSCAN)
-    : totalItems;
-  const visibleSatellites = allSatellites.slice(startIndex, endIndex);
+  // Group satellites into collapsible sections and flatten to positioned rows
+  const { rows, totalHeight } = useMemo(() => {
+    const byGroup = new Map<string, Satellite[]>();
+    for (const sat of allSatellites) {
+      const bucket = byGroup.get(sat.group);
+      if (bucket) bucket.push(sat);
+      else byGroup.set(sat.group, [sat]);
+    }
+
+    const out: ListRow[] = [];
+    let top = 0;
+    for (const [group, sats] of byGroup) {
+      out.push({
+        kind: 'header',
+        group,
+        ids: sats.map((s) => s.id),
+        top,
+        height: HEADER_HEIGHT,
+      });
+      top += HEADER_HEIGHT;
+      if (collapsedGroups.has(group)) continue;
+      for (const sat of sats) {
+        out.push({ kind: 'sat', sat, top, height: ITEM_HEIGHT });
+        top += ITEM_HEIGHT;
+      }
+    }
+    return { rows: out, totalHeight: top };
+  }, [allSatellites, collapsedGroups]);
+
+  const useVirtualScroll = rows.length > 100;
+
+  // The virtualized block may be pushed down by the collection section — measure the offset
+  useLayoutEffect(() => {
+    const el = virtualRef.current;
+    const container = listContainerRef.current;
+    if (!el || !container) return;
+    const offset =
+      el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+    setVirtualOffset(offset);
+  }, [collectionSatIds.length, collectionCollapsed, rows.length]);
+
+  // Virtual window over rows (mixed heights → binary search on row tops)
+  const [startIndex, endIndex] = useMemo(() => {
+    if (!useVirtualScroll) return [0, rows.length];
+    const viewTop = scrollTop - virtualOffset;
+    const viewBottom = viewTop + listHeight;
+
+    let lo = 0;
+    let hi = rows.length - 1;
+    let first = rows.length;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (rows[mid].top + rows[mid].height > viewTop) {
+        first = mid;
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    let last = first;
+    while (last < rows.length && rows[last].top < viewBottom) last++;
+
+    return [Math.max(0, first - OVERSCAN), Math.min(rows.length, last + OVERSCAN)];
+  }, [useVirtualScroll, rows, scrollTop, listHeight, virtualOffset]);
+
+  const visibleRows = rows.slice(startIndex, endIndex);
+
+  const toggleGroupCollapsed = useCallback((group: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  }, []);
+
+  // Select / deselect an entire group in one click
+  const toggleGroupSelection = useCallback(
+    (group: string, ids: number[]) => {
+      const missing = ids.filter((id) => !selectedSet.has(id));
+      if (missing.length === 0) {
+        deselectSatellites(ids);
+        return;
+      }
+      const label = GROUP_LABELS[group as SatelliteGroup] || group;
+      if (missing.length > MAX_GROUP_SELECT) {
+        selectSatellites(missing.slice(0, MAX_GROUP_SELECT));
+        addToast(
+          `${label}: selected first ${MAX_GROUP_SELECT} of ${missing.length} satellites`,
+          'info',
+        );
+      } else {
+        selectSatellites(missing);
+      }
+    },
+    [selectedSet, selectSatellites, deselectSatellites, addToast],
+  );
 
   const detailPos = detailSatId !== null ? getPosition(detailSatId) : undefined;
   const detailSat = detailSatId !== null ? allSatellites.find((s) => s.id === detailSatId) : null;
@@ -396,32 +497,80 @@ export default function SatelliteList() {
       )}
 
       <div
+        ref={virtualRef}
         style={useVirtualScroll ? { height: totalHeight, position: 'relative' } : undefined}
       >
-        {visibleSatellites.map((sat, i) => {
+        {visibleRows.map((row) => {
+          const rowStyle = useVirtualScroll
+            ? ({
+                position: 'absolute' as const,
+                top: row.top,
+                left: 0,
+                right: 0,
+                height: row.height,
+              })
+            : undefined;
+
+          if (row.kind === 'header') {
+            const collapsed = collapsedGroups.has(row.group);
+            const selectedCount = row.ids.reduce((n, id) => (selectedSet.has(id) ? n + 1 : n), 0);
+            const allSelected = selectedCount === row.ids.length;
+            const someSelected = selectedCount > 0 && !allSelected;
+            const groupColor = GROUP_COLORS[row.group as SatelliteGroup] || '#00d4ff';
+
+            return (
+              <div
+                key={`group-${row.group}`}
+                style={rowStyle}
+                className="flex items-center gap-1.5 h-[30px]"
+              >
+                <button
+                  onClick={() => toggleGroupSelection(row.group, row.ids)}
+                  title={
+                    allSelected
+                      ? `Deselect all (${row.ids.length})`
+                      : `Select all (${row.ids.length})`
+                  }
+                  className={`w-4 h-4 shrink-0 rounded-[3px] border flex items-center justify-center text-[9px] leading-none transition-colors ${
+                    allSelected
+                      ? 'bg-cyan-500 border-cyan-400 text-gray-900'
+                      : someSelected
+                        ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300'
+                        : 'border-gray-600 text-transparent hover:border-cyan-500/60'
+                  }`}
+                >
+                  {allSelected ? '✓' : someSelected ? '−' : ''}
+                </button>
+                <button
+                  onClick={() => toggleGroupCollapsed(row.group)}
+                  className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`w-3 h-3 shrink-0 text-gray-500 transition-transform ${collapsed ? '' : 'rotate-90'}`}>
+                    <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                  </svg>
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: groupColor }} />
+                  <CountryFlag group={row.group} />
+                  <span className="text-xs font-medium text-gray-300 truncate">
+                    {GROUP_LABELS[row.group as SatelliteGroup] || row.group}
+                  </span>
+                  <span className="text-[10px] text-gray-500 shrink-0">
+                    {selectedCount > 0 ? `${selectedCount}/${row.ids.length}` : `(${row.ids.length})`}
+                  </span>
+                </button>
+              </div>
+            );
+          }
+
+          const sat = row.sat;
           const pos = getPosition(sat.id);
-          const isSelected = selectedSatIds.includes(sat.id);
+          const isSelected = selectedSet.has(sat.id);
           const info = satnogsInfo.get(sat.id);
           const isDead = info?.status === 'dead' || info?.status === 're-entered';
           const groupColor = isDead ? '#555555' : (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff');
-          const itemIndex = startIndex + i;
           const inactive = isInactive(sat.id);
 
           return (
-            <div
-              key={sat.id}
-              style={
-                useVirtualScroll
-                  ? {
-                      position: 'absolute',
-                      top: itemIndex * ITEM_HEIGHT,
-                      left: 0,
-                      right: 0,
-                      height: ITEM_HEIGHT,
-                    }
-                  : undefined
-              }
-            >
+            <div key={sat.id} style={rowStyle}>
               <div
                 className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors flex items-center gap-1 cursor-pointer ${
                   isSelected

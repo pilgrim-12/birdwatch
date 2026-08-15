@@ -56,6 +56,8 @@ export default function GlobeView() {
   const selectSatellite = useSatelliteStore((s) => s.selectSatellite);
   const selectedSatIds = useSatelliteStore((s) => s.selectedSatIds);
   const selectedSatId = selectedSatIds.length > 0 ? selectedSatIds[selectedSatIds.length - 1] : null;
+  // Set lookup — selections can span a whole constellation
+  const selectedIdSet = useMemo(() => new Set(selectedSatIds), [selectedSatIds]);
   const observer = useSatelliteStore((s) => s.observer);
   const setObserver = useSatelliteStore((s) => s.setObserver);
   const showTrajectories = useSatelliteStore((s) => s.showTrajectories);
@@ -196,7 +198,7 @@ export default function GlobeView() {
       })
       .map((sat) => {
         const cacheKey = sat.tle.line1 + sat.tle.line2;
-        const steps = selectedSatIds.includes(sat.id) ? 90 : 60;
+        const steps = selectedIdSet.has(sat.id) ? 90 : 60;
         let points = cache.get(cacheKey);
         if (!points) {
           points = computeOrbitPath(sat.tle, new Date(), steps);
@@ -222,7 +224,7 @@ export default function GlobeView() {
       }
     }
     return results;
-  }, [satellites, orbitEpoch, selectedSatIds, statusFilter, satnogsInfo]);
+  }, [satellites, orbitEpoch, selectedSatIds, selectedIdSet, statusFilter, satnogsInfo]);
 
   // Stable points data for three-globe
   const pointsData: PointData[] = useMemo(() => {
@@ -238,7 +240,7 @@ export default function GlobeView() {
       if (statusFilter === 'alive' && isDead) continue;
       if (statusFilter === 'dead' && !isDead) continue;
       activeIds.add(s.id);
-      const isSelected = selectedSatIds.includes(s.id);
+      const isSelected = selectedIdSet.has(s.id);
       const color = isDead ? '#555555' : (GROUP_COLORS[s.group as SatelliteGroup] || '#00d4ff');
       let point = stable.get(s.id);
 
@@ -262,7 +264,7 @@ export default function GlobeView() {
       if (!activeIds.has(id)) stable.delete(id);
     }
     return result;
-  }, [satellites, positions, selectedSatIds, satnogsInfo, statusFilter]);
+  }, [satellites, positions, selectedIdSet, satnogsInfo, statusFilter]);
 
   // Update interpolation keyframes
   useEffect(() => {
@@ -295,7 +297,7 @@ export default function GlobeView() {
     const paths: CombinedPath[] = [];
 
     for (const raw of orbitPathsRaw) {
-      const isSelected = selectedSatIds.includes(raw.id);
+      const isSelected = selectedIdSet.has(raw.id);
       if (showTrajectories || isSelected) {
         paths.push({ pathId: `orbit-${raw.id}`, type: 'orbit', points: raw.points, selected: isSelected, color: raw.color });
       }
@@ -303,7 +305,7 @@ export default function GlobeView() {
 
     if (showBeams) {
       for (const p of pointsData) {
-        if (!selectedSatIds.includes(p.id)) continue;
+        if (!selectedIdSet.has(p.id)) continue;
         paths.push({ pathId: `beam-${p.id}`, type: 'beam', points: [{ lat: p.lat, lng: p.lng, alt: p.alt }, { lat: p.lat, lng: p.lng, alt: 0 }], selected: p.selected, color: p.color });
       }
     }
@@ -317,12 +319,12 @@ export default function GlobeView() {
     }
 
     return paths;
-  }, [showTrajectories, showBeams, orbitPathsRaw, selectedSatIds, pointsData, observer, cpaInfo, groundLineInfo]);
+  }, [showTrajectories, showBeams, orbitPathsRaw, selectedIdSet, pointsData, observer, cpaInfo, groundLineInfo]);
 
   // HTML labels
   const htmlLabelsData = useMemo(() => {
     const labels = (showLabels || showFlags)
-      ? pointsData.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, alt: p.alt + 0.015, name: p.name, color: p.color, group: p.group, selected: selectedSatIds.includes(p.id), _flags: showFlags, _labels: showLabels, _station: false }))
+      ? pointsData.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, alt: p.alt + 0.015, name: p.name, color: p.color, group: p.group, selected: selectedIdSet.has(p.id), _flags: showFlags, _labels: showLabels, _station: false }))
       : [];
 
     if (cpaInfo) {
@@ -347,7 +349,7 @@ export default function GlobeView() {
     }
 
     return labels;
-  }, [showLabels, showFlags, selectedSatIds, pointsData, cpaInfo, groundLineInfo, showGroundStations, groundStations]);
+  }, [showLabels, showFlags, selectedIdSet, pointsData, cpaInfo, groundLineInfo, showGroundStations, groundStations]);
 
   // Sync label positions ref
   useEffect(() => {
@@ -367,10 +369,12 @@ export default function GlobeView() {
   const footprintData: FootprintDatum[] = useMemo(() => {
     if (!showFootprint || selectedSatIds.length === 0) return [];
     const result: FootprintDatum[] = [];
+    const satMap = new Map(satellites.map((s) => [s.id, s]));
+    const massSats = useSatelliteStore.getState().massSatellites;
     for (const id of selectedSatIds) {
       const pos = positions.get(id) ?? massPositions.get(id);
       if (!pos) continue;
-      const sat = satellites.find((s) => s.id === id) ?? useSatelliteStore.getState().massSatellites.find((s) => s.id === id);
+      const sat = satMap.get(id) ?? massSats.find((s) => s.id === id);
       const color = sat ? (GROUP_COLORS[sat.group as SatelliteGroup] || '#00d4ff') : '#00d4ff';
       const minElev = sat ? (GROUP_INFO[sat.group as SatelliteGroup]?.minElevationDeg ?? 0) : 0;
       const ring = computeFootprintCircle(pos.lat, pos.lng, pos.alt, 72, minElev);
