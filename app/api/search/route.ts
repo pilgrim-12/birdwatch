@@ -6,13 +6,20 @@ export const revalidate = 300;
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get('q')?.trim();
-  if (!q || q.length < 2) {
+  // Lookup by NORAD catalog number — used to resolve satellites from a shared link
+  const catnr = request.nextUrl.searchParams.get('catnr')?.trim();
+
+  if (!catnr && (!q || q.length < 2)) {
     return NextResponse.json([]);
   }
 
+  const query = catnr
+    ? `CATNR=${encodeURIComponent(catnr)}`
+    : `NAME=${encodeURIComponent(q as string)}`;
+
   try {
     const response = await fetch(
-      `${CELESTRAK_BASE_URL}?NAME=${encodeURIComponent(q)}&FORMAT=tle`,
+      `${CELESTRAK_BASE_URL}?${query}&FORMAT=tle`,
       { next: { revalidate: 300 } },
     );
 

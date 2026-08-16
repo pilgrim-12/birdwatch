@@ -11,7 +11,10 @@ import type { Satellite, SatellitePosition } from '@/types/satellite';
 import { CountryFlag } from '@/components/CountryFlag';
 import { RadioBadge } from '@/components/radio/RadioBadge';
 import { PassListItem } from '@/components/PassListItem';
+import { PassDetail } from '@/components/PassDetail';
 import { SatelliteDetail } from '@/components/SatelliteDetail';
+import { computePassVisibility } from '@/lib/visibility';
+import type { PassVisibility } from '@/lib/visibility';
 import {
   getRadioProfile,
   isReceivable,
@@ -96,6 +99,7 @@ export default function SatelliteList() {
   const addToCollection = useSatelliteStore((s) => s.addToCollection);
   const removeFromCollection = useSatelliteStore((s) => s.removeFromCollection);
   const statusFilter = useSatelliteStore((s) => s.statusFilter);
+  const setObserverPickerOpen = useSatelliteStore((s) => s.setObserverPickerOpen);
 
   // Ticking clock — 10s during live passes for real-time elevation, 60s otherwise
   const [now, setNow] = useState(() => new Date());
@@ -111,6 +115,8 @@ export default function SatelliteList() {
   }, [hasLivePass]);
 
   const [detailSatId, setDetailSatId] = useState<number | null>(null);
+  const [detailPassKey, setDetailPassKey] = useState<string | null>(null);
+  const [visibleOnly, setVisibleOnly] = useState(false);
   const [computingPasses, setComputingPasses] = useState(false);
   const [collectionCollapsed, setCollectionCollapsed] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
@@ -250,8 +256,33 @@ export default function SatelliteList() {
     });
   }, [passes]);
 
+  // Naked-eye visibility for the passes that actually get rendered
+  const passKey = useCallback(
+    (p: SatellitePass) => `${p.satId}-${p.startTime.getTime()}`,
+    [],
+  );
+
+  const visibilityMap = useMemo(() => {
+    const map = new Map<string, PassVisibility>();
+    if (!observer) return map;
+    for (const pass of sortedPasses.slice(0, 40)) {
+      const tle = tleMap.get(pass.satId);
+      if (!tle) continue;
+      map.set(passKey(pass), computePassVisibility(tle, observer, pass.startTime, pass.endTime));
+    }
+    return map;
+  }, [sortedPasses, observer, tleMap, passKey]);
+
   // Always show all passes — highlight the selected satellite instead of filtering
-  const visiblePasses = sortedPasses;
+  const visiblePasses = useMemo(
+    () => (visibleOnly ? sortedPasses.filter((p) => visibilityMap.get(passKey(p))?.visible) : sortedPasses),
+    [visibleOnly, sortedPasses, visibilityMap, passKey],
+  );
+
+  const visibleCount = useMemo(
+    () => sortedPasses.reduce((n, p) => (visibilityMap.get(passKey(p))?.visible ? n + 1 : n), 0),
+    [sortedPasses, visibilityMap, passKey],
+  );
 
   // Best pass: highest elevation among receivable (active/intermittent) satellites
   const bestPassKey = useMemo(() => {
@@ -657,18 +688,36 @@ export default function SatelliteList() {
   const passesContent = (
     <div className="flex-1 overflow-y-auto px-4">
       {!observer ? (
-        <p className="text-xs text-gray-500 py-4">Click on the globe to set observer location</p>
+        <div className="py-4 space-y-2">
+          <p className="text-xs text-gray-500">
+            Set your location to see which satellites pass over you, when, and where to point.
+          </p>
+          <button
+            onClick={() => setObserverPickerOpen(true)}
+            className="px-2.5 py-1.5 rounded text-xs font-medium bg-orange-500/15 text-orange-300 border border-orange-500/30 hover:bg-orange-500/25 transition-colors"
+          >
+            Set my location
+          </button>
+        </div>
       ) : computingPasses ? (
         <p className="text-xs text-yellow-400 py-4">Computing passes...</p>
       ) : visiblePasses.length > 0 ? (
         <>
-          <div className="flex items-center justify-between py-2">
+          <div className="flex items-center justify-between py-2 gap-2">
             <h4 className="text-xs text-gray-500 uppercase tracking-wider">
               Passes (24h) &middot; {visiblePasses.length}
             </h4>
-            <span className="text-xs text-gray-400 font-mono">
-              {observer.lat.toFixed(2)}&deg;, {observer.lng.toFixed(2)}&deg;
-            </span>
+            <button
+              onClick={() => setVisibleOnly(!visibleOnly)}
+              className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                visibleOnly
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  : 'bg-gray-800 text-gray-500 border-gray-700 hover:text-gray-300'
+              }`}
+              title="Only passes you can actually see with the naked eye"
+            >
+              &#128065; Visible {visibleCount > 0 ? `(${visibleCount})` : ''}
+            </button>
           </div>
           <ul className="space-y-2 pb-4">
             {visiblePasses.slice(0, 20).map((pass, i) => (
@@ -685,6 +734,8 @@ export default function SatelliteList() {
                 selectSatellite={selectSatellite}
                 formatTime={formatTime} formatDuration={formatDuration}
                 formatCountdown={formatCountdown} formatLiveLabel={formatLiveLabel}
+                visibility={visibilityMap.get(passKey(pass))}
+                onOpenDetail={(p) => setDetailPassKey(passKey(p))}
               />
             ))}
           </ul>
@@ -704,6 +755,26 @@ export default function SatelliteList() {
       observer={observer}
       pass={detailPass}
       onClose={() => setDetailSatId(null)}
+    />
+  );
+
+  const detailPassObj = useMemo(
+    () => (detailPassKey ? sortedPasses.find((p) => passKey(p) === detailPassKey) ?? null : null),
+    [detailPassKey, sortedPasses, passKey],
+  );
+
+  const passDetailPopup = detailPassObj && (
+    <PassDetail
+      pass={detailPassObj}
+      tle={tleMap.get(detailPassObj.satId)}
+      observer={observer}
+      now={now}
+      color={
+        GROUP_COLORS[
+          (allSatellites.find((s) => s.id === detailPassObj.satId)?.group ?? 'active') as SatelliteGroup
+        ] || '#00d4ff'
+      }
+      onClose={() => setDetailPassKey(null)}
     />
   );
 
@@ -830,9 +901,22 @@ export default function SatelliteList() {
               <p className="text-xs text-yellow-400">Computing passes...</p>
             ) : visiblePasses.length > 0 ? (
               <div>
-                <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">
-                  Passes (24h) &middot; {visiblePasses.length}
-                </h4>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h4 className="text-xs text-gray-500 uppercase tracking-wider">
+                    Passes (24h) &middot; {visiblePasses.length}
+                  </h4>
+                  <button
+                    onClick={() => setVisibleOnly(!visibleOnly)}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                      visibleOnly
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : 'bg-gray-800 text-gray-500 border-gray-700 hover:text-gray-300'
+                    }`}
+                    title="Only passes you can actually see with the naked eye"
+                  >
+                    &#128065; Visible {visibleCount > 0 ? `(${visibleCount})` : ''}
+                  </button>
+                </div>
                 <ul className="space-y-2 max-h-[40vh] overflow-y-auto">
                   {visiblePasses.slice(0, 20).map((pass, i) => (
                     <PassListItem
@@ -848,6 +932,8 @@ export default function SatelliteList() {
                       selectSatellite={selectSatellite}
                       formatTime={formatTime} formatDuration={formatDuration}
                       formatCountdown={formatCountdown} formatLiveLabel={formatLiveLabel}
+                      visibility={visibilityMap.get(passKey(pass))}
+                      onOpenDetail={(p) => setDetailPassKey(passKey(p))}
                       compact
                     />
                   ))}
@@ -860,13 +946,22 @@ export default function SatelliteList() {
         )}
 
         {!observer && (
-          <div className="border-t border-gray-800 p-4 shrink-0">
-            <p className="text-xs text-gray-500">Click on the globe to set observer location</p>
+          <div className="border-t border-gray-800 p-4 shrink-0 space-y-2">
+            <p className="text-xs text-gray-500">
+              Set your location to see which satellites pass over you, when, and where to point.
+            </p>
+            <button
+              onClick={() => setObserverPickerOpen(true)}
+              className="px-2.5 py-1.5 rounded text-xs font-medium bg-orange-500/15 text-orange-300 border border-orange-500/30 hover:bg-orange-500/25 transition-colors"
+            >
+              Set my location
+            </button>
           </div>
         )}
       </div>
 
       {detailPopup}
+      {passDetailPopup}
     </aside>
     </>
   );

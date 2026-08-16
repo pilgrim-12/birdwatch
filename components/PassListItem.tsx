@@ -1,4 +1,5 @@
 import type { SatellitePass } from '@/lib/passes';
+import type { PassVisibility } from '@/lib/visibility';
 import { RadioBadge } from '@/components/radio/RadioBadge';
 
 interface RadioProfile {
@@ -24,6 +25,8 @@ interface PassListItemProps {
   formatDuration: (s: Date, e: Date) => string;
   formatCountdown: (now: Date, pass: { startTime: Date; endTime: Date }) => { text: string; isLive: boolean; urgency: 'past' | 'live' | 'soon' | 'normal' };
   formatLiveLabel: (now: Date, pass: SatellitePass, timeText: string, tle: { name: string; line1: string; line2: string } | undefined, observer: { lat: number; lng: number; alt: number } | null) => string;
+  visibility?: PassVisibility | undefined;
+  onOpenDetail?: (pass: SatellitePass) => void;
   compact?: boolean;
 }
 
@@ -31,6 +34,7 @@ export function PassListItem({
   pass, index, isBest, doppler, profile, isSelected, now,
   observer, tleData, detailSatId, setDetailSatId, selectSatellite,
   formatTime, formatDuration, formatCountdown, formatLiveLabel,
+  visibility, onOpenDetail,
   compact = false,
 }: PassListItemProps) {
   const inactive = profile?.status === 'inactive';
@@ -63,7 +67,35 @@ export function PassListItem({
             {pass.satName}
           </span>
           <RadioBadge noradId={pass.satId} />
+          {visibility?.visible && (
+            <span
+              className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30"
+              title={
+                visibility.startTime && visibility.endTime
+                  ? `Visible to the naked eye ${formatTime(visibility.startTime)}–${formatTime(visibility.endTime)}`
+                  : 'Visible to the naked eye'
+              }
+            >
+              &#128065;
+            </span>
+          )}
         </div>
+        {onOpenDetail && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenDetail(pass);
+            }}
+            className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-gray-500 hover:text-cyan-300 hover:bg-gray-700 transition-colors"
+            title="Sky chart, Doppler and calendar export"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3.5 h-3.5">
+              <circle cx="8" cy="8" r="6" />
+              <circle cx="8" cy="8" r="2.5" />
+              <path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
         <span className={`font-mono shrink-0 ${
           pass.peakElevation >= 45 ? 'text-green-400' :
           pass.peakElevation >= 20 ? 'text-green-400/70' :

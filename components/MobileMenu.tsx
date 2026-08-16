@@ -7,6 +7,8 @@ import { ALLOWED_GROUPS, GROUP_LABELS, GROUP_COLORS, GROUP_INFO } from '@/lib/co
 import type { SatelliteGroup } from '@/lib/constants';
 import { CountryFlag } from '@/components/CountryFlag';
 import { getUniqueCountries, groupMatchesCountry, COUNTRY_FLAG_MAP } from '@/lib/countryFlags';
+import ObserverPanel from '@/components/ObserverPanel';
+import ShareButton from '@/components/ShareButton';
 
 const toggleBtnClass = (active: boolean, activeColor = 'cyan') => {
   const colorMap: Record<string, string> = {
@@ -119,6 +121,12 @@ export default function MobileMenu() {
         </button>
       </div>
 
+      {/* Observer location */}
+      <div className="px-4 py-4 border-b border-gray-800">
+        <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-3">Your location</h3>
+        <ObserverPanel onApplied={() => setMobileMenuOpen(false)} />
+      </div>
+
       {/* Controls section */}
       <div className="px-4 py-4 border-b border-gray-800">
         <h3 className="text-xs text-gray-500 uppercase tracking-wider mb-3">Display</h3>
@@ -216,6 +224,7 @@ export default function MobileMenu() {
           >
             Antennas
           </button>
+          <ShareButton variant="menu" onShared={() => setMobileMenuOpen(false)} />
         </div>
         {showBeams && (
           <div className="mt-3 space-y-3">

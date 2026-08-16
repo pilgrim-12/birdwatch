@@ -8,9 +8,24 @@ import type { GroundStation } from '@/types/groundStation';
 
 export type CameraFollow = 'none' | 'track' | 'sat-pov';
 
+export interface SavedPlace {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  alt: number;
+}
+
 interface SatelliteStore {
   satellites: Satellite[];
   observer: ObserverLocation | null;
+  /** Human-readable name of the observer location, when it came from a place */
+  observerLabel: string | null;
+  savedPlaces: SavedPlace[];
+  addSavedPlace: (place: Omit<SavedPlace, 'id'>) => void;
+  removeSavedPlace: (id: string) => void;
+  isObserverPickerOpen: boolean;
+  setObserverPickerOpen: (open: boolean) => void;
   selectedSatIds: number[];
   positions: Map<number, SatellitePosition>;
   passes: SatellitePass[];
@@ -33,7 +48,7 @@ interface SatelliteStore {
   massPositions: Map<number, SatellitePosition>;
 
   setSatellites: (satellites: Satellite[]) => void;
-  setObserver: (observer: ObserverLocation | null) => void;
+  setObserver: (observer: ObserverLocation | null, label?: string | null) => void;
   selectSatellite: (id: number | null) => void; // toggle: adds/removes from selection
   deselectSatellite: (id: number) => void;
   selectSatellites: (ids: number[]) => void; // bulk add (union with current selection)
@@ -127,6 +142,7 @@ interface SatelliteStore {
   // Map mode
   mapMode: 'globe' | 'flat';
   toggleMapMode: () => void;
+  setMapMode: (mode: 'globe' | 'flat') => void;
 
   // Ground stations
   groundStations: GroundStation[];
@@ -177,16 +193,28 @@ export const useSatelliteStore = create<SatelliteStore>()(
   massPositions: new Map(),
 
   setSatellites: (satellites) => set({ satellites }),
-  setObserver: (observer) => {
+  observerLabel: null,
+  savedPlaces: [],
+  setObserver: (observer, label = null) => {
     if (observer) {
       const lat = Math.max(-90, Math.min(90, observer.lat));
       const lng = ((observer.lng + 180) % 360 + 360) % 360 - 180;
       const alt = Math.max(0, observer.alt ?? 0);
-      set({ observer: { lat, lng, alt } });
+      set({ observer: { lat, lng, alt }, observerLabel: label });
     } else {
-      set({ observer: null });
+      set({ observer: null, observerLabel: null });
     }
   },
+  addSavedPlace: (place) =>
+    set((s) => {
+      const id = `${place.lat.toFixed(4)},${place.lng.toFixed(4)}`;
+      if (s.savedPlaces.some((p) => p.id === id)) return s;
+      return { savedPlaces: [...s.savedPlaces, { ...place, id }] };
+    }),
+  removeSavedPlace: (id) =>
+    set((s) => ({ savedPlaces: s.savedPlaces.filter((p) => p.id !== id) })),
+  isObserverPickerOpen: false,
+  setObserverPickerOpen: (open) => set({ isObserverPickerOpen: open }),
   selectSatellite: (id) =>
     set((s) => ({
       selectedSatIds: id === null
@@ -331,6 +359,7 @@ export const useSatelliteStore = create<SatelliteStore>()(
   // Map mode
   mapMode: 'globe',
   toggleMapMode: () => set((s) => ({ mapMode: s.mapMode === 'globe' ? 'flat' : 'globe' })),
+  setMapMode: (mode) => set({ mapMode: mode }),
 
   // Data sources toggles
   sourceCelestrak: true,
@@ -383,6 +412,9 @@ export const useSatelliteStore = create<SatelliteStore>()(
         collectionTLEs: state.collectionTLEs,
         timeWindowSec: state.timeWindowSec,
         timeRate: state.timeRate,
+        observer: state.observer,
+        observerLabel: state.observerLabel,
+        savedPlaces: state.savedPlaces,
       }),
     },
   ),

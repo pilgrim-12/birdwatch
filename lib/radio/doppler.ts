@@ -7,6 +7,7 @@ import {
   degreesToRadians,
 } from 'satellite.js';
 import type { TLEData, ObserverLocation } from '@/types/satellite';
+import { getCachedSatrec } from '@/lib/sgp4';
 
 const SPEED_OF_LIGHT_KM_S = 299_792.458;
 
@@ -51,7 +52,7 @@ export function computeMaxDoppler(
   frequencyHz: number,
 ): number {
   try {
-    const satrec = twoline2satrec(tle.line1, tle.line2);
+    const satrec = getCachedSatrec(tle);
     const observerGd = {
       longitude: degreesToRadians(observer.lng),
       latitude: degreesToRadians(observer.lat),
@@ -75,5 +76,44 @@ export function computeMaxDoppler(
     return maxAbsDoppler;
   } catch {
     return 0;
+  }
+}
+
+export interface DopplerSample {
+  t: number; // epoch ms
+  shiftHz: number; // signed: positive while approaching
+}
+
+/**
+ * Doppler shift over the course of a pass — the classic S-curve that tells an
+ * operator how far to retune before, at, and after TCA.
+ */
+export function computeDopplerSeries(
+  tle: TLEData,
+  observer: ObserverLocation,
+  passStartMs: number,
+  passEndMs: number,
+  frequencyHz: number,
+  steps: number = 40,
+): DopplerSample[] {
+  try {
+    const satrec = getCachedSatrec(tle);
+    const observerGd = {
+      longitude: degreesToRadians(observer.lng),
+      latitude: degreesToRadians(observer.lat),
+      height: observer.alt / 1000,
+    };
+
+    const duration = passEndMs - passStartMs;
+    const out: DopplerSample[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const tMs = passStartMs + (duration * i) / steps;
+      const rangeRate = getRangeRate(satrec, observerGd, new Date(tMs));
+      if (rangeRate === null) continue;
+      out.push({ t: tMs, shiftHz: (-frequencyHz * rangeRate) / SPEED_OF_LIGHT_KM_S });
+    }
+    return out;
+  } catch {
+    return [];
   }
 }

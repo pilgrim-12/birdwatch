@@ -9,6 +9,7 @@ import OrbitView from '@/components/OrbitView';
 import AntennaGuide from '@/components/AntennaGuide';
 import SelectedPanel from '@/components/SelectedPanel';
 import TimelineBar from '@/components/TimelineBar';
+import ObserverPicker from '@/components/ObserverPicker';
 import { useSatelliteStore } from '@/store/useSatelliteStore';
 import { parseTLEText, tlesToSatellites, extractNoradId } from '@/lib/tle';
 import { MASS_GROUPS } from '@/lib/constants';
@@ -18,6 +19,7 @@ import type { SatNogsInfo, SatNogsTransmitter } from '@/types/satnogs';
 import type { GroundStation } from '@/types/groundStation';
 import { PROFESSIONAL_STATIONS } from '@/lib/groundStations';
 import { usePropagation } from '@/hooks/usePropagation';
+import { useUrlState } from '@/hooks/useUrlState';
 import { useToastStore } from '@/store/useToastStore';
 import VisitorTracker from '@/components/VisitorTracker';
 
@@ -40,6 +42,9 @@ export default function Home() {
 
   // Run SGP4 propagation (shared between globe and flat map views)
   usePropagation();
+
+  // Restore/reflect the view in the URL so it can be shared
+  useUrlState();
 
   // Fetch CelesTrak TLE data
   useEffect(() => {
@@ -259,6 +264,7 @@ export default function Home() {
       </main>
       <OrbitView />
       <AntennaGuide />
+      <ObserverPicker />
       <VisitorTracker />
     </>
   );

@@ -9,6 +9,7 @@ import { CountryFlag } from '@/components/CountryFlag';
 import { getUniqueCountries, groupMatchesCountry, COUNTRY_FLAG_MAP } from '@/lib/countryFlags';
 import HeaderSearch from '@/components/HeaderSearch';
 import MobileMenu from '@/components/MobileMenu';
+import ShareButton from '@/components/ShareButton';
 
 export default function Header() {
   const {
@@ -16,7 +17,7 @@ export default function Header() {
     beamOpacity, beamWidth, beamSpeed,
     showLookLine, showGroundLine, showFootprint, showFlags,
     showGroundStations, statusFilter,
-    activeGroups, countryFilter, observer,
+    activeGroups, countryFilter, observer, observerLabel,
     mapMode, sourceCelestrak, sourceSatnogs,
     isOrbitViewOpen, isTimelineOpen,
   } = useSatelliteStore(useShallow((s) => ({
@@ -36,6 +37,7 @@ export default function Header() {
     activeGroups: s.activeGroups,
     countryFilter: s.countryFilter,
     observer: s.observer,
+    observerLabel: s.observerLabel,
     mapMode: s.mapMode,
     sourceCelestrak: s.sourceCelestrak,
     sourceSatnogs: s.sourceSatnogs,
@@ -52,7 +54,7 @@ export default function Header() {
     setBeamOpacity, setBeamWidth, setBeamSpeed,
     setActiveGroups, setCountryFilter, setObserver,
     setStatusFilter,
-    setMobileMenuOpen, openAntennaGuide,
+    setMobileMenuOpen, openAntennaGuide, setObserverPickerOpen,
   } = useSatelliteStore(useShallow((s) => ({
     toggleTrajectories: s.toggleTrajectories,
     toggleLabels: s.toggleLabels,
@@ -78,6 +80,7 @@ export default function Header() {
     setObserver: s.setObserver,
     setMobileMenuOpen: s.setMobileMenuOpen,
     openAntennaGuide: s.openAntennaGuide,
+    setObserverPickerOpen: s.setObserverPickerOpen,
   })));
 
   const availableCountries = useMemo(() => getUniqueCountries(), []);
@@ -205,9 +208,16 @@ export default function Header() {
 
           {/* Desktop: single row — observer + toggles + settings gear */}
           <div className="ml-auto hidden md:flex items-center gap-1.5">
-            {observer && (
+            {observer ? (
               <span className="text-[11px] text-orange-400 mr-1 flex items-center gap-0.5">
-                {observer.lat.toFixed(2)}&deg;, {observer.lng.toFixed(2)}&deg;
+                <button
+                  onClick={() => setObserverPickerOpen(true)}
+                  className="hover:text-orange-300 transition-colors"
+                  title="Change observer location"
+                >
+                  {observerLabel ? `${observerLabel} · ` : ''}
+                  {observer.lat.toFixed(2)}&deg;, {observer.lng.toFixed(2)}&deg;
+                </button>
                 <button
                   onClick={() => setObserver(null)}
                   className="ml-0.5 text-gray-500 hover:text-red-400 transition-colors"
@@ -216,6 +226,17 @@ export default function Header() {
                   &times;
                 </button>
               </span>
+            ) : (
+              <button
+                onClick={() => setObserverPickerOpen(true)}
+                className="mr-1 px-2 py-1 rounded text-[11px] font-medium bg-orange-500/15 text-orange-300 border border-orange-500/30 hover:bg-orange-500/25 transition-colors flex items-center gap-1"
+                title="Set your location to get passes, look angles and visibility"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                  <path fillRule="evenodd" d="M9.69 18.933l.003.001A.752.752 0 0 0 10 19a.75.75 0 0 0 .307-.067l.002-.001.006-.003.018-.008a5.741 5.741 0 0 0 .31-.15 22.916 22.916 0 0 0 3.434-2.414C15.818 14.867 17.5 12.5 17.5 9.5a7.5 7.5 0 1 0-15 0c0 3 1.682 5.367 3.423 6.857a22.916 22.916 0 0 0 3.744 2.564l.018.008.006.003ZM10 11.75a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Z" clipRule="evenodd" />
+                </svg>
+                Set location
+              </button>
             )}
 
             <HeaderSearch />
@@ -324,6 +345,7 @@ export default function Header() {
             >
               Ant.
             </button>
+            <ShareButton />
 
             {/* Settings gear — opens dropdown with groups + beam sliders */}
             <div className="relative" ref={settingsRef}>
@@ -568,9 +590,11 @@ export default function Header() {
 
           {/* Mobile: compact right side */}
           <div className="ml-auto flex items-center gap-2 md:hidden">
-            {observer && (
+            {observer ? (
               <span className="text-[10px] text-orange-400 flex items-center gap-0.5">
-                {observer.lat.toFixed(1)}&deg;, {observer.lng.toFixed(1)}&deg;
+                <button onClick={() => setObserverPickerOpen(true)} className="active:text-orange-300">
+                  {observer.lat.toFixed(1)}&deg;, {observer.lng.toFixed(1)}&deg;
+                </button>
                 <button
                   onClick={() => setObserver(null)}
                   className="text-gray-500 active:text-red-400 ml-0.5"
@@ -579,6 +603,16 @@ export default function Header() {
                   &times;
                 </button>
               </span>
+            ) : (
+              <button
+                onClick={() => setObserverPickerOpen(true)}
+                className="w-10 h-10 flex items-center justify-center rounded-lg bg-orange-500/15 text-orange-300 border border-orange-500/30 active:bg-orange-500/25"
+                title="Set your location"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                  <path fillRule="evenodd" d="M9.69 18.933l.003.001A.752.752 0 0 0 10 19a.75.75 0 0 0 .307-.067l.002-.001.006-.003.018-.008a5.741 5.741 0 0 0 .31-.15 22.916 22.916 0 0 0 3.434-2.414C15.818 14.867 17.5 12.5 17.5 9.5a7.5 7.5 0 1 0-15 0c0 3 1.682 5.367 3.423 6.857a22.916 22.916 0 0 0 3.744 2.564l.018.008.006.003ZM10 11.75a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Z" clipRule="evenodd" />
+                </svg>
+              </button>
             )}
             <button
               onClick={() => setMobileMenuOpen(true)}
