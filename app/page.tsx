@@ -44,10 +44,14 @@ export default function Home() {
   usePropagation();
 
   // Restore/reflect the view in the URL so it can be shared
-  useUrlState();
+  const { hydrated } = useUrlState();
 
   // Fetch CelesTrak TLE data
   useEffect(() => {
+    // Wait for the URL to be applied — otherwise a shared link fetches the
+    // persisted groups first and the link's groups immediately after.
+    if (!hydrated) return;
+
     if (!sourceCelestrak) {
       // Still load collection satellites even with CelesTrak disabled
       const { collectionSatIds, collectionTLEs } = useSatelliteStore.getState();
@@ -73,19 +77,46 @@ export default function Home() {
       MASS_GROUPS.includes(g as SatelliteGroup),
     );
 
+    /**
+     * One group's TLEs, retried once. `tles: null` means the group could not be
+     * loaded — CelesTrak rate-limits bursts and our route turns that into a 502,
+     * and an empty list there is indistinguishable from "this group is empty".
+     */
+    async function fetchGroup(group: string) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const res = await fetch(`/api/tle/${group}`);
+          if (res.ok) return { group, tles: parseTLEText(await res.text()) };
+        } catch {
+          /* network hiccup — fall through to the retry */
+        }
+        if (cancelled) break;
+        if (attempt === 0) await new Promise((r) => setTimeout(r, 700));
+      }
+      return { group, tles: null };
+    }
+
     async function fetchAllGroups() {
       try {
         // Fetch normal groups
-        const results = await Promise.all(
-          normalGroups.map(async (group) => {
-            const res = await fetch(`/api/tle/${group}`);
-            if (!res.ok) return { group, tles: [] as ReturnType<typeof parseTLEText> };
-            const text = await res.text();
-            return { group, tles: parseTLEText(text) };
-          }),
-        );
+        const settled = await Promise.all(normalGroups.map(fetchGroup));
 
         if (cancelled) return;
+
+        const failed = settled.filter((r) => r.tles === null).map((r) => r.group);
+        // Every group failed: keep whatever is already on screen instead of
+        // blanking the globe with no explanation.
+        if (failed.length > 0 && failed.length === normalGroups.length) {
+          addToast('CelesTrak is not responding — satellite data could not be refreshed');
+          return;
+        }
+        if (failed.length > 0) {
+          addToast(`Could not load: ${failed.join(', ')}`);
+        }
+
+        const results = settled.filter(
+          (r): r is { group: string; tles: ReturnType<typeof parseTLEText> } => r.tles !== null,
+        );
 
         // Merge normal satellites, deduplicate by NORAD ID
         const seen = new Set<number>();
@@ -113,16 +144,19 @@ export default function Home() {
 
         // Fetch mass groups separately (e.g., Starlink)
         if (massGroups.length > 0) {
-          const massResults = await Promise.all(
-            massGroups.map(async (group) => {
-              const res = await fetch(`/api/tle/${group}`);
-              if (!res.ok) return { group, tles: [] as ReturnType<typeof parseTLEText> };
-              const text = await res.text();
-              return { group, tles: parseTLEText(text) };
-            }),
-          );
+          const massSettled = await Promise.all(massGroups.map(fetchGroup));
 
           if (cancelled) return;
+
+          const massFailed = massSettled.filter((r) => r.tles === null).map((r) => r.group);
+          if (massFailed.length > 0) {
+            addToast(`Could not load: ${massFailed.join(', ')}`);
+          }
+          if (massFailed.length === massGroups.length) return;
+
+          const massResults = massSettled.filter(
+            (r): r is { group: string; tles: ReturnType<typeof parseTLEText> } => r.tles !== null,
+          );
 
           const massSats: Satellite[] = [];
           for (const { group, tles } of massResults) {
@@ -147,7 +181,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [activeGroups, sourceCelestrak, setSatellites, setMassSatellites]);
+  }, [hydrated, activeGroups, sourceCelestrak, setSatellites, setMassSatellites, addToast]);
 
   // Fetch SatNOGS enrichment data (non-blocking)
   useEffect(() => {

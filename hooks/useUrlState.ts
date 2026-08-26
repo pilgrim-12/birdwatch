@@ -43,8 +43,12 @@ export function buildShareQuery(): string {
 /**
  * Two-way sync between the view and the URL: a shared link restores the
  * satellites, groups, observer, map mode and time offset it was made with.
+ *
+ * Returns `hydrated` — false until the URL has been read. Data fetching keyed on
+ * store state must wait for it, otherwise it fires once against the persisted
+ * state and again against the link's, and the first round is wasted.
  */
-export function useUrlState() {
+export function useUrlState(): { hydrated: boolean } {
   const [hydrated, setHydrated] = useState(false);
   const pendingSatsRef = useRef<number[]>([]);
   const resolveTriedRef = useRef(false);
@@ -70,7 +74,13 @@ export function useUrlState() {
       const valid = groups
         .split(',')
         .filter((g): g is SatelliteGroup => (ALLOWED_GROUPS as readonly string[]).includes(g));
-      if (valid.length > 0) store.setActiveGroups(valid);
+      // Only touch the store when the link actually differs from what is already
+      // active: a new array identity restarts the TLE fetch and throws away the
+      // batch that is already in flight, leaving the globe empty in the meantime.
+      const current = store.activeGroups;
+      const same =
+        valid.length === current.length && valid.every((g) => current.includes(g));
+      if (valid.length > 0 && !same) store.setActiveGroups(valid);
     }
 
     const obs = params.get('obs');
@@ -161,4 +171,6 @@ export function useUrlState() {
     isTimelineOpen,
     timeOffsetSec,
   ]);
+
+  return { hydrated };
 }
