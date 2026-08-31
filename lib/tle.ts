@@ -20,8 +20,30 @@ export function parseTLEText(text: string): TLEData[] {
   return tles;
 }
 
+/**
+ * Alpha-5 alphabet for catalog numbers above 99999: the leading digit pair is
+ * replaced by a letter, A=10 through Z=33. I and O are skipped because they are
+ * indistinguishable from 1 and 0 in a fixed-width TLE.
+ */
+const ALPHA5_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+/**
+ * NORAD catalog number from TLE line 2 (columns 3-7). Handles both plain
+ * 5-digit numbers and Alpha-5, e.g. "A0083" -> 100083. Returns NaN when the
+ * field is not a catalog number at all.
+ */
 export function extractNoradId(line2: string): number {
-  return parseInt(line2.substring(2, 7).trim(), 10);
+  const raw = line2.substring(2, 7).trim();
+  const lead = raw[0];
+
+  if (lead && lead >= 'A' && lead <= 'Z') {
+    const high = ALPHA5_LETTERS.indexOf(lead);
+    const low = parseInt(raw.substring(1), 10);
+    if (high < 0 || !Number.isFinite(low)) return NaN;
+    return (high + 10) * 10_000 + low;
+  }
+
+  return parseInt(raw, 10);
 }
 
 /**

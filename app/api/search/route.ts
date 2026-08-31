@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CELESTRAK_BASE_URL } from '@/lib/constants';
-import { parseTLEText } from '@/lib/tle';
+import { parseTLEText, extractNoradId } from '@/lib/tle';
 
 export const revalidate = 300;
 
@@ -33,10 +33,11 @@ export async function GET(request: NextRequest) {
     }
 
     const tles = parseTLEText(text);
-    const results = tles.slice(0, 30).map((tle) => {
-      const noradId = parseInt(tle.line2.substring(2, 7).trim(), 10);
-      return { id: noradId, name: tle.name, tle };
-    });
+    const results = tles.slice(0, 30).map((tle) => ({
+      id: extractNoradId(tle.line2),
+      name: tle.name,
+      tle,
+    }));
 
     return NextResponse.json(results);
   } catch {

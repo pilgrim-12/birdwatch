@@ -124,7 +124,9 @@ export default function Home() {
         for (const { group, tles } of results) {
           for (const tle of tles) {
             const id = extractNoradId(tle.line2);
-            if (seen.has(id)) continue;
+            // A malformed catalog number yields NaN, and a Set treats every NaN
+            // as the same key — keeping them would collapse the lot into one.
+            if (!Number.isFinite(id) || seen.has(id)) continue;
             seen.add(id);
             allSats.push(...tlesToSatellites([tle], group));
           }
@@ -162,7 +164,7 @@ export default function Home() {
           for (const { group, tles } of massResults) {
             for (const tle of tles) {
               const id = extractNoradId(tle.line2);
-              if (seen.has(id)) continue;
+              if (!Number.isFinite(id) || seen.has(id)) continue;
               seen.add(id);
               massSats.push(...tlesToSatellites([tle], group));
             }
