@@ -448,6 +448,12 @@ export default function MobileMenu() {
                   <span className="text-gray-500">Freq:</span> {info.frequency}
                 </div>
               )}
+              {info.coverageNote && (
+                <div className="flex gap-1.5 text-xs pt-1 border-t border-gray-700/50 text-amber-300/90 leading-relaxed">
+                  <span aria-hidden>&#9888;</span>
+                  <span>{info.coverageNote}</span>
+                </div>
+              )}
             </div>
           );
         })()}

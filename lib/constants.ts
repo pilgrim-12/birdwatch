@@ -157,6 +157,12 @@ export interface GroupInfo {
   frequency: string;
   /** Minimum ground elevation angle (degrees) for realistic coverage footprint */
   minElevationDeg: number;
+  /**
+   * Why the group shows fewer satellites than it has in orbit. Set it whenever
+   * the gap is a property of the data rather than a fault, so an empty slot
+   * reads as "not published" instead of "lost".
+   */
+  coverageNote?: string;
 }
 
 // GROUP_INFO data lives in lib/groupInfo.ts — re-exported here for convenience

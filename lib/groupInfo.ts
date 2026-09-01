@@ -258,12 +258,14 @@ export const GROUP_INFO: Record<SatelliteGroup, GroupInfo> = {
     description: 'Russian broadband internet constellation (\u0420\u0430\u0441\u0441\u0432\u0435\u0442) by Bureau 1440 (\u0411\u044e\u0440\u043e 1440) for Russia and global coverage.',
     operator: 'Bureau 1440',
     orbit: 'LEO (~600 km)',
-    count: '~15',
+    count: '~15 (32 launched)',
     since: '2024',
     purpose: 'Broadband Internet',
     country: 'Russia',
     frequency: 'Ka-band, Ku-band',
     minElevationDeg: 25,
+    coverageNote:
+      'The 16 satellites launched 19 Jul 2026 are catalogued under provisional numbers (100083-100098) and have no published orbital elements, so they cannot be positioned. One of the first 16, RASSVET-3 4, re-entered on 6 Jun 2026.',
   },
   qianfan: {
     description: 'Chinese mega-constellation (\u5343\u5e06/Qianfan "Thousand Sails") by Shanghai SPACECOM for global broadband internet.',
