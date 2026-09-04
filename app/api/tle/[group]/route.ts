@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CELESTRAK_BASE_URL, ALLOWED_GROUPS, type SatelliteGroup } from '@/lib/constants';
 import { fetchByName } from '@/lib/spacetrack';
-import { parseRecords, serialize, mergeMissing, type TleRecord } from '@/lib/tleMerge';
+import { parseRecords, serialize, mergeMissing, isFresh, type TleRecord } from '@/lib/tleMerge';
 
 export const revalidate = 3600; // 1 hour cache
 
@@ -72,7 +72,11 @@ export async function GET(
       let merged = records;
       if (useSpaceTrack) {
         const supplement = await fetchByName(nameQuery);
-        if (supplement) merged = mergeMissing(records, parseRecords(supplement), keep);
+        if (supplement) {
+          // Drop element sets too old to mean anything — decayed objects linger.
+          const fresh = parseRecords(supplement).filter((r) => isFresh(r));
+          merged = mergeMissing(records, fresh, keep);
+        }
       }
 
       text = serialize(merged);

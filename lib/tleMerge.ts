@@ -46,3 +46,20 @@ export function mergeMissing(
   }
   return merged;
 }
+
+/**
+ * Whether a record's elements are recent enough to propagate. Space-Track
+ * keeps the last element set of a decayed object forever — RASSVET-3 4 still
+ * resolves, frozen at its re-entry — and propagating that puts a ghost on the
+ * globe. CelesTrak drops such objects itself, so this guards the supplement.
+ */
+export function isFresh(r: TleRecord, maxAgeDays = 30, now: number = Date.now()): boolean {
+  const raw = r.line1.substring(18, 32).trim();
+  if (raw.length < 5) return false;
+  const yy = parseInt(raw.substring(0, 2), 10);
+  const dayOfYear = parseFloat(raw.substring(2));
+  if (!Number.isFinite(yy) || !Number.isFinite(dayOfYear)) return false;
+  const year = yy >= 57 ? 1900 + yy : 2000 + yy;
+  const epochMs = Date.UTC(year, 0, 1) + (dayOfYear - 1) * 86_400_000;
+  return now - epochMs <= maxAgeDays * 86_400_000;
+}
