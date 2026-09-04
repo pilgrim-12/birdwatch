@@ -31,7 +31,7 @@ export default function MobileMenu() {
     showLookLine, showGroundLine, showFootprint, showFlags,
     showGroundStations, statusFilter,
     activeGroups, countryFilter, observer,
-    mapMode, sourceCelestrak, sourceSatnogs, sourceSpacetrack,
+    mapMode, sourceCelestrak, sourceSatnogs, sourceSpacetrack, spacetrackConfigured,
     isMobileMenuOpen, isOrbitViewOpen, isTimelineOpen,
   } = useSatelliteStore(useShallow((s) => ({
     showTrajectories: s.showTrajectories,
@@ -54,6 +54,7 @@ export default function MobileMenu() {
     sourceCelestrak: s.sourceCelestrak,
     sourceSatnogs: s.sourceSatnogs,
     sourceSpacetrack: s.sourceSpacetrack,
+    spacetrackConfigured: s.spacetrackConfigured,
     isMobileMenuOpen: s.isMobileMenuOpen,
     isOrbitViewOpen: s.isOrbitViewOpen,
     isTimelineOpen: s.isTimelineOpen,
@@ -300,22 +301,33 @@ export default function MobileMenu() {
             </div>
           </label>
           <label className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-            sourceSpacetrack ? 'bg-gray-800 border-gray-600' : 'bg-gray-800/30 border-gray-700 opacity-50'
+            sourceSpacetrack && spacetrackConfigured !== false
+              ? 'bg-gray-800 border-gray-600'
+              : 'bg-gray-800/30 border-gray-700 opacity-50'
           }`}>
             <input
               type="checkbox"
-              checked={sourceSpacetrack}
+              checked={sourceSpacetrack && spacetrackConfigured !== false}
+              disabled={spacetrackConfigured === false}
               onChange={toggleSourceSpacetrack}
-              className="mt-0.5 accent-cyan-500 w-4 h-4 shrink-0"
+              className="mt-0.5 accent-cyan-500 w-4 h-4 shrink-0 disabled:cursor-not-allowed"
             />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-medium text-gray-200">Space-Track</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Supplemental</span>
+                {spacetrackConfigured === false && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">Not configured</span>
+                )}
               </div>
               <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                The NORAD catalogue directly, for objects CelesTrak omits. Needs server credentials.
+                The NORAD catalogue directly, for objects CelesTrak omits.
               </p>
+              {spacetrackConfigured === false && (
+                <p className="text-xs text-red-400/90 mt-1 leading-relaxed">
+                  No Space-Track account is attached to this deployment, so the source is inert. It is a server setting, not a sign-in.
+                </p>
+              )}
             </div>
           </label>
         </div>

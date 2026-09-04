@@ -35,6 +35,8 @@ export default function Home() {
   const sourceCelestrak = useSatelliteStore((s) => s.sourceCelestrak);
   const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
   const sourceSpacetrack = useSatelliteStore((s) => s.sourceSpacetrack);
+  const spacetrackConfigured = useSatelliteStore((s) => s.spacetrackConfigured);
+  const setSpacetrackConfigured = useSatelliteStore((s) => s.setSpacetrackConfigured);
   const mapMode = useSatelliteStore((s) => s.mapMode);
   const showGroundStations = useSatelliteStore((s) => s.showGroundStations);
   const setGroundStations = useSatelliteStore((s) => s.setGroundStations);
@@ -46,6 +48,21 @@ export default function Home() {
 
   // Restore/reflect the view in the URL so it can be shared
   const { hydrated } = useUrlState();
+
+  // Does the server hold Space-Track credentials? The panel says so plainly
+  // rather than offering a toggle that quietly does nothing.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/spacetrack/status')
+      .then((res) => (res.ok ? res.json() : { configured: false }))
+      .then((data: { configured?: boolean }) => {
+        if (!cancelled) setSpacetrackConfigured(Boolean(data.configured));
+      })
+      .catch(() => {
+        if (!cancelled) setSpacetrackConfigured(false);
+      });
+    return () => { cancelled = true; };
+  }, [setSpacetrackConfigured]);
 
   // Fetch CelesTrak TLE data
   useEffect(() => {
@@ -86,7 +103,9 @@ export default function Home() {
     async function fetchGroup(group: string) {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          const res = await fetch(`/api/tle/${group}${sourceSpacetrack ? '?st=1' : ''}`);
+          // Only ask for the supplement when it can actually deliver one.
+          const supplement = sourceSpacetrack && spacetrackConfigured === true;
+          const res = await fetch(`/api/tle/${group}${supplement ? '?st=1' : ''}`);
           if (res.ok) return { group, tles: parseTLEText(await res.text()) };
         } catch {
           /* network hiccup — fall through to the retry */
@@ -184,7 +203,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, activeGroups, sourceCelestrak, sourceSpacetrack, setSatellites, setMassSatellites, addToast]);
+  }, [hydrated, activeGroups, sourceCelestrak, sourceSpacetrack, spacetrackConfigured, setSatellites, setMassSatellites, addToast]);
 
   // Fetch SatNOGS enrichment data (non-blocking)
   useEffect(() => {

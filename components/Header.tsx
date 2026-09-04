@@ -18,7 +18,7 @@ export default function Header() {
     showLookLine, showGroundLine, showFootprint, showFlags,
     showGroundStations, statusFilter,
     activeGroups, countryFilter, observer, observerLabel,
-    mapMode, sourceCelestrak, sourceSatnogs, sourceSpacetrack,
+    mapMode, sourceCelestrak, sourceSatnogs, sourceSpacetrack, spacetrackConfigured,
     isOrbitViewOpen, isTimelineOpen,
   } = useSatelliteStore(useShallow((s) => ({
     showTrajectories: s.showTrajectories,
@@ -42,6 +42,7 @@ export default function Header() {
     sourceCelestrak: s.sourceCelestrak,
     sourceSatnogs: s.sourceSatnogs,
     sourceSpacetrack: s.sourceSpacetrack,
+    spacetrackConfigured: s.spacetrackConfigured,
     isOrbitViewOpen: s.isOrbitViewOpen,
     isTimelineOpen: s.isTimelineOpen,
   })));
@@ -451,22 +452,33 @@ export default function Header() {
                         </div>
                       </label>
                       <label className={`flex items-start gap-2 p-2 rounded-lg border transition-colors cursor-pointer ${
-                        sourceSpacetrack ? 'bg-gray-800 border-gray-600' : 'bg-gray-800/30 border-gray-700 opacity-50'
+                        sourceSpacetrack && spacetrackConfigured !== false
+                          ? 'bg-gray-800 border-gray-600'
+                          : 'bg-gray-800/30 border-gray-700 opacity-50'
                       }`}>
                         <input
                           type="checkbox"
-                          checked={sourceSpacetrack}
+                          checked={sourceSpacetrack && spacetrackConfigured !== false}
+                          disabled={spacetrackConfigured === false}
                           onChange={toggleSourceSpacetrack}
-                          className="mt-0.5 accent-cyan-500 shrink-0"
+                          className="mt-0.5 accent-cyan-500 shrink-0 disabled:cursor-not-allowed"
                         />
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="text-[11px] font-medium text-gray-200">Space-Track</span>
                             <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Supplemental</span>
+                            {spacetrackConfigured === false && (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">Not configured</span>
+                            )}
                           </div>
                           <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">
-                            The NORAD catalogue directly, for objects CelesTrak omits &mdash; it publishes nothing numbered above 99999. Needs server credentials; without them this changes nothing.
+                            The NORAD catalogue directly, for objects CelesTrak omits &mdash; it publishes nothing numbered above 99999.
                           </p>
+                          {spacetrackConfigured === false && (
+                            <p className="text-[10px] text-red-400/90 mt-1 leading-relaxed">
+                              This deployment has no Space-Track account attached, so the source is inert. It is a server setting, not a sign-in: whoever runs the site adds SPACETRACK_IDENTITY and SPACETRACK_PASSWORD to the environment.
+                            </p>
+                          )}
                         </div>
                       </label>
                     </div>
