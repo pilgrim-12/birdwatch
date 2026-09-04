@@ -1,10 +1,14 @@
+import GlobeLoader from '@/components/GlobeLoader';
+
+/**
+ * Route-level fallback. It shows the same overlay the globe uses for its own
+ * warm-up, so the streamed placeholder and the real first paint are one
+ * continuous screen instead of two different spinners.
+ */
 export default function Loading() {
   return (
-    <div className="flex h-full items-center justify-center bg-gray-950">
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-600 border-t-blue-500" />
-        <span className="text-sm text-gray-400">Loading...</span>
-      </div>
+    <div className="relative flex-1 bg-gray-950">
+      <GlobeLoader stage="engine" done={false} />
     </div>
   );
 }

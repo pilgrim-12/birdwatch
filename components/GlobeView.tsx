@@ -18,6 +18,7 @@ import { useGlobeLighting } from '@/hooks/useGlobeLighting';
 import { useGlobeAnimation } from '@/hooks/useGlobeAnimation';
 import { useSatelliteModels } from '@/hooks/useSatelliteModels';
 import { CameraControls } from './CameraControls';
+import GlobeLoader, { type LoadStage } from './GlobeLoader';
 
 const Globe = dynamic(() => import('react-globe.gl'), { ssr: false });
 
@@ -123,6 +124,60 @@ export default function GlobeView() {
   useGlobeAnimation(globeRef, sunPosRef, stablePointsMapRef, satModelMapRef, labelPosRef, labelElsRef);
 
   const [orbitEpoch, setOrbitEpoch] = useState(0);
+
+  // ---- First-paint readiness (drives GlobeLoader) --------------------------
+  // Three signals, in the order the user waits on them: the 3D bundle mounting,
+  // the globe texture decoding, and the star backdrop arriving.
+  const [globeMounted, setGlobeMounted] = useState(false);
+  const [globeReady, setGlobeReady] = useState(false);
+  const [starsReady, setStarsReady] = useState(false);
+  const [loaderTimedOut, setLoaderTimedOut] = useState(false);
+
+  // Same module specifier as the dynamic() above, so this resolves the moment
+  // the (large) 3D chunk has landed rather than fetching it twice.
+  useEffect(() => {
+    let cancelled = false;
+    import('react-globe.gl').then(() => { if (!cancelled) setGlobeMounted(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // The star backdrop is loaded by three itself with no callback, so warm it
+  // here to know when it lands — the second request is served from cache.
+  useEffect(() => {
+    if (!nightMode) { setStarsReady(true); return; }
+    setStarsReady(false);
+    const img = new window.Image();
+    const settle = () => setStarsReady(true);
+    img.onload = settle;
+    img.onerror = settle; // a missing backdrop must not hold the loader hostage
+    img.src = '/night-sky.png';
+    return () => { img.onload = null; img.onerror = null; };
+  }, [nightMode]);
+
+  // Never trap the user behind the overlay if a texture or the bundle stalls.
+  useEffect(() => {
+    const t = setTimeout(() => setLoaderTimedOut(true), 20_000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const loadStage: LoadStage = !globeMounted
+    ? 'engine'
+    : !(globeReady && starsReady)
+      ? 'textures'
+      : 'satellites';
+  const sceneReady = globeReady && starsReady;
+
+  // Hold the overlay for the first orbits too, but only briefly — if CelesTrak
+  // is slow or down, the globe itself is still worth showing.
+  const [orbitsGraceOver, setOrbitsGraceOver] = useState(false);
+  useEffect(() => {
+    if (!sceneReady) return;
+    const t = setTimeout(() => setOrbitsGraceOver(true), 4000);
+    return () => clearTimeout(t);
+  }, [sceneReady]);
+
+  const loaderDone =
+    loaderTimedOut || (sceneReady && (positions.size > 0 || orbitsGraceOver));
 
   // Resize observer
   useEffect(() => {
@@ -515,10 +570,12 @@ export default function GlobeView() {
 
   return (
     <div ref={containerRef} className="w-full h-full relative z-0">
+      <GlobeLoader stage={loadStage} done={loaderDone} />
       <CameraControls globeRef={globeRef} />
       {dimensions.width > 0 && (
         <Globe
           ref={globeRef}
+          onGlobeReady={() => setGlobeReady(true)}
           width={dimensions.width}
           height={dimensions.height}
           globeImageUrl={nightMode ? '/earth-night-4k.jpg' : '/earth-day-4k.jpg'}

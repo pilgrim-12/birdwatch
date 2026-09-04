@@ -14,3 +14,26 @@ html {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* First-paint loader (see components/GlobeLoader.tsx) */
+@keyframes bw-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes bw-breathe {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+.bw-orbit {
+  animation: bw-orbit 4s linear infinite;
+}
+.bw-breathe {
+  animation: bw-breathe 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bw-orbit,
+  .bw-breathe {
+    animation: none;
+  }
+}
