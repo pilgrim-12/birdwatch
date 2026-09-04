@@ -6,6 +6,21 @@ import { parseRecords, serialize, mergeMissing, isFresh, type TleRecord } from '
 export const revalidate = 3600; // 1 hour cache
 
 /**
+ * Served from Vercel's edge cache so a page load does not reach the function
+ * at all: upstream load then scales with time, not with traffic, which is what
+ * keeps us inside Space-Track's per-account rate limit. stale-while-revalidate
+ * lets the edge answer instantly from the previous copy while it refreshes, so
+ * an upstream outage degrades to slightly old elements instead of nothing.
+ */
+const CACHE_HEADERS = {
+  'Content-Type': 'text/plain; charset=utf-8',
+  'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+};
+
+/** Failures must never be pinned at the edge — a bad minute would last an hour. */
+const NO_CACHE = { 'Cache-Control': 'no-store' };
+
+/**
  * Groups CelesTrak has no GROUP= feed for: we search the catalogue by name
  * instead. These are also the groups Space-Track can supplement, since it
  * indexes by object name too.
@@ -44,7 +59,7 @@ export async function GET(
   if (!ALLOWED_GROUPS.includes(group as SatelliteGroup)) {
     return NextResponse.json(
       { error: `Invalid group. Allowed: ${ALLOWED_GROUPS.join(', ')}` },
-      { status: 400 },
+      { status: 400, headers: NO_CACHE },
     );
   }
 
@@ -60,7 +75,7 @@ export async function GET(
       if (!response.ok) {
         return NextResponse.json(
           { error: `CelesTrak returned ${response.status}` },
-          { status: 502 },
+          { status: 502, headers: NO_CACHE },
         );
       }
 
@@ -93,17 +108,18 @@ export async function GET(
       if (!response.ok) {
         return NextResponse.json(
           { error: `CelesTrak returned ${response.status}` },
-          { status: 502 },
+          { status: 502, headers: NO_CACHE },
         );
       }
 
       text = await response.text();
     }
 
-    return new NextResponse(text, {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-    });
+    return new NextResponse(text, { headers: CACHE_HEADERS });
   } catch {
-    return NextResponse.json({ error: 'Failed to fetch TLE data' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch TLE data' },
+      { status: 500, headers: NO_CACHE },
+    );
   }
 }
