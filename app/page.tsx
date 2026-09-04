@@ -34,6 +34,7 @@ export default function Home() {
   const satnogsLoaded = useSatelliteStore((s) => s.satnogsLoaded);
   const sourceCelestrak = useSatelliteStore((s) => s.sourceCelestrak);
   const sourceSatnogs = useSatelliteStore((s) => s.sourceSatnogs);
+  const sourceSpacetrack = useSatelliteStore((s) => s.sourceSpacetrack);
   const mapMode = useSatelliteStore((s) => s.mapMode);
   const showGroundStations = useSatelliteStore((s) => s.showGroundStations);
   const setGroundStations = useSatelliteStore((s) => s.setGroundStations);
@@ -85,7 +86,7 @@ export default function Home() {
     async function fetchGroup(group: string) {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          const res = await fetch(`/api/tle/${group}`);
+          const res = await fetch(`/api/tle/${group}${sourceSpacetrack ? '?st=1' : ''}`);
           if (res.ok) return { group, tles: parseTLEText(await res.text()) };
         } catch {
           /* network hiccup — fall through to the retry */
@@ -183,7 +184,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, activeGroups, sourceCelestrak, setSatellites, setMassSatellites, addToast]);
+  }, [hydrated, activeGroups, sourceCelestrak, sourceSpacetrack, setSatellites, setMassSatellites, addToast]);
 
   // Fetch SatNOGS enrichment data (non-blocking)
   useEffect(() => {

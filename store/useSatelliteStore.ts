@@ -153,8 +153,11 @@ interface SatelliteStore {
   // Data sources toggles (persisted)
   sourceCelestrak: boolean;
   sourceSatnogs: boolean;
+  /** Supplement CelesTrak with the NORAD catalogue directly (needs server credentials) */
+  sourceSpacetrack: boolean;
   toggleSourceCelestrak: () => void;
   toggleSourceSatnogs: () => void;
+  toggleSourceSpacetrack: () => void;
 
   // Satellite collection (persisted)
   collectionSatIds: number[];
@@ -364,8 +367,10 @@ export const useSatelliteStore = create<SatelliteStore>()(
   // Data sources toggles
   sourceCelestrak: true,
   sourceSatnogs: true,
+  sourceSpacetrack: true,
   toggleSourceCelestrak: () => set((s) => ({ sourceCelestrak: !s.sourceCelestrak })),
   toggleSourceSatnogs: () => set((s) => ({ sourceSatnogs: !s.sourceSatnogs, satnogsLoaded: false })),
+  toggleSourceSpacetrack: () => set((s) => ({ sourceSpacetrack: !s.sourceSpacetrack })),
 
   // Satellite collection
   collectionSatIds: [],
@@ -408,6 +413,7 @@ export const useSatelliteStore = create<SatelliteStore>()(
         mapMode: state.mapMode,
         sourceCelestrak: state.sourceCelestrak,
         sourceSatnogs: state.sourceSatnogs,
+        sourceSpacetrack: state.sourceSpacetrack,
         collectionSatIds: state.collectionSatIds,
         collectionTLEs: state.collectionTLEs,
         timeWindowSec: state.timeWindowSec,

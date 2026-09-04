@@ -31,7 +31,7 @@ export default function MobileMenu() {
     showLookLine, showGroundLine, showFootprint, showFlags,
     showGroundStations, statusFilter,
     activeGroups, countryFilter, observer,
-    mapMode, sourceCelestrak, sourceSatnogs,
+    mapMode, sourceCelestrak, sourceSatnogs, sourceSpacetrack,
     isMobileMenuOpen, isOrbitViewOpen, isTimelineOpen,
   } = useSatelliteStore(useShallow((s) => ({
     showTrajectories: s.showTrajectories,
@@ -53,6 +53,7 @@ export default function MobileMenu() {
     mapMode: s.mapMode,
     sourceCelestrak: s.sourceCelestrak,
     sourceSatnogs: s.sourceSatnogs,
+    sourceSpacetrack: s.sourceSpacetrack,
     isMobileMenuOpen: s.isMobileMenuOpen,
     isOrbitViewOpen: s.isOrbitViewOpen,
     isTimelineOpen: s.isTimelineOpen,
@@ -63,7 +64,7 @@ export default function MobileMenu() {
     toggleLookLine, toggleGroundLine, toggleFootprint, toggleFlags,
     toggleGroundStations,
     toggleNightMode, toggleGroup, toggleOrbitView, toggleMapMode, toggleTimeline,
-    toggleSourceCelestrak, toggleSourceSatnogs,
+    toggleSourceCelestrak, toggleSourceSatnogs, toggleSourceSpacetrack,
     setBeamOpacity, setBeamWidth, setBeamSpeed,
     setActiveGroups, setCountryFilter, setObserver,
     setStatusFilter,
@@ -84,6 +85,7 @@ export default function MobileMenu() {
     toggleMapMode: s.toggleMapMode,
     toggleSourceCelestrak: s.toggleSourceCelestrak,
     toggleSourceSatnogs: s.toggleSourceSatnogs,
+    toggleSourceSpacetrack: s.toggleSourceSpacetrack,
     setStatusFilter: s.setStatusFilter,
     setBeamOpacity: s.setBeamOpacity,
     setBeamWidth: s.setBeamWidth,
@@ -294,6 +296,25 @@ export default function MobileMenu() {
               </div>
               <p className="text-xs text-gray-500 mt-1 leading-relaxed">
                 Satellite metadata &amp; transmitters. Status, operator, launch date, frequencies.
+              </p>
+            </div>
+          </label>
+          <label className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+            sourceSpacetrack ? 'bg-gray-800 border-gray-600' : 'bg-gray-800/30 border-gray-700 opacity-50'
+          }`}>
+            <input
+              type="checkbox"
+              checked={sourceSpacetrack}
+              onChange={toggleSourceSpacetrack}
+              className="mt-0.5 accent-cyan-500 w-4 h-4 shrink-0"
+            />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium text-gray-200">Space-Track</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Supplemental</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                The NORAD catalogue directly, for objects CelesTrak omits. Needs server credentials.
               </p>
             </div>
           </label>
